@@ -1,13 +1,12 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  let {query, type, execute} = $props();
 
-  type ListItem = {
-    name: string;
-    executable: string;
-  };
+  let { query, type, execute } = $props();
+
+  type ListItem = { name: string; executable: string };
 
   let listitems: ListItem[] = $state([]);
+
   let error: string | null = $state(null);
 
   async function loadApps() {
@@ -25,16 +24,34 @@
   async function handleClick(app: ListItem) {
     execute(app.executable);
   }
+
+  function fuzzySearch(str: string, query: string): boolean {
+    str = str.toLowerCase();
+    query = query.toLowerCase();
+    let i = 0,
+      lastSearched = -1,
+      current = query[i];
+    while (current) {
+      lastSearched = str.indexOf(current, lastSearched + 1);
+      if (lastSearched === -1) return false;
+      current = query[++i];
+    }
+    return true;
+  }
+
+  let filteredItems = $derived(
+    listitems.filter((item) => fuzzySearch(item.name, query)),
+  );
 </script>
 
 {#if error}
   <div class="error">{error}</div>
 {:else}
-    {#each listitems as item}
-      <div on:click={() => handleClick(item)} class="app-item">
-        {item.name}
-      </div>
-    {/each}
+  {#each filteredItems as item}
+    <div on:click={() => handleClick(item)} class="app-item">
+      {item.name}
+    </div>
+  {/each}
 {/if}
 
 <style>
@@ -42,7 +59,7 @@
     padding: 8px 14px;
     margin: 0;
     cursor: pointer;
-    background-color: #EFEFEF;
+    color: black;
   }
 
   .app-item:hover {
