@@ -61,8 +61,12 @@ fn get_apps() -> Vec<ListItem> {
 
 #[tauri::command]
 fn run_app(executable: &str) -> Result<(), String> {
-    Command::new(executable)
-        .spawn()
+    let parts: Vec<&str> = executable.split_whitespace().collect();
+    let executable = parts[0];
+    let args = &parts[1..];
+    Command::new(executable).args(args).spawn()
+    // Command::new(executable)
+    //     .spawn()
         .map_err(|e| format!("Failed to run {}: {}", executable, e))?;
     Ok(())
 }

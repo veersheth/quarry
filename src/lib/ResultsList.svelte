@@ -2,18 +2,18 @@
   import { invoke } from "@tauri-apps/api/core";
   export let query;
 
-  type AppInfo = {
+  type ListItem = {
     name: string;
     executable: string;
   };
 
-  let apps: AppInfo[] = [];
+  let listitems: ListItem[] = [];
   let error: string | null = null;
 
   async function loadApps() {
     try {
-      const res = await invoke<AppInfo[]>("get_apps");
-      apps = res;
+      const res = await invoke<ListItem[]>("get_apps");
+      listitems = res;
     } catch (e) {
       console.error(e);
       error = "Failed to fetch apps from Tauri backend.";
@@ -22,7 +22,7 @@
 
   loadApps();
 
-  async function handleClick(app: AppInfo) {
+  async function handleClick(app: ListItem) {
     try {
       await invoke("run_app", { executable: app.executable });
       console.log(`Launched ${app.name}`);
@@ -37,16 +37,20 @@
   <div class="error">{error}</div>
 {:else}
   <ul>
-    {#each apps as app}
-      <div on:click={() => handleClick(app)} class="app-item">
-        {app.name}
+    {#each listitems as item}
+      <div on:click={() => handleClick(item)} class="app-item">
+        {item.name}
       </div>
     {/each}
   </ul>
 {/if}
 
 <style>
-  ul {
-    /* background-color: red; */
+  .app-item {
+    cursor: pointer;
+  }
+
+  .app-item:hover {
+    background-color: #ffffff;
   }
 </style>
