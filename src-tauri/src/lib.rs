@@ -40,9 +40,15 @@ fn get_apps() -> Vec<ListItem> {
                     }
 
                     if !name.is_empty() && !exec.is_empty() {
+                        let exec_clean = exec
+                            .split_whitespace()
+                            .filter(|part| !part.starts_with('%'))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
                         apps.push(ListItem {
                             name,
-                            executable: exec,
+                            executable: exec_clean,
                         });
                     }
                 }
