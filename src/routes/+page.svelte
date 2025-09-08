@@ -17,7 +17,7 @@
     />
 
     <div class="results">
-      <ResultsList />
+      <ResultsList {query} {type}/>
     </div>
   </div>
 </main>
@@ -26,23 +26,34 @@
   .container {
     background-color: #dbdbdb;
     display: flex;
-    flex-direction: column;
+    flex: 1;
     height: 95vh;
+    flex-direction: column;
     margin: 0;
     padding: 0;
+    overflow: none;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    max-height: 95vh;
   }
 
   .search {
-    display: block;
     width: 100%;
-    padding: 1rem;
+    display: block;
+    padding: 10px;
+    margin: 4px auto;
     box-sizing: border-box; 
   }
 
   .results {
-    display: block;
-    width: 100%;
-    padding: 1rem;
-    box-sizing: border-box; 
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    overflow-y: auto;
+    box-sizing: border-box;
   }
 </style>

@@ -13,11 +13,11 @@
     "windows": [
       {
         "title": "quaere",
-        "width": 900,
-        "height": 600,
+        "width": 1300,
+        "height": 900,
         "decorations": false,
         "transparent": true,
-        "resizable": false,
+        "resizable": true,
         "alwaysOnTop": true,
         "visible": true,
         "focus": true,
