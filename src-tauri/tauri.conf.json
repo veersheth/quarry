@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "quaere",
+  "productName": "quarry",
   "version": "0.1.0",
-  "identifier": "com.quaere.app",
+  "identifier": "com.quarry.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "quaere",
+        "title": "quarry",
         "width": 1300,
         "height": 900,
         "decorations": false,

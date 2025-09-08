@@ -5,10 +5,12 @@
 
   let query: string = "";
   let type: string = "apps";
-  
+
   async function execute(executable: String) {
     try {
-      const res = await invoke<ListItem[]>("execute", {executable: executable});
+      const res = await invoke<ListItem[]>("execute", {
+        executable: executable,
+      });
     } catch (e) {
       console.error(e);
     }
@@ -27,14 +29,13 @@
     />
 
     <div class="results">
-      <ResultsList {query} {type} {execute}/>
+      <ResultsList {query} {type} {execute} />
     </div>
   </div>
 </main>
 
 <style>
   .container {
-    background-color: #dbdbdb;
     display: flex;
     flex: 1;
     height: 95vh;
@@ -42,6 +43,11 @@
     margin: 0;
     padding: 0;
     overflow: none;
+
+    * {
+      background-color: #1a1a1a;
+      color: #ffffff;
+    }
   }
 
   .panel {
@@ -54,9 +60,15 @@
   .search {
     width: 100%;
     display: block;
-    padding: 10px;
+    padding: 20px;
     margin: 0;
-    box-sizing: border-box; 
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    border: none;
+    border-bottom: solid 1px white;
+    outline: none;
+    background: none;
+    height: 50px;
   }
 
   .results {

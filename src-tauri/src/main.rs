@@ -3,5 +3,5 @@
 
 fn main() {
     print!("Hello");
-    quaere_lib::run();
+    quarry_lib::run();
 }

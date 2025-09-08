@@ -7,23 +7,21 @@
 
   let listitems: ListItem[] = $state([]);
 
-  let error: string | null = $state(null);
-
   async function loadApps() {
     try {
-      const res = await invoke<ListItem[]>("get_apps");
-      listitems = res;
+      listitems = await invoke<ListItem[]>("get_apps");
     } catch (e) {
       console.error(e);
-      error = "Failed to fetch apps from Tauri backend.";
+      listitems = [
+        {
+          name: "Couldn't resolve apps from backend",
+          executable: "notify-send 'Error'",
+        },
+      ];
     }
   }
 
   loadApps();
-
-  async function handleClick(app: ListItem) {
-    execute(app.executable);
-  }
 
   function fuzzySearch(str: string, query: string): boolean {
     str = str.toLowerCase();
@@ -44,25 +42,40 @@
   );
 </script>
 
-{#if error}
-  <div class="error">{error}</div>
-{:else}
+<div class="app-list">
   {#each filteredItems as item}
-    <div on:click={() => handleClick(item)} class="app-item">
-      {item.name}
-    </div>
+    <button on:click={() => execute(item.executable)} class="app-item">
+      <span>{item.name}</span>
+    </button>
   {/each}
-{/if}
+</div>
 
 <style>
-  .app-item {
-    padding: 8px 14px;
-    margin: 0;
-    cursor: pointer;
-    color: black;
+  .app-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px 0;
   }
 
-  .app-item:hover {
-    background-color: #ffffff;
+  .app-item {
+    display: block;
+    width: auto;
+    padding: 10px 18px;
+    margin: 0 12px;
+    border: none;
+    border-radius: 12px;
+    background: none;
+    text-align: left;
+    color: #e0e0e0;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  .app-item:hover,
+  .app-item:focus-visible {
+    background-color: #ffffff15;
+    border: none;
+    outline: none;
   }
 </style>
