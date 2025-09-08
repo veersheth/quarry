@@ -60,7 +60,7 @@ fn get_apps() -> Vec<ListItem> {
 }
 
 #[tauri::command]
-fn run_app(executable: &str) -> Result<(), String> {
+fn execute(executable: &str) -> Result<(), String> {
     let parts: Vec<&str> = executable.split_whitespace().collect();
     let executable = parts[0];
     let args = &parts[1..];
@@ -75,7 +75,7 @@ fn run_app(executable: &str) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_apps, run_app])
+        .invoke_handler(tauri::generate_handler![greet, get_apps, execute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

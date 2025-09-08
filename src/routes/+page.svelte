@@ -1,9 +1,19 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import ResultsList from "../lib/ResultsList.svelte";
   // import ResultsGrid from "../lib/ResultsGrid.svelte";
 
   let query: string = "";
   let type: string = "apps";
+  
+  async function execute(executable: String) {
+    try {
+      const res = await invoke<ListItem[]>("execute", {executable: executable});
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   let view: "list" | "grid" = "list";
 </script>
 
@@ -17,7 +27,7 @@
     />
 
     <div class="results">
-      <ResultsList {query} {type}/>
+      <ResultsList {query} {type} {execute}/>
     </div>
   </div>
 </main>
@@ -45,7 +55,7 @@
     width: 100%;
     display: block;
     padding: 10px;
-    margin: 4px auto;
+    margin: 0;
     box-sizing: border-box; 
   }
 
