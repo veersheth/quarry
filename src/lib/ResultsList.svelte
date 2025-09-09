@@ -45,7 +45,8 @@
 <div class="app-list">
   {#each filteredItems as item}
     <button on:click={() => execute(item.executable)} class="app-item">
-      <span>{item.name}</span>
+      <span class="item-name">{item.name}</span>
+      <span class="item-desc">This is a description</span>
     </button>
   {/each}
 </div>
@@ -72,9 +73,16 @@
     box-sizing: border-box;
   }
 
-  .app-item:hover, .app-item:focus-visible {
+  .app-item:hover,
+  .app-item:focus-visible {
     background-color: #a3c6ff10;
     border: none;
     outline: none;
+  }
+
+  .item-desc {
+    opacity: 0.4;
+    margin: auto 0.7rem;
+    font-size: 16px;
   }
 </style>

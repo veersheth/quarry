@@ -8,7 +8,7 @@
 
   async function execute(executable: String) {
     try {
-      const res = await invoke<ListItem[]>("execute", {
+      const res = await invoke<any[]>("execute", {
         executable: executable,
       });
     } catch (e) {
@@ -38,16 +38,16 @@
   .container {
     display: flex;
     flex: 1;
-    height: 95vh;
+    height: calc(100vh - 20px);
     flex-direction: column;
     margin: 0;
     padding: 0;
     overflow: hidden;
     background-color: #1a1a1a;
-    border: 1px solid #ffffff20;
+    border: 2px solid #ffffff20;
     border-radius: 8px;
     * {
-      color: #ffffff95;
+      color: #ffffffF8;
     }
   }
 
