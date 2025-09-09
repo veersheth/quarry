@@ -42,11 +42,12 @@
     flex-direction: column;
     margin: 0;
     padding: 0;
-    overflow: none;
-
+    overflow: hidden;
+    background-color: #1a1a1a;
+    border: 1px solid #ffffff20;
+    border-radius: 8px;
     * {
-      background-color: #1a1a1a;
-      color: #ffffff;
+      color: #ffffff95;
     }
   }
 
@@ -65,7 +66,7 @@
     margin-bottom: 10px;
     box-sizing: border-box;
     border: none;
-    border-bottom: solid 1px white;
+    border-bottom: 1px solid #ffffff20;
     outline: none;
     background: none;
     height: 50px;

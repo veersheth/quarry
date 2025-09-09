@@ -61,8 +61,8 @@
   .app-item {
     display: block;
     width: auto;
-    padding: 10px 18px;
-    margin: 0 12px;
+    padding: 12px 18px;
+    margin: 0 8px;
     border: none;
     border-radius: 12px;
     background: none;
@@ -72,9 +72,8 @@
     box-sizing: border-box;
   }
 
-  .app-item:hover,
-  .app-item:focus-visible {
-    background-color: #ffffff15;
+  .app-item:hover, .app-item:focus-visible {
+    background-color: #a3c6ff10;
     border: none;
     outline: none;
   }
