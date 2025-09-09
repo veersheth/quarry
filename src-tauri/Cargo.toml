@@ -25,4 +25,5 @@ serde_json = "1"
 dirs = "6.0.0"
 desktopentries = "0.1.2"
 freedesktop-desktop-entry = "0.7.14"
+base64 = "0.22.1"
 

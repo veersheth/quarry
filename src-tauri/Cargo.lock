@@ -2938,6 +2938,7 @@ dependencies = [
 name = "quarry"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "desktopentries",
  "dirs",
  "freedesktop-desktop-entry",
