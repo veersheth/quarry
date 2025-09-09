@@ -3,7 +3,12 @@
 
   let { query, type, execute } = $props();
 
-  type ListItem = { name: string; executable: string };
+  type ListItem = {
+    name: string;
+    exec: string;
+    description?: string;
+    icon?: string;
+  };
 
   let listitems: ListItem[] = $state([]);
 
@@ -15,7 +20,7 @@
       listitems = [
         {
           name: "Couldn't resolve apps from backend",
-          executable: "notify-send 'Error'",
+          exec: "notify-send 'Error'",
         },
       ];
     }
@@ -40,13 +45,20 @@
   let filteredItems = $derived(
     listitems.filter((item) => fuzzySearch(item.name, query)),
   );
+
+  function truncate(str: string | undefined, maxLength: number): string {
+    if (!str) return "";
+    return str.length > maxLength ? str.slice(0, maxLength) + "…" : str;
+  }
 </script>
 
 <div class="app-list">
   {#each filteredItems as item}
-    <button on:click={() => execute(item.executable)} class="app-item">
+    <!-- <button onclick={() => execute(item.exec)} class="app-item"> -->
+    <button onclick={() => alert(item.icon)} class="app-item">
+        <img class="item-icon" src={item.icon} alt=""/>
       <span class="item-name">{item.name}</span>
-      <span class="item-desc">This is a description</span>
+      <span class="item-desc">{truncate(item.description, 70)}</span>
     </button>
   {/each}
 </div>
@@ -60,7 +72,7 @@
   }
 
   .app-item {
-    display: block;
+    display: flex;
     width: auto;
     padding: 12px 18px;
     margin: 0 8px;
@@ -70,7 +82,6 @@
     text-align: left;
     color: #e0e0e0;
     cursor: pointer;
-    box-sizing: border-box;
   }
 
   .app-item:hover,
@@ -80,9 +91,17 @@
     outline: none;
   }
 
+  .item-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .item-name {
+    margin: auto 0.7rem;
+  }
+
   .item-desc {
     opacity: 0.4;
-    margin: auto 0.7rem;
     font-size: 16px;
   }
 </style>
