@@ -1,20 +1,42 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import ResultsList from "../lib/ResultsList.svelte";
-  // import ResultsGrid from "../lib/ResultsGrid.svelte";
 
   let query: string = "";
   let type: string = "apps";
 
-  async function execute(executable: String) {
+  type ListItem = {
+    name: string;
+    exec: string;
+    description?: string;
+    icon?: string;
+  };
+
+  let listitems: ListItem[] = [];
+
+  async function execute(executable: string) {
     try {
-      const res = await invoke<any[]>("execute", {
-        executable: executable,
-      });
+      await invoke("execute", { executable });
     } catch (e) {
       console.error(e);
     }
   }
+
+  async function loadApps() {
+    try {
+      listitems = await invoke<ListItem[]>("get_apps");
+    } catch (e) {
+      console.error(e);
+      listitems = [
+        {
+          name: "Couldn't resolve apps from backend",
+          exec: "notify-send 'Error'",
+        },
+      ];
+    }
+  }
+
+  loadApps();
 
   let view: "list" | "grid" = "list";
 </script>
@@ -29,7 +51,7 @@
     />
 
     <div class="results">
-      <ResultsList {query} {type} {execute} />
+      <ResultsList {listitems} {query} {execute} />
     </div>
   </div>
 </main>
@@ -47,17 +69,15 @@
     border: 2px solid #ffffff20;
     border-radius: 8px;
     * {
-      color: #ffffffF8;
+      color: #fffffff8;
     }
   }
-
   .panel {
     display: flex;
     flex-direction: column;
     flex: 1;
     max-height: 95vh;
   }
-
   .search {
     width: 100%;
     display: block;
@@ -71,7 +91,6 @@
     background: none;
     height: 50px;
   }
-
   .results {
     margin: 0;
     padding: 0;

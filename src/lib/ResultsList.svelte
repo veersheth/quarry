@@ -1,32 +1,13 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
-
-  let { query, type, execute } = $props();
-
-  type ListItem = {
+  export let listitems: {
     name: string;
     exec: string;
     description?: string;
     icon?: string;
-  };
+  }[] = [];
 
-  let listitems: ListItem[] = $state([]);
-
-  async function loadApps() {
-    try {
-      listitems = await invoke<ListItem[]>("get_apps");
-    } catch (e) {
-      console.error(e);
-      listitems = [
-        {
-          name: "Couldn't resolve apps from backend",
-          exec: "notify-send 'Error'",
-        },
-      ];
-    }
-  }
-
-  loadApps();
+  export let query: string = "";
+  export let execute: (exec: string) => Promise<void>;
 
   function fuzzySearch(str: string, query: string): boolean {
     str = str.toLowerCase();
@@ -42,9 +23,7 @@
     return true;
   }
 
-  let filteredItems = $derived(
-    listitems.filter((item) => fuzzySearch(item.name, query)),
-  );
+  $: filteredItems = listitems.filter((item) => fuzzySearch(item.name, query));
 
   function truncate(str: string | undefined, maxLength: number): string {
     if (!str) return "";
@@ -54,11 +33,12 @@
 
 <div class="app-list">
   {#each filteredItems as item}
-    <!-- <button onclick={() => execute(item.exec)} class="app-item"> -->
-    <button onclick={() => alert(item.icon)} class="app-item">
-        <img class="item-icon" src={item.icon} alt=""/>
+    <button on:click={async () => await execute(item.exec)} class="app-item">
+      {#if item.icon}<img class="item-icon" src={item.icon} alt="" />{/if}
       <span class="item-name">{item.name}</span>
-      <span class="item-desc">{truncate(item.description, 70)}</span>
+      {#if item.description}
+        <span class="item-desc">{truncate(item.description, 70)}</span>
+      {/if}
     </button>
   {/each}
 </div>
@@ -70,7 +50,6 @@
     gap: 2px;
     padding: 5px 0;
   }
-
   .app-item {
     display: flex;
     width: auto;
@@ -83,23 +62,19 @@
     color: #e0e0e0;
     cursor: pointer;
   }
-
   .app-item:hover,
   .app-item:focus-visible {
     background-color: #a3c6ff10;
     border: none;
     outline: none;
   }
-
   .item-icon {
     width: 20px;
     height: 20px;
   }
-
   .item-name {
     margin: auto 0.7rem;
   }
-
   .item-desc {
     opacity: 0.4;
     font-size: 16px;
