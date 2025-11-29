@@ -32,6 +32,21 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      query = "";
+      return;
+    }
+
+    if (event.key === "w" && event.ctrlKey) {
+      event.preventDefault();
+      // Delete last word
+      const trimmed = query.trimEnd();
+      const lastSpaceIndex = trimmed.lastIndexOf(" ");
+      query = lastSpaceIndex === -1 ? "" : trimmed.substring(0, lastSpaceIndex);
+      return;
+    }
+
     if (listitems.length === 0) return;
 
     if (event.key === "Tab" && !event.shiftKey) {
@@ -85,7 +100,11 @@
     border-radius: 8px;
     * {
       color: #fffffff8;
-      font-family: Segoe UI, Inter, Adwaita Sans, sans-serif;
+      font-family:
+        Segoe UI,
+        Inter,
+        Adwaita Sans,
+        sans-serif;
     }
   }
   .panel {
