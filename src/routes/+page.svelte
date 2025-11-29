@@ -98,14 +98,10 @@
     overflow: hidden;
     background-color: #1a1a1a;
     border: 1px solid #ffffff20;
-    border-radius: 8px;
+    border-radius: 14px;
     * {
       color: #fffffff8;
-      font-family:
-        Segoe UI,
-        Inter,
-        Adwaita Sans,
-        sans-serif;
+      font-family: Segoe UI, Inter, Adwaita Sans, sans-serif; 
     }
   }
   .panel {
