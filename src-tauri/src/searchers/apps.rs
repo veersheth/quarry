@@ -1,5 +1,6 @@
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use std::borrow::Cow;
+use super::SearchProvider;
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ListItem {
@@ -42,16 +43,32 @@ pub fn get_apps() -> Vec<ListItem> {
             .or_else(|| entry.comment::<&str>(&[]))
             .map(|s| s.to_string());
 
-        let icon = None;
-
         apps.push(ListItem {
             name,
             exec,
             description,
-            icon,
+            icon: None,
         });
     }
 
     apps
+}
+
+pub struct AppSearcher;
+
+impl SearchProvider for AppSearcher {
+    fn search(&self, query: &str) -> Vec<ListItem> {
+        let items = get_apps();
+        let q = query.to_lowercase();
+
+        items
+            .into_iter()
+            .filter(|item| {
+                item.name.to_lowercase().contains(&q)
+                    || item.description.as_ref().map_or(false, |d| d.to_lowercase().contains(&q))
+                    || item.exec.as_ref().map_or(false, |e| e.to_lowercase().contains(&q))
+            })
+            .collect()
+    }
 }
 

@@ -1,28 +1,17 @@
 mod searchers;
-use searchers::apps::{self, ListItem};
+use searchers::apps::{AppSearcher, ListItem};
+use searchers::emojis::EmojiSearcher;
+use searchers::SearchProvider;
 
 use std::process::Command;
 
 #[tauri::command]
 fn search(query: &str) -> Vec<ListItem> {
-    let apps_list = apps::get_apps();
+    if let Some(rest) = query.strip_prefix("em ") {
+        return EmojiSearcher.search(rest);
+    }
 
-    let query_lower = query.to_lowercase();
-
-    apps_list
-        .into_iter()
-        .filter(|item| {
-            item.name.to_lowercase().contains(&query_lower)
-                || item
-                    .description
-                    .as_ref()
-                    .map_or(false, |d| d.to_lowercase().contains(&query_lower))
-                || item
-                    .exec
-                    .as_ref()
-                    .map_or(false, |e| e.to_lowercase().contains(&query_lower))
-        })
-        .collect()
+    AppSearcher.search(query)
 }
 
 #[tauri::command]
@@ -47,3 +36,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
