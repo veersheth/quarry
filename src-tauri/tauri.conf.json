@@ -13,11 +13,11 @@
     "windows": [
       {
         "title": "quarry",
-        "width": 1300,
-        "height": 900,
+        "width": 1200,
+        "height": 700,
         "decorations": false,
         "transparent": true,
-        "resizable": true,
+        "resizable": false,
         "alwaysOnTop": true,
         "visible": true,
         "focus": true,
