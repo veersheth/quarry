@@ -2,9 +2,6 @@
   import { invoke } from "@tauri-apps/api/core";
   import ResultsList from "../lib/ResultsList.svelte";
 
-  let query: string = "";
-  let type: string = "apps";
-
   type ListItem = {
     name: string;
     exec: string;
@@ -12,6 +9,7 @@
     icon?: string;
   };
 
+  let query: string = "";
   let listitems: ListItem[] = [];
 
   async function execute(executable: string) {
@@ -22,23 +20,19 @@
     }
   }
 
-  async function loadApps() {
+  async function search() {
     try {
-      listitems = await invoke<ListItem[]>("get_apps");
+      listitems = await invoke<ListItem[]>("search", { query });
     } catch (e) {
       console.error(e);
       listitems = [
-        {
-          name: "Couldn't resolve apps from backend",
-          exec: "notify-send 'Error'",
-        },
+        { name: "Error fetching results", exec: "notify-send 'Error'" },
       ];
     }
   }
 
-  loadApps();
-
-  let view: "list" | "grid" = "list";
+  // Trigger search every time query changes
+  $: if (query !== undefined) search();
 </script>
 
 <main class="container">
@@ -51,7 +45,7 @@
     />
 
     <div class="results">
-      <ResultsList {listitems} {query} {execute} />
+      <ResultsList {listitems} {execute} />
     </div>
   </div>
 </main>

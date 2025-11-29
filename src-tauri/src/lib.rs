@@ -1,64 +1,28 @@
-use base64;
-use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
-use std::fs;
-use std::path::PathBuf;
+mod searchers;
+use searchers::apps::{self, ListItem};
+
 use std::process::Command;
-use std::borrow::Cow;
-
-#[derive(serde::Serialize)]
-struct ListItem {
-    name: String,
-    exec: Option<String>,
-    description: Option<String>,
-    icon: Option<String>,
-}
-
-fn clean_exec_field(exec: &str) -> String {
-    exec.split_whitespace()
-        .filter(|part| !part.starts_with('%'))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
 
 #[tauri::command]
-fn get_apps() -> Vec<ListItem> {
+fn search(query: &str) -> Vec<ListItem> {
+    let apps_list = apps::get_apps();
 
-    let mut apps = Vec::new();
-    let locales = get_languages_from_env();
+    let query_lower = query.to_lowercase();
 
-    let entries = Iter::new(default_paths())
-        .entries(Some(&locales))
-        .collect::<Vec<_>>();
-
-    for entry in entries {
-        if entry.no_display() || entry.hidden() {
-            continue;
-        }
-
-        let name = entry
-            .name(&locales)
-            .or_else(|| entry.name::<&str>(&[])) 
-            .unwrap_or(Cow::Borrowed("Unknown"))
-            .to_string();
-
-        let exec = entry.exec().map(clean_exec_field);
-
-        let description = entry
-            .comment(&locales)
-            .or_else(|| entry.comment::<&str>(&[]))
-            .map(|s| s.to_string());
-
-        let icon = None; // TODO
-
-        apps.push(ListItem {
-            name,
-            exec,
-            description,
-            icon,
-        });
-    }
-
-    apps
+    apps_list
+        .into_iter()
+        .filter(|item| {
+            item.name.to_lowercase().contains(&query_lower)
+                || item
+                    .description
+                    .as_ref()
+                    .map_or(false, |d| d.to_lowercase().contains(&query_lower))
+                || item
+                    .exec
+                    .as_ref()
+                    .map_or(false, |e| e.to_lowercase().contains(&query_lower))
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -79,7 +43,7 @@ fn execute(executable: &str) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_apps, execute])
+        .invoke_handler(tauri::generate_handler![search, execute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
