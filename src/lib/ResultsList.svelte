@@ -5,25 +5,7 @@
     description?: string;
     icon?: string;
   }[] = [];
-
-  export let query: string = "";
-  export let execute: (exec: string) => Promise<void>;
-
-  function fuzzySearch(str: string, query: string): boolean {
-    str = str.toLowerCase();
-    query = query.toLowerCase();
-    let i = 0,
-      lastSearched = -1,
-      current = query[i];
-    while (current) {
-      lastSearched = str.indexOf(current, lastSearched + 1);
-      if (lastSearched === -1) return false;
-      current = query[++i];
-    }
-    return true;
-  }
-
-  $: filteredItems = listitems.filter((item) => fuzzySearch(item.name, query));
+  export let activeIndex: number = 0;
 
   function truncate(str: string | undefined, maxLength: number): string {
     if (!str) return "";
@@ -31,26 +13,28 @@
   }
 </script>
 
-<div class="app-list">
-  {#each filteredItems as item}
-    <button on:click={async () => await execute(item.exec)} class="app-item">
-      {#if item.icon}<img class="item-icon" src={item.icon} alt="" />{/if}
+<div class="result-list">
+  {#each listitems as item, index}
+    <div class="result-item" class:active={index === activeIndex}>
+      {#if item.icon}
+        <img class="item-icon" src={item.icon} alt="" />
+      {/if}
       <span class="item-name">{item.name}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
       {/if}
-    </button>
+    </div>
   {/each}
 </div>
 
 <style>
-  .app-list {
+  .result-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 6px;
     padding: 5px 0;
   }
-  .app-item {
+  .result-item {
     display: flex;
     width: auto;
     padding: 12px 18px;
@@ -62,11 +46,8 @@
     color: #e0e0e0;
     cursor: pointer;
   }
-  .app-item:hover,
-  .app-item:focus-visible {
-    background-color: #a3c6ff10;
-    border: none;
-    outline: none;
+  .result-item.active {
+    background-color: #303030;
   }
   .item-icon {
     width: 20px;

@@ -1,16 +1,15 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import ResultsList from "../lib/ResultsList.svelte";
-
   type ListItem = {
     name: string;
     exec: string;
     description?: string;
     icon?: string;
   };
-
   let query: string = "";
   let listitems: ListItem[] = [];
+  let activeIndex: number = 0;
 
   async function execute(executable: string) {
     try {
@@ -19,21 +18,44 @@
       console.error(e);
     }
   }
-
   async function search() {
     try {
       listitems = await invoke<ListItem[]>("search", { query });
+      activeIndex = 0; // reset to first item on new search
     } catch (e) {
       console.error(e);
       listitems = [
         { name: "Error fetching results", exec: "notify-send 'Error'" },
       ];
+      activeIndex = 0;
     }
   }
 
-  // Trigger search every time query changes
+  function handleKeydown(event: KeyboardEvent) {
+    if (listitems.length === 0) return;
+
+    if (event.key === "Tab" && !event.shiftKey) {
+      event.preventDefault();
+      activeIndex = (activeIndex + 1) % listitems.length;
+    } else if (event.key === "Tab" && event.shiftKey) {
+      event.preventDefault();
+      activeIndex = activeIndex === 0 ? listitems.length - 1 : activeIndex - 1;
+    } else if (event.key === "n" && event.ctrlKey) {
+      event.preventDefault();
+      activeIndex = (activeIndex + 1) % listitems.length;
+    } else if (event.key === "p" && event.ctrlKey) {
+      event.preventDefault();
+      activeIndex = activeIndex === 0 ? listitems.length - 1 : activeIndex - 1;
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      execute(listitems[activeIndex].exec);
+    }
+  }
+
   $: if (query !== undefined) search();
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <main class="container">
   <div class="panel">
@@ -43,9 +65,8 @@
       bind:value={query}
       class="search"
     />
-
     <div class="results">
-      <ResultsList {listitems} {execute} />
+      <ResultsList {listitems} {activeIndex} />
     </div>
   </div>
 </main>
@@ -60,10 +81,11 @@
     padding: 0;
     overflow: hidden;
     background-color: #1a1a1a;
-    border: 2px solid #ffffff20;
+    border: 1px solid #ffffff20;
     border-radius: 8px;
     * {
       color: #fffffff8;
+      font-family: Segoe UI, Inter, Adwaita Sans, sans-serif;
     }
   }
   .panel {
