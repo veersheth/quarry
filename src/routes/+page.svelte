@@ -10,6 +10,7 @@
   let query: string = "";
   let listitems: ListItem[] = [];
   let activeIndex: number = 0;
+  let searchInput: HTMLInputElement;
 
   async function execute(executable: string) {
     try {
@@ -30,25 +31,26 @@
       activeIndex = 0;
     }
   }
-
   function handleKeydown(event: KeyboardEvent) {
+    // Ensure input stays focused
+    if (searchInput && document.activeElement !== searchInput) {
+      searchInput.focus();
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       query = "";
       return;
     }
-
     if (event.key === "w" && event.ctrlKey) {
       event.preventDefault();
-      // Delete last word
+      // delete last word
       const trimmed = query.trimEnd();
       const lastSpaceIndex = trimmed.lastIndexOf(" ");
       query = lastSpaceIndex === -1 ? "" : trimmed.substring(0, lastSpaceIndex);
       return;
     }
-
     if (listitems.length === 0) return;
-
     if (event.key === "Tab" && !event.shiftKey) {
       event.preventDefault();
       activeIndex = (activeIndex + 1) % listitems.length;
@@ -66,18 +68,18 @@
       execute(listitems[activeIndex].exec);
     }
   }
-
   $: if (query !== undefined) search();
 </script>
-
 <svelte:window on:keydown={handleKeydown} />
-
 <main class="container">
   <div class="panel">
+    <!-- svelte-ignore a11y_autofocus -->
     <input
       type="text"
       placeholder="Search…"
       bind:value={query}
+      bind:this={searchInput}
+      autofocus
       class="search"
     />
     <div class="results">
@@ -85,7 +87,6 @@
     </div>
   </div>
 </main>
-
 <style>
   .container {
     display: flex;
