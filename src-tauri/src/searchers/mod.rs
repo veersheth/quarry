@@ -1,5 +1,6 @@
 pub mod apps;
 pub mod emojis; 
+pub mod math; 
 pub mod web_searchers;
 
 use crate::searchers::apps::ListItem;

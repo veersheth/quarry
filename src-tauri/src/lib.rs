@@ -2,6 +2,7 @@ mod searchers;
 
 use searchers::apps::{AppSearcher, ListItem};
 use searchers::emojis::EmojiSearcher;
+use searchers::math::MathSearcher;
 use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
 use searchers::SearchProvider;
 
@@ -16,25 +17,14 @@ lazy_static! {
     static ref PREFIX_SEARCHERS:
         Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
 
-        // emoji: em <query>
-        (Regex::new(r"^em\s+(.*)$").unwrap(),
-            Box::new(EmojiSearcher)),
+        (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
+        (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
+        (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
+        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+        (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
+        (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
+        (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
 
-        // url: http...
-        (Regex::new(r"^(https?://.*)$").unwrap(),
-            Box::new(URLSearcher)),
-
-        // google: g <query>
-        (Regex::new(r"^g\s+(.*)$").unwrap(),
-            Box::new(GoogleSearcher)),
-
-        // youtube: yt <query>
-        (Regex::new(r"^yt\s+(.*)$").unwrap(),
-            Box::new(YouTubeSearcher)),
-
-        // nix packages: nxp <query>
-        (Regex::new(r"^nxp\s+(.*)$").unwrap(),
-            Box::new(NixSearcher)),
     ];
 }
 
