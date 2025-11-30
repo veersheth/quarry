@@ -34,6 +34,7 @@
     gap: 6px;
     padding: 5px 0;
   }
+
   .result-item {
     display: flex;
     width: auto;
@@ -45,10 +46,14 @@
     text-align: left;
     color: #e0e0e0;
     cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0);
   }
+
   .result-item.active {
-    background-color: rgba(60, 60, 60, 0.5);
+    background-color: rgba(60, 60, 60, 0.7);
+    border: 1px solid rgba(100, 100, 100, 0.7);
   }
+
   .item-icon {
     width: 20px;
     height: 20px;
