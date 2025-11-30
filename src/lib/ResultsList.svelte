@@ -38,7 +38,7 @@
     display: flex;
     width: auto;
     padding: 12px 18px;
-    margin: 0 8px;
+    margin: 0 12px;
     border: none;
     border-radius: 12px;
     background: none;
@@ -47,7 +47,7 @@
     cursor: pointer;
   }
   .result-item.active {
-    background-color: #303030;
+    background-color: rgba(60, 60, 60, 0.5);
   }
   .item-icon {
     width: 20px;

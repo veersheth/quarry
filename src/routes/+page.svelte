@@ -41,24 +41,15 @@
       query = "";
       return;
     }
+
     if (event.key === "w" && event.ctrlKey) {
       event.preventDefault();
-
-      if (query.endsWith(" ")) {
-        query = query.slice(0, -1);
-        return;
-      }
-
-      const lastSpaceIndex = query.lastIndexOf(" ");
-      if (lastSpaceIndex === -1) {
-        query = "";
-      } else {
-        query = query.substring(0, lastSpaceIndex + 1);
-      }
-
-      return;
+      query = query.replace(/\s+$/, "");
+      query = query.replace(/\S+$/, "");
     }
+
     if (listitems.length === 0) return;
+
     if (event.key === "Tab" && !event.shiftKey) {
       event.preventDefault();
       activeIndex = (activeIndex + 1) % listitems.length;
@@ -108,9 +99,8 @@
     padding: 0;
     box-sizing: border-box;
 
-    background-color: rgba(10, 10, 10, 0.8);
-
-    border: 2px solid rgba(80, 80, 80, 1);
+    background-color: rgba(20, 20, 20, 0.8);
+    border: 1px solid rgba(80, 80, 80, 1);
     overflow: hidden;
     border-radius: 14px;
     * {
@@ -133,10 +123,8 @@
     display: block;
     padding: 20px;
     margin: 0;
-    margin-bottom: 10px;
     box-sizing: border-box;
     border: none;
-    border-bottom: 1px solid #ffffff20;
     outline: none;
     background: none;
     height: 50px;
@@ -144,6 +132,8 @@
   .results {
     margin: 0;
     padding: 0;
+    border-top: 1px solid rgba(80, 80, 80, 1);
+    padding-top: 10px;
     flex: 1;
     overflow-y: auto;
     box-sizing: border-box;
