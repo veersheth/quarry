@@ -32,7 +32,6 @@
     }
   }
   function handleKeydown(event: KeyboardEvent) {
-    // Ensure input stays focused
     if (searchInput && document.activeElement !== searchInput) {
       searchInput.focus();
     }
@@ -44,10 +43,19 @@
     }
     if (event.key === "w" && event.ctrlKey) {
       event.preventDefault();
-      // delete last word
-      const trimmed = query.trimEnd();
-      const lastSpaceIndex = trimmed.lastIndexOf(" ");
-      query = lastSpaceIndex === -1 ? "" : trimmed.substring(0, lastSpaceIndex);
+
+      if (query.endsWith(" ")) {
+        query = query.slice(0, -1);
+        return;
+      }
+
+      const lastSpaceIndex = query.lastIndexOf(" ");
+      if (lastSpaceIndex === -1) {
+        query = "";
+      } else {
+        query = query.substring(0, lastSpaceIndex + 1); 
+      }
+
       return;
     }
     if (listitems.length === 0) return;
@@ -70,6 +78,7 @@
   }
   $: if (query !== undefined) search();
 </script>
+
 <svelte:window on:keydown={handleKeydown} />
 <main class="container">
   <div class="panel">
@@ -87,6 +96,7 @@
     </div>
   </div>
 </main>
+
 <style>
   .container {
     display: flex;
@@ -101,7 +111,11 @@
     border-radius: 14px;
     * {
       color: #fffffff8;
-      font-family: Segoe UI, Inter, Adwaita Sans, sans-serif; 
+      font-family:
+        Segoe UI,
+        Inter,
+        Adwaita Sans,
+        sans-serif;
     }
   }
   .panel {
