@@ -1,9 +1,9 @@
 <script lang="ts">
   export let listitems: {
-    name: string;
+    name: string;        // description for display below emoji
     exec: string;
-    description?: string;
-    icon?: string;
+    description?: string; // optional, can show more info if desired
+    icon?: string;       // the emoji itself
   }[] = [];
   export let activeIndex: number = 0;
 
@@ -17,7 +17,7 @@
   {#each listitems as item, index}
     <div class="grid-item" class:active={index === activeIndex}>
       {#if item.icon}
-        <img class="item-icon" src={item.icon} alt="" />
+        <span class="item-icon">{item.icon}</span>
       {/if}
       <span class="item-name">{truncate(item.name, 20)}</span>
     </div>
@@ -27,7 +27,7 @@
 <style>
   .result-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 12px;
     padding: 10px;
   }
@@ -39,25 +39,27 @@
     justify-content: center;
     padding: 16px;
     border-radius: 12px;
+    border: 1px solid rgba(60, 60, 60, 0.7);
     background-color: rgba(30, 30, 30, 0.5);
     cursor: pointer;
-    transition: background 0.2s;
+    /* transition: background 0.1s; */
     text-align: center;
   }
 
   .grid-item.active {
     background-color: rgba(60, 60, 60, 0.7);
+    box-shadow: 0 0 20px rgba(50, 50, 50, 1);
+    border: 1px solid rgba(100, 100, 100, 0.7);
   }
 
   .item-icon {
-    width: 40px;
-    height: 40px;
-    margin-bottom: 8px;
-    object-fit: contain;
+    font-size: 2rem; 
+    line-height: 1;
+    margin-bottom: 6px;
   }
 
   .item-name {
-    font-size: 14px;
+    font-size: 0.9rem;
     color: #e0e0e0;
     word-break: break-word;
   }

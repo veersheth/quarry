@@ -1,4 +1,4 @@
-use super::{SearchProvider};
+use super::SearchProvider;
 use crate::types::{SearchResult, ResultItem, ResultType};
 
 pub struct EmojiSearcher;
@@ -7,17 +7,20 @@ impl SearchProvider for EmojiSearcher {
     fn search(&self, query: &str) -> SearchResult {
         let q = query.trim().to_lowercase();
 
-        let results = EMOJI_LIST.iter()
+        let results: Vec<ResultItem> = EMOJI_LIST.iter()
             .filter(|(_, desc)| desc.contains(&q))
             .map(|(emoji, desc)| ResultItem {
-                name: emoji.to_string(),
-                exec: Some(format!("wl-copy {}", emoji)),
-                description: Some(desc.to_string()),
-                icon: None,
+                name: "".to_string(),
+                exec: Some(format!("wl-copy {}", emoji)), 
+                description: None,                
+                icon: Some(emoji.to_string()),   
             })
             .collect();
 
-        SearchResult { results: results, result_type: ResultType::List }
+        SearchResult { 
+            results, 
+            result_type: ResultType::Grid
+        }
     }
 }
 
