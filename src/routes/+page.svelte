@@ -53,7 +53,7 @@
       if (lastSpaceIndex === -1) {
         query = "";
       } else {
-        query = query.substring(0, lastSpaceIndex + 1); 
+        query = query.substring(0, lastSpaceIndex + 1);
       }
 
       return;
@@ -104,11 +104,14 @@
     flex: 1;
     height: calc(100vh - 20px);
     flex-direction: column;
-    margin: 0;
+    margin: 0px;
     padding: 0;
+    box-sizing: border-box;
+
+    background-color: rgba(10, 10, 10, 0.8);
+
+    border: 2px solid rgba(80, 80, 80, 1);
     overflow: hidden;
-    background-color: #1a1a1a;
-    border: 1px solid #ffffff20;
     border-radius: 14px;
     * {
       color: #fffffff8;
