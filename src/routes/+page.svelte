@@ -36,7 +36,7 @@
       searchInput.focus();
     }
 
-    if (event.key === "Escape") {
+    if (event.key === "Escape" || (event.key === "u" && event.ctrlKey)) {
       event.preventDefault();
       query = "";
       return;
