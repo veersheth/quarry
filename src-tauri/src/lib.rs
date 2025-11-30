@@ -75,7 +75,7 @@ fn search(query: &str) -> SearchResult {
 // EXECUTE COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn execute(executable: &str) -> Result<(), String> {
+fn execute(executable: &str, app: tauri::AppHandle) -> Result<(), String> {
     let parts: Vec<&str> = executable.split_whitespace().collect();
     let executable = parts[0];
     let args = &parts[1..];
@@ -84,6 +84,10 @@ fn execute(executable: &str) -> Result<(), String> {
         .args(args)
         .spawn()
         .map_err(|e| format!("Failed to run {}: {}", executable, e))?;
+
+    if let Some(webview) = app.get_webview_window("main") {
+        let _ = webview.as_ref().window().hide();
+    }
 
     Ok(())
 }
