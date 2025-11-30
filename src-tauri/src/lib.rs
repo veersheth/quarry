@@ -1,33 +1,63 @@
 mod searchers;
+
 use searchers::apps::{AppSearcher, ListItem};
 use searchers::emojis::EmojiSearcher;
+use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
 use searchers::SearchProvider;
 
 use std::process::Command;
+use lazy_static::lazy_static;
+use regex::Regex;
 
-use crate::searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
+// ---------------------------------------------------------
+// REGEX SEARCH DISPATCH TABLE
+// ---------------------------------------------------------
+lazy_static! {
+    static ref PREFIX_SEARCHERS:
+        Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
 
+        // emoji: em <query>
+        (Regex::new(r"^em\s+(.*)$").unwrap(),
+            Box::new(EmojiSearcher)),
+
+        // url: http...
+        (Regex::new(r"^(https?://.*)$").unwrap(),
+            Box::new(URLSearcher)),
+
+        // google: g <query>
+        (Regex::new(r"^g\s+(.*)$").unwrap(),
+            Box::new(GoogleSearcher)),
+
+        // youtube: yt <query>
+        (Regex::new(r"^yt\s+(.*)$").unwrap(),
+            Box::new(YouTubeSearcher)),
+
+        // nix packages: nxp <query>
+        (Regex::new(r"^nxp\s+(.*)$").unwrap(),
+            Box::new(NixSearcher)),
+    ];
+}
+
+// ---------------------------------------------------------
+// SEARCH COMMAND
+// ---------------------------------------------------------
 #[tauri::command]
 fn search(query: &str) -> Vec<ListItem> {
-    if let Some(rest) = query.strip_prefix("em ") {
-        return EmojiSearcher.search(rest);
-    }
-    if let Some(rest) = query.strip_prefix("http") {
-        return URLSearcher.search(query);
-    }
-    if let Some(rest) = query.strip_prefix("g ") {
-        return GoogleSearcher.search(rest);
-    }
-    if let Some(rest) = query.strip_prefix("yt ") {
-        return YouTubeSearcher.search(rest);
-    }
-    if let Some(rest) = query.strip_prefix("nxp ") {
-        return NixSearcher.search(rest);
+
+    for (regex, searcher) in PREFIX_SEARCHERS.iter() {
+        if let Some(caps) = regex.captures(query) {
+            let rest = caps.get(1).map_or("", |m| m.as_str());
+            return searcher.search(rest);
+        }
     }
 
+    // fallback
     AppSearcher.search(query)
 }
 
+// ---------------------------------------------------------
+// EXECUTE COMMAND
+// ---------------------------------------------------------
 #[tauri::command]
 fn execute(executable: &str) -> Result<(), String> {
     let parts: Vec<&str> = executable.split_whitespace().collect();
@@ -42,6 +72,9 @@ fn execute(executable: &str) -> Result<(), String> {
     Ok(())
 }
 
+// ---------------------------------------------------------
+// TAURI ENTRYPOINT
+// ---------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
