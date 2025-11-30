@@ -2,7 +2,7 @@
 
 - globalized app/shortcut launcher, written in tauri/svelte
 - currently aiming to fix _my_ gripes with already existing app launchers
-- lots of inspiration taken from [raycast](https://www.raycast.com/) (i very rarely envy mac users)
+- lots of inspiration taken from [raycast](https://www.raycast.com/) 
 - this is my first big project, so development might be slow. if you're smart i'd appreciate any feedback 😁
 
 ```
