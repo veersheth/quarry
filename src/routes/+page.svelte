@@ -74,6 +74,7 @@
     } else if (event.key === "Enter") {
       event.preventDefault();
       execute(listitems[activeIndex].exec);
+      query = "";
     }
   }
   $: if (query !== undefined) search();
