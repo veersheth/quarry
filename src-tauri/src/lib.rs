@@ -18,11 +18,18 @@ lazy_static! {
         Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
 
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
+
         (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
+
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
+
         (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
+
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
+        (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
+
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
 
     ];
