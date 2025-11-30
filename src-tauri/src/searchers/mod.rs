@@ -3,9 +3,9 @@ pub mod emojis;
 pub mod math; 
 pub mod web_searchers;
 
-use crate::searchers::apps::ListItem;
+use crate::types::{SearchResult, ResultItem, ResultType};
 
 pub trait SearchProvider {
-    fn search(&self, query: &str) -> Vec<ListItem>;
+    fn search(&self, query: &str) -> SearchResult;
 }
 

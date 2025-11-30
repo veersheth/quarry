@@ -1,10 +1,13 @@
 mod searchers;
+mod types;
 
-use searchers::apps::{AppSearcher, ListItem};
+use searchers::apps::{AppSearcher};
 use searchers::emojis::EmojiSearcher;
 use searchers::math::MathSearcher;
 use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
 use searchers::SearchProvider;
+use types::SearchResult as SearchResult;
+
 
 use std::process::Command;
 use lazy_static::lazy_static;
@@ -39,8 +42,7 @@ lazy_static! {
 // SEARCH COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn search(query: &str) -> Vec<ListItem> {
-
+fn search(query: &str) -> SearchResult {
     for (regex, searcher) in PREFIX_SEARCHERS.iter() {
         if let Some(caps) = regex.captures(query) {
             let rest = caps.get(1).map_or("", |m| m.as_str());

@@ -1,16 +1,27 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import ResultsList from "../lib/ResultsList.svelte";
-  type ListItem = {
+    import ResultsGrid from "$lib/ResultsGrid.svelte";
+
+  type ResultItem = {
     name: string;
     exec: string;
     description?: string;
     icon?: string;
   };
+
+  type ResultType = "List" | "Grid";
+
+  type SearchResult = {
+    results: ResultItem[];
+    result_type: ResultType;
+  };
+
   let query: string = "";
-  let listitems: ListItem[] = [];
+  let resultItems: ResultItem[] = [];
   let activeIndex: number = 0;
   let searchInput: HTMLInputElement;
+  let resultType: ResultType = "List"; // default
 
   async function execute(executable: string) {
     try {
@@ -19,18 +30,22 @@
       console.error(e);
     }
   }
+
   async function search() {
     try {
-      listitems = await invoke<ListItem[]>("search", { query });
+      const searchResult = await invoke<SearchResult>("search", { query });
+      resultItems = searchResult.results;
+      resultType = searchResult.result_type;
       activeIndex = 0; // reset to first item on new search
     } catch (e) {
       console.error(e);
-      listitems = [
+      resultItems = [
         { name: "Error fetching results", exec: "notify-send 'Error'" },
       ];
       activeIndex = 0;
     }
   }
+
   function handleKeydown(event: KeyboardEvent) {
     if (searchInput && document.activeElement !== searchInput) {
       searchInput.focus();
@@ -48,26 +63,29 @@
       query = query.replace(/\S+$/, "");
     }
 
-    if (listitems.length === 0) return;
+    if (resultItems.length === 0) return;
 
     if (event.key === "Tab" && !event.shiftKey) {
       event.preventDefault();
-      activeIndex = (activeIndex + 1) % listitems.length;
+      activeIndex = (activeIndex + 1) % resultItems.length;
     } else if (event.key === "Tab" && event.shiftKey) {
       event.preventDefault();
-      activeIndex = activeIndex === 0 ? listitems.length - 1 : activeIndex - 1;
+      activeIndex =
+        activeIndex === 0 ? resultItems.length - 1 : activeIndex - 1;
     } else if (event.key === "n" && event.ctrlKey) {
       event.preventDefault();
-      activeIndex = (activeIndex + 1) % listitems.length;
+      activeIndex = (activeIndex + 1) % resultItems.length;
     } else if (event.key === "p" && event.ctrlKey) {
       event.preventDefault();
-      activeIndex = activeIndex === 0 ? listitems.length - 1 : activeIndex - 1;
+      activeIndex =
+        activeIndex === 0 ? resultItems.length - 1 : activeIndex - 1;
     } else if (event.key === "Enter") {
       event.preventDefault();
-      execute(listitems[activeIndex].exec);
+      execute(resultItems[activeIndex].exec);
       query = "";
     }
   }
+
   $: if (query !== undefined) search();
 </script>
 
@@ -84,7 +102,11 @@
       class="search"
     />
     <div class="results">
-      <ResultsList {listitems} {activeIndex} />
+      {#if resultType === "List"}
+        <ResultsList listitems={resultItems} {activeIndex} />
+      {:else if resultType === "Grid"}
+        <ResultsGrid listitems={resultItems} {activeIndex} />
+      {/if}
     </div>
   </div>
 </main>
