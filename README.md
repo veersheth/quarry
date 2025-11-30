@@ -36,5 +36,5 @@ BACKEND
 - [ ] notes integration  BUILTIN
 - [ ] translation 
 - [ ] clipboard history BUILTIN
-- [ ] basic chatgpt/gemini integration(?) (come on its useful sometimes)
+- [ ] basic chatgpt/gemini integration(?) 
 - [ ] spotify controls (or general media playback contorls)
