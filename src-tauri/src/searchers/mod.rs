@@ -1,6 +1,6 @@
 pub mod apps;
-pub mod emojis; // future
-pub mod bookmarks; // future
+pub mod emojis; 
+pub mod web_searchers;
 
 use crate::searchers::apps::ListItem;
 

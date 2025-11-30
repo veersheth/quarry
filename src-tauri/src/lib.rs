@@ -5,10 +5,24 @@ use searchers::SearchProvider;
 
 use std::process::Command;
 
+use crate::searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
+
 #[tauri::command]
 fn search(query: &str) -> Vec<ListItem> {
     if let Some(rest) = query.strip_prefix("em ") {
         return EmojiSearcher.search(rest);
+    }
+    if let Some(rest) = query.strip_prefix("http") {
+        return URLSearcher.search(query);
+    }
+    if let Some(rest) = query.strip_prefix("g ") {
+        return GoogleSearcher.search(rest);
+    }
+    if let Some(rest) = query.strip_prefix("yt ") {
+        return YouTubeSearcher.search(rest);
+    }
+    if let Some(rest) = query.strip_prefix("nxp ") {
+        return NixSearcher.search(rest);
     }
 
     AppSearcher.search(query)
