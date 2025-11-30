@@ -43,14 +43,13 @@
     border: 1px solid rgba(60, 60, 60, 0.7);
     background-color: rgba(30, 30, 30, 0.5);
     cursor: pointer;
-    /* transition: background 0.1s; */
     text-align: center;
   }
 
   .grid-item.active {
     background-color: rgba(60, 60, 60, 0.7);
     box-shadow: 0 0 20px rgba(50, 50, 50, 1);
-    border: 1px solid rgba(100, 100, 100, 0.7);
+    border: 2px solid rgba(100, 100, 100, 0.9);
   }
 
   .item-icon {

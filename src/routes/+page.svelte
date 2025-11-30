@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import ResultsList from "../lib/ResultsList.svelte";
-    import ResultsGrid from "$lib/ResultsGrid.svelte";
+  import ResultsGrid from "$lib/ResultsGrid.svelte";
 
   type ResultItem = {
     name: string;
