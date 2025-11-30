@@ -2,7 +2,7 @@
 
 - globalized app/shortcut launcher, written in tauri/svelte
 - currently aiming to fix _my_ gripes with already existing app launchers
-- lots of inspiration taken from raycast, but i'll be keeping this application open source 
+- lots of inspiration taken from [raycast](https://www.raycast.com/) (i very rarely envy mac users)
 - this is my first big project, so development might be slow. i'd appreciate any feedback :)
 
 ```
@@ -23,3 +23,18 @@ BACKEND
 - [x] module-based structure
 - [ ] prefix settings separate from lib.rs 
 - [ ] figure out extendability somehow
+
+
+"PLUGINS"
+- [x] web searches BUILTIN
+- [x] math BUILTIN
+- [ ] currency conversion
+- [ ] color preview/picker
+- [x] emoji picker BUILTIN
+- [ ] world/clock/timer management  
+- [ ] lorem generator
+- [ ] notes integration  BUILTIN
+- [ ] translation 
+- [ ] clipboard history BUILTIN
+- [ ] basic chatgpt/gemini integration(?) (come on its useful sometimes)
+- [ ] spotify controls (or general media playback contorls)
