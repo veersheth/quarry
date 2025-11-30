@@ -3,7 +3,7 @@
 - globalized app/shortcut launcher, written in tauri/svelte
 - currently aiming to fix _my_ gripes with already existing app launchers
 - lots of inspiration taken from [raycast](https://www.raycast.com/) (i very rarely envy mac users)
-- this is my first big project, so development might be slow. i'd appreciate any feedback :)
+- this is my first big project, so development might be slow. if you're smart i'd appreciate any feedback 😁
 
 ```
 $ pnpm install
@@ -15,7 +15,7 @@ FRONTEND
 - [x] dumbdown frontend (move ALL functionality to backend)
 - [ ] emacs based keybindings? (the ones used in vim insert mode)
 - [ ] basic markdown renderer layout
-- [ ] grid layout
+- [x] grid layout
 
 
 BACKEND
