@@ -14,6 +14,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::searchers::lorem::LoremSearcher;
+use crate::searchers::shell::ShellSearcher;
 use crate::searchers::web_searchers::GithubSearcher;
 
 // ---------------------------------------------------------
@@ -34,6 +35,8 @@ lazy_static! {
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
 
         (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GithubSearcher)),
+
+        (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
 
         (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
 
