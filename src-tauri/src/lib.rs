@@ -1,17 +1,21 @@
 mod searchers;
 mod types;
 
-use searchers::apps::{AppSearcher};
+use searchers::apps::AppSearcher;
 use searchers::emojis::EmojiSearcher;
 use searchers::math::MathSearcher;
 use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
 use searchers::SearchProvider;
-use types::SearchResult as SearchResult;
+use tauri::Manager;
+use types::SearchResult;
 
-
-use std::process::Command;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::process::Command;
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+};
 
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
@@ -21,30 +25,33 @@ use crate::searchers::web_searchers::GithubSearcher;
 // REGEX SEARCH DISPATCH TABLE
 // ---------------------------------------------------------
 lazy_static! {
-    static ref PREFIX_SEARCHERS:
-        Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-
+    static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-
-        (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
-
+        (
+            Regex::new(r"^(https?://.*)$").unwrap(),
+            Box::new(URLSearcher)
+        ),
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-
-        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
-
+        (
+            Regex::new(r"^yt\s+(.*)$").unwrap(),
+            Box::new(YouTubeSearcher)
+        ),
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-
-        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GithubSearcher)),
-
+        (
+            Regex::new(r"^gh\s+(.*)$").unwrap(),
+            Box::new(GithubSearcher)
+        ),
         (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-
-        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
-
+        (
+            Regex::new(r"^lorem\s+(.*)$").unwrap(),
+            Box::new(LoremSearcher)
+        ),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
-
+        (
+            Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(),
+            Box::new(MathSearcher)
+        ),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
-
     ];
 }
 
@@ -88,8 +95,46 @@ fn execute(executable: &str) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let toggle = MenuItem::with_id(app, "toggle", "Show/Hide Window", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&toggle, &quit])?;
+
+            TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "toggle" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let window = window.as_ref().window();
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
+            if let Some(webview) = app.get_webview_window("main") {
+                let window = webview.as_ref().window().clone();
+                webview.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                });
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![search, execute])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

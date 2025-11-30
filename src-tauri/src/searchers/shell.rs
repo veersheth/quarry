@@ -1,6 +1,5 @@
 use crate::searchers::SearchProvider;
 use crate::types::{SearchResult, ResultItem, ResultType};
-use std::process::Command;
 
 pub struct ShellSearcher;
 

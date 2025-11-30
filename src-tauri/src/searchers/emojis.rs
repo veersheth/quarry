@@ -12,7 +12,7 @@ impl SearchProvider for EmojiSearcher {
             .map(|(emoji, desc)| ResultItem {
                 name: "".to_string(),
                 exec: Some(format!("wl-copy {}", emoji)), 
-                description: None,                
+                description: Some(desc.to_string()),                
                 icon: Some(emoji.to_string()),   
             })
             .collect();
