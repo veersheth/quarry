@@ -1,6 +1,8 @@
 # quarry
 
 - globalized app/shortcut launcher, written in tauri/svelte
+- currently developed focused on a hyprland/nixos setup
+    - therefore depends on wayland protocols like `wl-copy` and `cliphist`
 - currently aiming to fix _my_ gripes with already existing app launchers
 - lots of inspiration taken from [raycast](https://www.raycast.com/) 
 - this is my first big project, so development might be slow. if you're smart i'd appreciate any feedback 😁
