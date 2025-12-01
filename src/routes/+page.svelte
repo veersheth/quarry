@@ -2,8 +2,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount, tick } from "svelte";
-  import ResultsList from "../lib/ResultsList.svelte";
-  import ResultsGrid from "$lib/ResultsGrid.svelte";
+  import RenderList from "$lib/RenderList.svelte";
+  import RenderGrid from "$lib/RenderGrid.svelte";
 
   type ResultItem = {
     name: string;
@@ -189,9 +189,9 @@
     />
     <div class="results">
       {#if resultType === "List"}
-        <ResultsList listitems={visibleItems} activeIndex={visibleActiveIndex} />
+        <RenderList listitems={visibleItems} activeIndex={visibleActiveIndex} />
       {:else if resultType === "Grid"}
-        <ResultsGrid listitems={visibleItems} activeIndex={visibleActiveIndex} />
+        <RenderGrid listitems={visibleItems} activeIndex={visibleActiveIndex} />
       {/if}
     </div>
   </div>
@@ -245,7 +245,7 @@
     border-top: 1px solid rgba(80, 80, 80, 1);
     padding-top: 10px;
     flex: 1;
-    overflow-y: auto;
+    overflow-y: hidden;
     box-sizing: border-box;
   }
 </style>
