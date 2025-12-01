@@ -1,6 +1,10 @@
+use once_cell::sync::Lazy;
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use freedesktop_icons::lookup;
 use std::path::PathBuf;
+use base64::{engine::general_purpose, Engine};
+use std::{fs, path::Path};
+
 
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
@@ -12,31 +16,25 @@ fn clean_exec_field(exec: &str) -> String {
         .join(" ")
 }
 
-use std::{fs, path::Path};
-use base64::{engine::general_purpose, Engine};
-
 fn resolve_icon(icon_name: &str) -> Option<String> {
     use std::path::PathBuf;
 
-    // 1. absolute path: freedesktop-icons already returns this
-    let path = freedesktop_icons::lookup(icon_name)
-        .with_size(64)
-        .find()?;
+    let path = freedesktop_icons::lookup(icon_name).with_size(64).find()?;
 
-    // 2. read file as bytes
     let bytes = fs::read(&path).ok()?;
 
-    // 3. detect extension
     let mime = if path.extension()?.to_str()? == "svg" {
         "image/svg+xml"
     } else {
         "image/png"
     };
 
-    // 4. convert to data URL
     let encoded = general_purpose::STANDARD.encode(&bytes);
     Some(format!("data:{};base64,{}", mime, encoded))
 }
+
+
+static APP_CACHE: Lazy<Vec<ResultItem>> = Lazy::new(|| get_apps());
 
 pub fn get_apps() -> Vec<ResultItem> {
     let mut apps = Vec::new();
@@ -64,7 +62,6 @@ pub fn get_apps() -> Vec<ResultItem> {
             .or_else(|| entry.comment::<&str>(&[]))
             .map(|s| s.to_string());
 
-        // NEW: resolve icon path
         let icon = entry.icon().and_then(|i| resolve_icon(&i));
 
         apps.push(ResultItem {
@@ -82,11 +79,10 @@ pub struct AppSearcher;
 
 impl SearchProvider for AppSearcher {
     fn search(&self, query: &str) -> SearchResult {
-        let items = get_apps();
         let q = query.to_lowercase();
 
-        let results = items
-            .into_iter()
+        let results = APP_CACHE
+            .iter()
             .filter(|item| {
                 item.name.to_lowercase().contains(&q)
                     || item
@@ -98,6 +94,7 @@ impl SearchProvider for AppSearcher {
                         .as_ref()
                         .map_or(false, |e| e.to_lowercase().contains(&q))
             })
+            .cloned()
             .collect();
 
         SearchResult {

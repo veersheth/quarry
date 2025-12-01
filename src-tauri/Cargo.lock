@@ -3005,6 +3005,7 @@ dependencies = [
  "freedesktop-icons",
  "lazy_static",
  "meval",
+ "once_cell",
  "regex",
  "serde",
  "serde_json",
