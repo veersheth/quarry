@@ -27,18 +27,18 @@
 
   let appWindow: ReturnType<typeof getCurrentWindow>;
 
-  // Cache setup
   const searchCache = new Map<string, SearchResult>();
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   const cacheTimestamps = new Map<string, number>();
 
+  const MAX_LIST_ITEMS = 10;
+  const MAX_GRID_ITEMS = 60;
+
   onMount(() => {
     appWindow = getCurrentWindow();
 
-    // Listen for when window becomes visible
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused && searchInput) {
-        // Select all text when window gains focus
         searchInput.select();
       }
     });
@@ -47,6 +47,7 @@
       unlisten.then((fn) => fn());
     };
   });
+
   async function execute(executable: string) {
     try {
       await invoke("execute", { executable });
@@ -72,7 +73,7 @@
     try {
       const searchResult = await invoke<SearchResult>("search", { query });
 
-      // add 2 cache
+      // adding 2 cache
       searchCache.set(query, searchResult);
       cacheTimestamps.set(query, Date.now());
 
@@ -129,6 +130,47 @@
     }
   }
 
+  // visible items based on active index and max items
+  $: visibleItems = (() => {
+    const maxItems = resultType === "List" ? MAX_LIST_ITEMS : MAX_GRID_ITEMS;
+    
+    if (resultItems.length <= maxItems) {
+      return resultItems;
+    }
+
+    // Calculate window to keep activeIndex visible
+    const halfWindow = Math.floor(maxItems / 2);
+    let start = Math.max(0, activeIndex - halfWindow);
+    let end = start + maxItems;
+
+    // Adjust if we're near the end
+    if (end > resultItems.length) {
+      end = resultItems.length;
+      start = Math.max(0, end - maxItems);
+    }
+
+    return resultItems.slice(start, end);
+  })();
+
+  // adjust activeIndex relative to visible window
+  $: visibleActiveIndex = (() => {
+    const maxItems = resultType === "List" ? MAX_LIST_ITEMS : MAX_GRID_ITEMS;
+    
+    if (resultItems.length <= maxItems) {
+      return activeIndex;
+    }
+
+    const halfWindow = Math.floor(maxItems / 2);
+    let start = Math.max(0, activeIndex - halfWindow);
+    
+    if (start + maxItems > resultItems.length) {
+      start = Math.max(0, resultItems.length - maxItems);
+    }
+
+    return activeIndex - start;
+  })();
+
+  $: totalResults = resultItems.length;
   $: if (query !== undefined) search();
 </script>
 
@@ -147,9 +189,14 @@
     />
     <div class="results">
       {#if resultType === "List"}
-        <ResultsList listitems={resultItems} {activeIndex} />
+        <ResultsList listitems={visibleItems} activeIndex={visibleActiveIndex} />
       {:else if resultType === "Grid"}
-        <ResultsGrid listitems={resultItems} {activeIndex} />
+        <ResultsGrid listitems={visibleItems} activeIndex={visibleActiveIndex} />
+      {/if}
+      {#if totalResults > (resultType === "List" ? MAX_LIST_ITEMS : MAX_GRID_ITEMS)}
+        <div class="results-info">
+          Showing {visibleItems.length} of {totalResults} results
+        </div>
       {/if}
     </div>
   </div>
@@ -205,5 +252,12 @@
     flex: 1;
     overflow-y: auto;
     box-sizing: border-box;
+  }
+
+  .results-info {
+    text-align: center;
+    padding: 40px;
+    font-size: 12px;
+    opacity: 0.6;
   }
 </style>

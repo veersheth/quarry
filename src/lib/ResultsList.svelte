@@ -51,7 +51,7 @@
 
   .result-item.active {
     background-color: rgba(60, 60, 60, 0.7);
-    border: 1px solid rgba(100, 100, 100, 0.7);
+    /* border: 1px solid rgba(100, 100, 100, 0.7); */
   }
 
   .item-name {
