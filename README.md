@@ -13,7 +13,7 @@ $ pnpm run tauri dev
 FRONTEND
 - [x] build out basic list layout
 - [x] dumbdown frontend (move ALL functionality to backend)
-- [ ] emacs based keybindings? (the ones used in vim insert mode)
+- [x] emacs based keybindings? (the ones used in vim insert mode)
 - [ ] basic markdown renderer layout
 - [x] grid layout
 
@@ -21,6 +21,8 @@ FRONTEND
 BACKEND
 - [x] basic skeleton 
 - [x] module-based structure
+- [x] run in system tray
+- [x] cli to toggle visbility of main window
 - [ ] prefix settings separate from lib.rs 
 - [ ] figure out extendability somehow
 
@@ -32,7 +34,7 @@ BACKEND
 - [ ] color preview/picker
 - [x] emoji picker BUILTIN
 - [ ] world/clock/timer management  
-- [ ] lorem generator
+- [x] lorem generator
 - [ ] notes integration  BUILTIN
 - [ ] translation 
 - [ ] clipboard history BUILTIN
