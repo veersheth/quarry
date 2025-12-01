@@ -100,7 +100,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let toggle = MenuItem::with_id(app, "toggle", "Show/Hide Window", true, None::<&str>)?;
+            let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&toggle, &quit])?;
 
