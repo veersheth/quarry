@@ -16,7 +16,7 @@ impl SearchProvider for GithubSearcher {
         let url = format!("https://www.github.com/search?q={}", urlencoding::encode(q));
 
         let results = vec![ResultItem {
-            name: format!("Search Google for '{}'", q),
+            name: format!("Search GitHub for '{}'", q),
             exec: Some(format!("xdg-open {url}")),
             description: None,
             icon: None,
