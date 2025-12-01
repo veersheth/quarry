@@ -1,10 +1,12 @@
+use tauri::AppHandle;
+
 use super::super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
 
 pub struct GoogleSearcher;
 
 impl SearchProvider for GoogleSearcher {
-    fn search(&self, query: &str) -> SearchResult {
+    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let q = query.trim();
         if q.is_empty() {
             return SearchResult {

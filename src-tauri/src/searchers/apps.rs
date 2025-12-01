@@ -2,6 +2,7 @@ use base64::{engine::general_purpose, Engine};
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use freedesktop_icons::lookup;
 use once_cell::sync::Lazy;
+use tauri::AppHandle;
 use std::path::PathBuf;
 use std::{fs, path::Path};
 
@@ -76,7 +77,7 @@ pub fn get_apps() -> Vec<ResultItem> {
 pub struct AppSearcher;
 
 impl SearchProvider for AppSearcher {
-    fn search(&self, query: &str) -> SearchResult {
+    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let q = query.to_lowercase();
 
         let results = APP_CACHE

@@ -1,3 +1,5 @@
+use tauri::AppHandle;
+
 use crate::searchers::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
 use std::process::Command;
@@ -12,23 +14,28 @@ impl PkillSearcher {
 
         match output {
             Ok(output) => {
-                let mut process_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-                
+                let mut process_map: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+
                 for line in String::from_utf8_lossy(&output.stdout).lines() {
                     let line = line.trim();
                     if line.is_empty() {
                         continue;
                     }
-                    
+
                     // Split into comm and full command
                     let parts: Vec<&str> = line.splitn(2, char::is_whitespace).collect();
                     if parts.is_empty() {
                         continue;
                     }
-                    
+
                     let comm = parts[0].to_string();
-                    let full_cmd = if parts.len() > 1 { parts[1].trim() } else { parts[0] };
-                    
+                    let full_cmd = if parts.len() > 1 {
+                        parts[1].trim()
+                    } else {
+                        parts[0]
+                    };
+
                     // Extract a better display name from the full command
                     let display_name = full_cmd
                         .split('/')
@@ -38,19 +45,18 @@ impl PkillSearcher {
                         .next()
                         .unwrap_or(&comm)
                         .to_string();
-                    
+
                     // Filter by query
-                    if query.is_empty() 
+                    if query.is_empty()
                         || comm.to_lowercase().contains(&query.to_lowercase())
                         || display_name.to_lowercase().contains(&query.to_lowercase())
-                        || full_cmd.to_lowercase().contains(&query.to_lowercase()) {
+                        || full_cmd.to_lowercase().contains(&query.to_lowercase())
+                    {
                         process_map.insert(display_name.clone(), comm);
                     }
                 }
 
-                let mut unique_processes: Vec<(String, String)> = process_map
-                    .into_iter()
-                    .collect();
+                let mut unique_processes: Vec<(String, String)> = process_map.into_iter().collect();
 
                 unique_processes.sort_by(|a, b| a.0.cmp(&b.0));
                 unique_processes
@@ -61,7 +67,7 @@ impl PkillSearcher {
 }
 
 impl SearchProvider for PkillSearcher {
-    fn search(&self, query: &str) -> SearchResult {
+    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let query = query.trim();
         let processes = self.get_running_processes(query);
 

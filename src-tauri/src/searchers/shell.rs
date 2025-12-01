@@ -1,10 +1,12 @@
+use tauri::AppHandle;
+
 use crate::searchers::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
 
 pub struct ShellSearcher;
 
 impl SearchProvider for ShellSearcher {
-    fn search(&self, query: &str) -> SearchResult {
+    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let command = query.trim();
 
         let results = vec![ResultItem {

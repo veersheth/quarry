@@ -29,34 +29,16 @@ use crate::searchers::web_searchers::GithubSearcher;
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-        (
-            Regex::new(r"^(https?://.*)$").unwrap(),
-            Box::new(URLSearcher)
-        ),
+        (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-        (
-            Regex::new(r"^yt\s+(.*)$").unwrap(),
-            Box::new(YouTubeSearcher)
-        ),
+        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-        (
-            Regex::new(r"^gh\s+(.*)$").unwrap(),
-            Box::new(GithubSearcher)
-        ),
+        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GithubSearcher)),
         (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-        (
-            Regex::new(r"^lorem\s+(.*)$").unwrap(),
-            Box::new(LoremSearcher)
-        ),
+        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        (
-            Regex::new(r"^kill\s+(.*)$").unwrap(),
-            Box::new(PkillSearcher)
-        ),
-        (
-            Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(),
-            Box::new(MathSearcher)
-        ),
+        (Regex::new(r"^kill\s+(.*)$").unwrap(), Box::new(PkillSearcher)),
+        (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }
@@ -65,16 +47,16 @@ lazy_static! {
 // SEARCH COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn search(query: &str) -> SearchResult {
+fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
     for (regex, searcher) in PREFIX_SEARCHERS.iter() {
         if let Some(caps) = regex.captures(query) {
             let rest = caps.get(1).map_or("", |m| m.as_str());
-            return searcher.search(rest);
+            return searcher.search(rest, &app);
         }
     }
 
     // fallback
-    AppSearcher.search(query)
+    AppSearcher.search(query, &app)
 }
 
 // ---------------------------------------------------------
@@ -112,6 +94,7 @@ fn toggle_window(app_handle: &tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {

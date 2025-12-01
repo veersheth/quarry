@@ -1,10 +1,12 @@
+use tauri::AppHandle;
+
 use crate::searchers::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
 
 pub struct LoremSearcher;
 
 impl SearchProvider for LoremSearcher {
-    fn search(&self, query: &str) -> SearchResult {
+    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
 
         let Ok(n) = trimmed.parse::<usize>() else {
