@@ -31,7 +31,7 @@
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   const cacheTimestamps = new Map<string, number>();
 
-  const MAX_LIST_ITEMS = 10;
+  const MAX_LIST_ITEMS = 9;
   const MAX_GRID_ITEMS = 60;
 
   onMount(() => {
@@ -193,11 +193,6 @@
       {:else if resultType === "Grid"}
         <ResultsGrid listitems={visibleItems} activeIndex={visibleActiveIndex} />
       {/if}
-      {#if totalResults > (resultType === "List" ? MAX_LIST_ITEMS : MAX_GRID_ITEMS)}
-        <div class="results-info">
-          Showing {visibleItems.length} of {totalResults} results
-        </div>
-      {/if}
     </div>
   </div>
 </main>
@@ -211,7 +206,7 @@
     margin: 0px;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(20, 20, 20, 0.8);
+    background-color: rgba(20, 20, 20, 0.95);
     border: 1px solid rgba(80, 80, 80, 1);
     overflow: hidden;
     border-radius: 14px;
@@ -252,12 +247,5 @@
     flex: 1;
     overflow-y: auto;
     box-sizing: border-box;
-  }
-
-  .results-info {
-    text-align: center;
-    padding: 40px;
-    font-size: 12px;
-    opacity: 0.6;
   }
 </style>

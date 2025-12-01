@@ -48,7 +48,7 @@
 
   .grid-item.active {
     background-color: rgba(60, 60, 60, 0.7);
-    box-shadow: 0 0 20px rgba(50, 50, 50, 1);
+    box-shadow: 0 0 20px 4px rgba(50, 50, 50, 1);
     border: 2px solid rgba(140, 140, 140, 0.9);
   }
 
