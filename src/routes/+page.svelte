@@ -1,5 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { onMount, tick } from "svelte";
   import ResultsList from "../lib/ResultsList.svelte";
   import ResultsGrid from "$lib/ResultsGrid.svelte";
 
@@ -21,26 +23,66 @@
   let resultItems: ResultItem[] = [];
   let activeIndex: number = 0;
   let searchInput: HTMLInputElement;
-  let resultType: ResultType = "List"; // default
+  let resultType: ResultType = "List";
 
+  let appWindow: ReturnType<typeof getCurrentWindow>;
+
+  // Cache setup
+  const searchCache = new Map<string, SearchResult>();
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  const cacheTimestamps = new Map<string, number>();
+
+  onMount(() => {
+    appWindow = getCurrentWindow();
+
+    // Listen for when window becomes visible
+    const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
+      if (focused && searchInput) {
+        // Select all text when window gains focus
+        searchInput.select();
+      }
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  });
   async function execute(executable: string) {
     try {
       await invoke("execute", { executable });
+      if (appWindow) {
+        await appWindow.hide();
+      }
     } catch (e) {
-      console.error(e);
+      console.error("Execute error:", e);
     }
   }
 
   async function search() {
+    const cached = searchCache.get(query);
+    const timestamp = cacheTimestamps.get(query);
+
+    if (cached && timestamp && Date.now() - timestamp < CACHE_TTL) {
+      resultItems = cached.results;
+      resultType = cached.result_type;
+      activeIndex = 0;
+      return;
+    }
+
     try {
       const searchResult = await invoke<SearchResult>("search", { query });
+
+      // add 2 cache
+      searchCache.set(query, searchResult);
+      cacheTimestamps.set(query, Date.now());
+
       resultItems = searchResult.results;
       resultType = searchResult.result_type;
-      activeIndex = 0; // reset to first item on new search
+      activeIndex = 0;
     } catch (e) {
       console.error(e);
       resultItems = [
-        { name: "Error fetching results", exec: "notify-send 'Error'" },
+        { name: "error error quarry error", exec: "notify-send 'Error'" },
       ];
       activeIndex = 0;
     }
@@ -53,7 +95,9 @@
 
     if (event.key === "Escape" || (event.key === "u" && event.ctrlKey)) {
       event.preventDefault();
-      query = "";
+      if (appWindow) {
+        appWindow.hide();
+      }
       return;
     }
 
@@ -82,7 +126,6 @@
     } else if (event.key === "Enter") {
       event.preventDefault();
       execute(resultItems[activeIndex].exec);
-      query = "";
     }
   }
 
@@ -90,6 +133,7 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
 <main class="container">
   <div class="panel">
     <!-- svelte-ignore a11y_autofocus -->
@@ -120,7 +164,6 @@
     margin: 0px;
     padding: 0;
     box-sizing: border-box;
-
     background-color: rgba(20, 20, 20, 0.8);
     border: 1px solid rgba(80, 80, 80, 1);
     overflow: hidden;
@@ -134,12 +177,14 @@
         sans-serif;
     }
   }
+
   .panel {
     display: flex;
     flex-direction: column;
     flex: 1;
     max-height: 95vh;
   }
+
   .search {
     width: 100%;
     display: block;
@@ -151,6 +196,7 @@
     background: none;
     height: 50px;
   }
+
   .results {
     margin: 0;
     padding: 0;

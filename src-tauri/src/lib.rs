@@ -86,10 +86,6 @@ fn execute(executable: &str, app: tauri::AppHandle) -> Result<(), String> {
         .spawn()
         .map_err(|e| format!("Failed to run {}: {}", executable, e))?;
 
-    if let Some(webview) = app.get_webview_window("main") {
-        let _ = webview.as_ref().window().hide();
-    }
-
     Ok(())
 }
 
@@ -146,7 +142,6 @@ pub fn run() {
                 });
             }
 
-            // Check if this was launched with the toggle command
             match app.cli().matches() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {
