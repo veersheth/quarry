@@ -1,4 +1,6 @@
 <script lang="ts">
+    import Icon from "./Icon.svelte";
+
   export let listitems: {
     name: string;        // description for display below emoji
     exec: string;
@@ -16,9 +18,7 @@
 <div class="result-grid">
   {#each listitems as item, index}
     <div class="grid-item" class:active={index === activeIndex}>
-      {#if item.icon}
-        <span class="item-icon">{item.icon}</span>
-      {/if}
+      <Icon icon={item.icon} />
       <span class="item-name">{truncate(item.name, 20)}</span>
     </div>
   {/each}
@@ -50,12 +50,6 @@
     background-color: rgba(60, 60, 60, 0.7);
     box-shadow: 0 0 20px rgba(50, 50, 50, 1);
     border: 2px solid rgba(100, 100, 100, 0.9);
-  }
-
-  .item-icon {
-    font-size: 2rem; 
-    line-height: 1;
-    margin-bottom: 6px;
   }
 
   .item-name {

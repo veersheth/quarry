@@ -1,4 +1,6 @@
 <script lang="ts">
+    import Icon from "./Icon.svelte";
+
   export let listitems: {
     name: string;
     exec: string;
@@ -16,14 +18,12 @@
 <div class="result-list">
   {#each listitems as item, index}
     <div class="result-item" class:active={index === activeIndex}>
-      {#if item.icon}
-        <img class="item-icon" src={item.icon} alt="" />
-      {/if}
+      <Icon icon={item.icon} />
       <span class="item-name">{item.name}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
       {/if}
-    </div>
+    </div> 
   {/each}
 </div>
 
@@ -54,10 +54,6 @@
     border: 1px solid rgba(100, 100, 100, 0.7);
   }
 
-  .item-icon {
-    width: 20px;
-    height: 20px;
-  }
   .item-name {
     margin: auto 0.7rem;
   }

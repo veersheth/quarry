@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use base64::{engine::general_purpose, Engine};
 use std::{fs, path::Path};
 
-
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
 
