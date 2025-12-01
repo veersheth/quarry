@@ -18,7 +18,7 @@
 <div class="result-list">
   {#each listitems as item, index}
     <div class="result-item" class:active={index === activeIndex}>
-      <Icon icon={item.icon} />
+      <Icon icon={item.icon || ""} />
       <span class="item-name">{item.name}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
@@ -51,7 +51,7 @@
 
   .result-item.active {
     background-color: rgba(60, 60, 60, 0.7);
-    border: 1px solid rgba(120, 120, 120, 0.7);
+    /* border: 1px solid rgba(120, 120, 120, 0.7); */
   }
 
   .item-name {

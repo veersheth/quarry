@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ResultItem, ResultType, SearchResult } from "../stores/search";
+import type { SearchResult } from "../stores/search";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const searchCache = new Map<string, SearchResult>();
 const cacheTimestamps = new Map<string, number>();
@@ -8,6 +9,7 @@ const CACHE_TTL = 5 * 60 * 1000;
 export async function execute(executable: string) {
   try {
     await invoke("execute", { executable });
+    await getCurrentWindow().hide();
   } catch (e) {
     console.error("Execute error:", e);
   }
