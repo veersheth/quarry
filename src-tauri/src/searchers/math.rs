@@ -1,5 +1,5 @@
 use crate::searchers::SearchProvider;
-use crate::types::{SearchResult, ResultItem, ResultType};
+use crate::types::{ResultItem, ResultType, SearchResult};
 
 pub struct MathSearcher;
 
@@ -17,6 +17,9 @@ impl SearchProvider for MathSearcher {
             }],
             Err(_) => vec![],
         };
-        SearchResult { results: results, result_type: ResultType::List }
+        SearchResult {
+            results: results,
+            result_type: ResultType::List,
+        }
     }
 }

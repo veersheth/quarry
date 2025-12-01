@@ -1,5 +1,5 @@
-use crate::types::{SearchResult, ResultItem, ResultType};
 use super::super::SearchProvider;
+use crate::types::{ResultItem, ResultType, SearchResult};
 
 pub struct GoogleSearcher;
 
@@ -7,7 +7,10 @@ impl SearchProvider for GoogleSearcher {
     fn search(&self, query: &str) -> SearchResult {
         let q = query.trim();
         if q.is_empty() {
-            return SearchResult { results: vec![], result_type: ResultType::List };
+            return SearchResult {
+                results: vec![],
+                result_type: ResultType::List,
+            };
         }
 
         let url = format!("https://www.google.com/search?q={}", urlencoding::encode(q));
@@ -19,7 +22,9 @@ impl SearchProvider for GoogleSearcher {
             icon: None,
         }];
 
-        SearchResult { results: results, result_type: ResultType::List }
+        SearchResult {
+            results: results,
+            result_type: ResultType::List,
+        }
     }
 }
-

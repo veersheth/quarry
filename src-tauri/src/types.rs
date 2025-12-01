@@ -17,4 +17,3 @@ pub struct SearchResult {
     pub results: Vec<ResultItem>,
     pub result_type: ResultType,
 }
-

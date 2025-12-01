@@ -9,6 +9,16 @@
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../build"
   },
+  "plugins": {
+    "cli": {
+      "description": "Tauri CLI Plugin Example",
+      "subcommands": {
+        "toggle": {
+          "description": "Toggle the main window"
+        }
+      }
+    }
+  },
   "app": {
     "windows": [
       {

@@ -1,5 +1,5 @@
 use crate::searchers::SearchProvider;
-use crate::types::{SearchResult, ResultItem, ResultType};
+use crate::types::{ResultItem, ResultType, SearchResult};
 
 pub struct ShellSearcher;
 
@@ -14,10 +14,9 @@ impl SearchProvider for ShellSearcher {
             icon: None,
         }];
 
-        SearchResult { 
-            results, 
-            result_type: ResultType::List 
+        SearchResult {
+            results,
+            result_type: ResultType::List,
         }
     }
 }
-

@@ -16,6 +16,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
+use tauri_plugin_cli::CliExt;
 
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
@@ -92,13 +93,30 @@ fn execute(executable: &str, app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn toggle_window(app_handle: &tauri::AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let window = window.as_ref().window();
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
 // ---------------------------------------------------------
 // TAURI ENTRYPOINT
 // ---------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // When a second instance is launched, toggle the window of the first instance
+            toggle_window(app);
+        }))
         .setup(|app| {
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -109,15 +127,7 @@ pub fn run() {
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "toggle" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let window = window.as_ref().window();
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
+                        toggle_window(app);
                     }
                     "quit" => {
                         app.exit(0);
@@ -134,6 +144,20 @@ pub fn run() {
                         let _ = window.hide();
                     }
                 });
+            }
+
+            // Check if this was launched with the toggle command
+            match app.cli().matches() {
+                Ok(matches) => {
+                    if let Some(sub) = matches.subcommand {
+                        if sub.name == "toggle" {
+                            // This will trigger the single_instance plugin
+                            // which will toggle the window in the running instance
+                            // and this instance will exit automatically
+                        }
+                    }
+                }
+                Err(_) => {}
             }
 
             Ok(())

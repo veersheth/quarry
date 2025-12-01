@@ -1,8 +1,8 @@
-use once_cell::sync::Lazy;
+use base64::{engine::general_purpose, Engine};
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use freedesktop_icons::lookup;
+use once_cell::sync::Lazy;
 use std::path::PathBuf;
-use base64::{engine::general_purpose, Engine};
 use std::{fs, path::Path};
 
 use super::SearchProvider;
@@ -31,7 +31,6 @@ fn resolve_icon(icon_name: &str) -> Option<String> {
     let encoded = general_purpose::STANDARD.encode(&bytes);
     Some(format!("data:{};base64,{}", mime, encoded))
 }
-
 
 static APP_CACHE: Lazy<Vec<ResultItem>> = Lazy::new(|| get_apps());
 
