@@ -19,6 +19,7 @@ use tauri::{
 use tauri_plugin_cli::CliExt;
 
 use crate::searchers::lorem::LoremSearcher;
+use crate::searchers::processkiller::PkillSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::web_searchers::GithubSearcher;
 
@@ -48,6 +49,10 @@ lazy_static! {
             Box::new(LoremSearcher)
         ),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
+        (
+            Regex::new(r"^kill\s+(.*)$").unwrap(),
+            Box::new(PkillSearcher)
+        ),
         (
             Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(),
             Box::new(MathSearcher)
