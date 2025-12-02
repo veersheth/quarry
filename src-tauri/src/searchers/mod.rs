@@ -4,6 +4,7 @@ pub mod lorem;
 pub mod math;
 pub mod shell;
 pub mod dictionary;
+pub mod system;
 pub mod web_searchers;
 
 use tauri::AppHandle;

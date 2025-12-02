@@ -10,6 +10,7 @@ use searchers::dictionary::DictionarySearcher;
 use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher, GitHubSearcher};
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
+use crate::searchers::system::SystemSearcher;
 use searchers::SearchProvider;
 
 use tauri::Manager;
@@ -51,6 +52,7 @@ lazy_static! {
         (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
+        (Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
 
         (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
