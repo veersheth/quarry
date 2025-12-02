@@ -2,13 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import type { SearchResult } from "../stores/search";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-const searchCache = new Map<string, SearchResult>();
-const cacheTimestamps = new Map<string, number>();
-const CACHE_TTL = 5 * 60 * 1000;
-
-export async function execute(executable: string) {
+export async function execute(executable: string, name: string, currentQuery: string) {
   try {
-    await invoke("execute", { executable });
+    await invoke("execute", { 
+      executable,
+      name,
+      query: currentQuery 
+    });
     await getCurrentWindow().hide();
   } catch (e) {
     console.error("Execute error:", e);
@@ -16,17 +16,8 @@ export async function execute(executable: string) {
 }
 
 export async function search(query: string): Promise<SearchResult> {
-  const cached = searchCache.get(query);
-  const timestamp = cacheTimestamps.get(query);
-
-  if (cached && timestamp && Date.now() - timestamp < CACHE_TTL) {
-    return cached;
-  }
-
   try {
     const result: SearchResult = await invoke("search", { query });
-    searchCache.set(query, result);
-    cacheTimestamps.set(query, Date.now());
     return result;
   } catch (e) {
     console.error("Search failed:", e);
@@ -36,4 +27,3 @@ export async function search(query: string): Promise<SearchResult> {
     };
   }
 }
-

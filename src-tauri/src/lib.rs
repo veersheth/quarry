@@ -1,5 +1,6 @@
 mod searchers;
 mod types;
+mod usage_tracker;
 
 use searchers::apps::AppSearcher;
 use searchers::emojis::EmojiSearcher;
@@ -8,10 +9,12 @@ use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTube
 use searchers::SearchProvider;
 use tauri::Manager;
 use types::SearchResult;
+use usage_tracker::{UsageHistory, boost_results_by_usage};
 
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::process::Command;
+use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -22,6 +25,13 @@ use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::processkiller::PkillSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::web_searchers::GithubSearcher;
+
+// ---------------------------------------------------------
+// USAGE HISTORY STATE
+// ---------------------------------------------------------
+lazy_static! {
+    static ref USAGE_HISTORY: Mutex<UsageHistory> = Mutex::new(UsageHistory::load());
+}
 
 // ---------------------------------------------------------
 // REGEX SEARCH DISPATCH TABLE
@@ -44,34 +54,53 @@ lazy_static! {
 }
 
 // ---------------------------------------------------------
-// SEARCH COMMAND
+// SEARCH COMMAND (with usage-based boosting)
 // ---------------------------------------------------------
 #[tauri::command]
 fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
+    let mut result = None;
+    
     for (regex, searcher) in PREFIX_SEARCHERS.iter() {
         if let Some(caps) = regex.captures(query) {
             let rest = caps.get(1).map_or("", |m| m.as_str());
-            return searcher.search(rest, &app);
+            result = Some(searcher.search(rest, &app));
+            break;
         }
     }
 
     // fallback
-    AppSearcher.search(query, &app)
+    let mut search_result = result.unwrap_or_else(|| AppSearcher.search(query, &app));
+
+    // Boost results based on usage history
+    if let Ok(history) = USAGE_HISTORY.lock() {
+        search_result.results = boost_results_by_usage(
+            search_result.results,
+            query,
+            &history,
+        );
+    }
+
+    search_result
 }
 
 // ---------------------------------------------------------
-// EXECUTE COMMAND
+// EXECUTE COMMAND (with usage tracking)
 // ---------------------------------------------------------
 #[tauri::command]
-fn execute(executable: &str, app: tauri::AppHandle) -> Result<(), String> {
+fn execute(executable: &str, name: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
     let parts: Vec<&str> = executable.split_whitespace().collect();
-    let executable = parts[0];
+    let executable_cmd = parts[0];
     let args = &parts[1..];
 
-    Command::new(executable)
+    Command::new(executable_cmd)
         .args(args)
         .spawn()
-        .map_err(|e| format!("Failed to run {}: {}", executable, e))?;
+        .map_err(|e| format!("Failed to run {}: {}", executable_cmd, e))?;
+
+    // Record usage
+    if let Ok(mut history) = USAGE_HISTORY.lock() {
+        history.record_usage(&query, executable, &name);
+    }
 
     Ok(())
 }

@@ -1,10 +1,8 @@
 use base64::{engine::general_purpose, Engine};
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
-use freedesktop_icons::lookup;
 use once_cell::sync::Lazy;
 use tauri::AppHandle;
-use std::path::PathBuf;
-use std::{fs, path::Path};
+use std::fs;
 
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
@@ -17,7 +15,7 @@ fn clean_exec_field(exec: &str) -> String {
 }
 
 fn resolve_icon(icon_name: &str) -> Option<String> {
-    use std::path::PathBuf;
+    
 
     let path = freedesktop_icons::lookup(icon_name).with_size(64).find()?;
 

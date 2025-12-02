@@ -9,7 +9,7 @@ export function handleKeydown(
   searchInput: HTMLInputElement,
   activeIndex: Writable<number>,
   resultItems: Writable<ResultItem[]>,
-  appWindow: any 
+  appWindow: any
 ) {
   if (searchInput && document.activeElement !== searchInput) {
     searchInput.focus();
@@ -43,7 +43,8 @@ export function handleKeydown(
     if (event.key === "n" && event.ctrlKey) return (index + 1) % items.length;
     if (event.key === "p" && event.ctrlKey) return index === 0 ? items.length - 1 : index - 1;
     if (event.key === "Enter") {
-      execute(items[index].exec);
+      const currentQuery = get(query);
+      execute(items[index].exec, items[index].name, currentQuery);
     }
     return index;
   });
