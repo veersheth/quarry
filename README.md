@@ -12,7 +12,7 @@ $ pnpm install
 $ pnpm run tauri dev
 ```
 
-CURRENT ABILITIES
+# current capabilities
 
 - app search 
 ![](for-readme/ss-apps.png)
@@ -25,6 +25,8 @@ CURRENT ABILITIES
 
 - web search
 ![](for-readme/ss-web.png)
+
+# checklist
 
 FRONTEND
 - [x] build out basic list layout
