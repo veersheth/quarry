@@ -15,16 +15,16 @@ $ pnpm run tauri dev
 CURRENT ABILITIES
 
 - app search 
-[](for-readme/ss-apps.png)
+![](for-readme/ss-apps.png)
 
 - emoji search 
-[](for-readme/ss-emojis.png)
+![](for-readme/ss-emojis.png)
 
 - math
-[](for-readme/ss-math.png)
+![](for-readme/ss-math.png)
 
 - web search
-[](for-readme/ss-web.png)
+![](for-readme/ss-web.png)
 
 FRONTEND
 - [x] build out basic list layout
