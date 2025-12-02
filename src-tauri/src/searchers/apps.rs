@@ -77,7 +77,7 @@ pub fn get_apps() -> Vec<ResultItem> {
 pub struct AppSearcher;
 
 impl SearchProvider for AppSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.to_lowercase();
 
         let results = APP_CACHE

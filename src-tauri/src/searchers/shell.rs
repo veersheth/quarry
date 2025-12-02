@@ -6,7 +6,7 @@ use crate::types::{ResultItem, ResultType, SearchResult};
 pub struct ShellSearcher;
 
 impl SearchProvider for ShellSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let command = query.trim();
 
         let results = vec![ResultItem {

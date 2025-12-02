@@ -6,7 +6,7 @@ use crate::types::{ResultItem, ResultType, SearchResult};
 pub struct MathSearcher;
 
 impl SearchProvider for MathSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let expr = query.trim();
 
         let value = meval::eval_str(expr);

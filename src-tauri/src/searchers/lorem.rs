@@ -6,7 +6,7 @@ use crate::types::{ResultItem, ResultType, SearchResult};
 pub struct LoremSearcher;
 
 impl SearchProvider for LoremSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
 
         let Ok(n) = trimmed.parse::<usize>() else {

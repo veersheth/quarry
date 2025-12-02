@@ -6,7 +6,7 @@ use crate::types::{ResultItem, ResultType, SearchResult};
 pub struct EmojiSearcher;
 
 impl SearchProvider for EmojiSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim().to_lowercase();
 
         let results: Vec<ResultItem> = EMOJI_LIST

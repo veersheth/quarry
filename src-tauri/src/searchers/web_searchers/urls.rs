@@ -6,7 +6,7 @@ use crate::types::{ResultItem, ResultType, SearchResult};
 pub struct URLSearcher;
 
 impl SearchProvider for URLSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         if q.is_empty() {
             return SearchResult {

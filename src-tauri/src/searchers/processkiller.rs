@@ -67,7 +67,7 @@ impl PkillSearcher {
 }
 
 impl SearchProvider for PkillSearcher {
-    fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
+    fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let query = query.trim();
         let processes = self.get_running_processes(query);
 
