@@ -12,6 +12,20 @@ $ pnpm install
 $ pnpm run tauri dev
 ```
 
+CURRENT ABILITIES
+
+- app search 
+[](for-readme/ss-apps.png)
+
+- emoji search 
+[](for-readme/ss-emojis.png)
+
+- math
+[](for-readme/ss-math.png)
+
+- web search
+[](for-readme/ss-web.png)
+
 FRONTEND
 - [x] build out basic list layout
 - [x] dumbdown frontend (move ALL functionality to backend)
