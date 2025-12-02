@@ -26,6 +26,9 @@ $ pnpm run tauri dev
 - web search
 ![](for-readme/ss-web.png)
 
+- dictionary
+![](for-readme/ss-dictionary.png)
+
 # checklist
 
 FRONTEND
