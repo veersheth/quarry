@@ -5,12 +5,10 @@ mod action_registry;
 
 use searchers::apps::AppSearcher;
 use searchers::emojis::EmojiSearcher;
-// use searchers::math::MathSearcher;
-// use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
-// use crate::searchers::lorem::LoremSearcher;
-// use crate::searchers::processkiller::PkillSearcher;
-// use crate::searchers::shell::ShellSearcher;
-// use crate::searchers::web_searchers::GithubSearcher;
+use searchers::math::MathSearcher;
+use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher, GitHubSearcher};
+use crate::searchers::lorem::LoremSearcher;
+use crate::searchers::shell::ShellSearcher;
 use searchers::SearchProvider;
 
 use tauri::Manager;
@@ -43,16 +41,15 @@ lazy_static! {
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-        // (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
-        // (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-        // (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
-        // (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-        // (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GithubSearcher)),
-        // (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-        // (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
-        // (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        // (Regex::new(r"^kill\s+(.*)$").unwrap(), Box::new(PkillSearcher)),
-        // (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
+        (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
+        (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
+        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+        (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
+        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
+        (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
+        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
+        (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
+        (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }

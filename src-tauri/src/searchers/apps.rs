@@ -3,7 +3,6 @@ use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use once_cell::sync::Lazy;
 use tauri::AppHandle;
 use std::fs;
-use uuid::Uuid;
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
 use crate::ACTION_REGISTRY;
