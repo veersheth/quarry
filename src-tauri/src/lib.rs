@@ -4,7 +4,7 @@ mod usage_tracker;
 mod action_registry;
 
 use searchers::apps::AppSearcher;
-// use searchers::emojis::EmojiSearcher;
+use searchers::emojis::EmojiSearcher;
 // use searchers::math::MathSearcher;
 // use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
 // use crate::searchers::lorem::LoremSearcher;
@@ -42,7 +42,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        // (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
+        (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
         // (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
         // (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
         // (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),

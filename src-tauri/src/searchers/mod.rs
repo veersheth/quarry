@@ -1,5 +1,5 @@
 pub mod apps;
-// pub mod emojis;
+pub mod emojis;
 // pub mod lorem;
 // pub mod math;
 // pub mod processkiller;
