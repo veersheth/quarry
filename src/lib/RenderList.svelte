@@ -3,7 +3,7 @@
 
   export let listitems: {
     name: string;
-    exec: string;
+    action_id: string;
     description?: string;
     icon?: string;
   }[] = [];

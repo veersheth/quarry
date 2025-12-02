@@ -1,6 +1,3 @@
-// src-tauri/src/usage_tracker.rs
-// Add this to your Cargo.toml dependencies:
-// dirs = "5.0"
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -10,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UsageEntry {
     pub query: String,
-    pub exec: String,
+    pub action_id: String,  
     pub name: String,
     pub last_used: u64,
     pub count: u32,
@@ -24,6 +21,7 @@ pub struct UsageHistory {
 impl UsageHistory {
     fn get_storage_path() -> PathBuf {
         let mut path = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
+        println!("HIHIHIHIHI {}", path.display());
         path.push("quarry");
         fs::create_dir_all(&path).ok();
         path.push("usage.json");
@@ -46,32 +44,32 @@ impl UsageHistory {
         }
     }
 
-    pub fn record_usage(&mut self, query: &str, exec: &str, name: &str) {
+    pub fn record_usage(&mut self, query: &str, action_id: &str, name: &str) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
-        // find existing entry or create new one
         if let Some(entry) = self
             .entries
             .iter_mut()
-            .find(|e| e.exec == exec && e.query.to_lowercase() == query.to_lowercase())
+            .find(|e| e.action_id == action_id && e.query.to_lowercase() == query.to_lowercase())
         {
             entry.count += 1;
             entry.last_used = now;
+            entry.name = name.to_string(); 
         } else {
             self.entries.push(UsageEntry {
                 query: query.to_string(),
-                exec: exec.to_string(),
+                action_id: action_id.to_string(),
                 name: name.to_string(),
                 last_used: now,
                 count: 1,
             });
         }
 
-        // store only last 400 queries
-        if self.entries.len() > 400 {
+        // Store only last 1000 entries
+        if self.entries.len() > 1000 {
             self.entries.sort_by_key(|e| e.last_used);
             self.entries.drain(0..self.entries.len() - 1000);
         }
@@ -79,7 +77,7 @@ impl UsageHistory {
         self.save();
     }
 
-    pub fn get_boost_score(&self, query: &str, exec: &str, _name: &str) -> f32 {
+    pub fn get_boost_score(&self, query: &str, action_id: &str, _name: &str) -> f32 {
         let query_lower = query.to_lowercase();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -89,11 +87,11 @@ impl UsageHistory {
         let mut best_score = 0.0f32;
 
         for entry in &self.entries {
-            if entry.exec != exec {
+            if entry.action_id != action_id {
                 continue;
             }
 
-            // Calculate query similarity (simple contains check, can be improved with fuzzy matching)
+            // Calculate query similarity
             let query_match = if query_lower.is_empty() {
                 0.5 // Neutral score for empty queries
             } else if entry.query.to_lowercase().contains(&query_lower) 
@@ -152,7 +150,7 @@ impl UsageHistory {
             .cloned()
             .collect();
 
-        // last_used descending
+        // Sort by last_used descending
         relevant.sort_by(|a, b| b.last_used.cmp(&a.last_used));
         relevant.truncate(limit);
         relevant
@@ -164,20 +162,18 @@ pub fn boost_results_by_usage(
     query: &str,
     history: &UsageHistory,
 ) -> Vec<crate::types::ResultItem> {
-    // Create a map of exec -> boost score
+    // Create a map of action_id -> boost score
     let mut scores: HashMap<String, f32> = HashMap::new();
     
     for result in &results {
-        if let Some(exec) = &result.exec {
-            let score = history.get_boost_score(query, exec, &result.name);
-            scores.insert(exec.clone(), score);
-        }
+        let score = history.get_boost_score(query, &result.action_id, &result.name);
+        scores.insert(result.action_id.clone(), score);
     }
 
     // Sort results by boost score (higher = more relevant based on history)
     results.sort_by(|a, b| {
-        let score_a = a.exec.as_ref().and_then(|e| scores.get(e)).unwrap_or(&0.0);
-        let score_b = b.exec.as_ref().and_then(|e| scores.get(e)).unwrap_or(&0.0);
+        let score_a = scores.get(&a.action_id).unwrap_or(&0.0);
+        let score_b = scores.get(&b.action_id).unwrap_or(&0.0);
         score_b.partial_cmp(score_a).unwrap_or(std::cmp::Ordering::Equal)
     });
 

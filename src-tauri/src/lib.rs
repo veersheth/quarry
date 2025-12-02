@@ -1,15 +1,22 @@
 mod searchers;
 mod types;
 mod usage_tracker;
+mod action_registry;
 
 use searchers::apps::AppSearcher;
-use searchers::emojis::EmojiSearcher;
-use searchers::math::MathSearcher;
-use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
+// use searchers::emojis::EmojiSearcher;
+// use searchers::math::MathSearcher;
+// use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher};
+// use crate::searchers::lorem::LoremSearcher;
+// use crate::searchers::processkiller::PkillSearcher;
+// use crate::searchers::shell::ShellSearcher;
+// use crate::searchers::web_searchers::GithubSearcher;
 use searchers::SearchProvider;
+
 use tauri::Manager;
-use types::SearchResult;
+use types::{SearchResult, ActionData};
 use usage_tracker::{UsageHistory, boost_results_by_usage};
+use action_registry::ActionRegistry;
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -21,16 +28,13 @@ use tauri::{
 };
 use tauri_plugin_cli::CliExt;
 
-use crate::searchers::lorem::LoremSearcher;
-use crate::searchers::processkiller::PkillSearcher;
-use crate::searchers::shell::ShellSearcher;
-use crate::searchers::web_searchers::GithubSearcher;
 
 // ---------------------------------------------------------
-// USAGE HISTORY STATE
+// GLOBAL STATE
 // ---------------------------------------------------------
 lazy_static! {
     static ref USAGE_HISTORY: Mutex<UsageHistory> = Mutex::new(UsageHistory::load());
+    static ref ACTION_REGISTRY: Mutex<ActionRegistry> = Mutex::new(ActionRegistry::new());
 }
 
 // ---------------------------------------------------------
@@ -38,23 +42,23 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-        (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
-        (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
-        (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GithubSearcher)),
-        (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
-        (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        (Regex::new(r"^kill\s+(.*)$").unwrap(), Box::new(PkillSearcher)),
-        (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
+        // (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
+        // (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
+        // (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
+        // (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+        // (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
+        // (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GithubSearcher)),
+        // (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
+        // (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
+        // (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
+        // (Regex::new(r"^kill\s+(.*)$").unwrap(), Box::new(PkillSearcher)),
+        // (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }
 
 // ---------------------------------------------------------
-// SEARCH COMMAND (with usage-based boosting)
+// SEARCH COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
 fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
@@ -68,7 +72,6 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
         }
     }
 
-    // fallback
     let mut search_result = result.unwrap_or_else(|| AppSearcher.search(query, &app));
 
     // Boost results based on usage history
@@ -84,25 +87,88 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
 }
 
 // ---------------------------------------------------------
-// EXECUTE COMMAND (with usage tracking)
+// EXECUTE COMMAND 
 // ---------------------------------------------------------
 #[tauri::command]
-fn execute(executable: &str, name: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
-    let parts: Vec<&str> = executable.split_whitespace().collect();
-    let executable_cmd = parts[0];
-    let args = &parts[1..];
+fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
+    let action_data = ACTION_REGISTRY
+        .lock()
+        .map_err(|e| format!("Failed to lock registry: {}", e))?
+        .get_action(&action_id)
+        .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
-    Command::new(executable_cmd)
-        .args(args)
-        .spawn()
-        .map_err(|e| format!("Failed to run {}: {}", executable_cmd, e))?;
+    let result = match action_data {
+        ActionData::LaunchApp { executable, args } => {
+            launch_app(&executable, &args)
+        }
+        ActionData::OpenUrl { url } => {
+            open_url(&url, &app)
+        }
+        ActionData::CopyToClipboard { text } => {
+            copy_to_clipboard(&text, &app)
+        }
+        ActionData::RunFunction { function_name, params } => {
+            run_custom_function(&function_name, &params, &app)
+        }
+        ActionData::ShellCommand { command } => {
+            run_shell_command(&command)
+        }
+    };
 
-    // Record usage
-    if let Ok(mut history) = USAGE_HISTORY.lock() {
-        history.record_usage(&query, executable, &name);
+    // record usage if execution successful
+    if result.is_ok() {
+        if let Ok(mut history) = USAGE_HISTORY.lock() {
+            history.record_usage(&query, &action_id, &action_id);
+        }
     }
 
+    result
+}
+
+// ---------------------------------------------------------
+// EXECUTION HANDLERS
+// ---------------------------------------------------------
+fn launch_app(executable: &str, args: &[String]) -> Result<(), String> {
+    Command::new(executable)
+        .args(args)
+        .spawn()
+        .map_err(|e| format!("Failed to launch {}: {}", executable, e))?;
     Ok(())
+}
+
+fn open_url(url: &str, app: &tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| format!("Failed to open URL: {}", e))?;
+    Ok(())
+}
+
+fn copy_to_clipboard(text: &str, app: &tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    app.clipboard()
+        .write_text(text)
+        .map_err(|e| format!("Failed to copy to clipboard: {}", e))?;
+    Ok(())
+}
+
+fn run_shell_command(command: &str) -> Result<(), String> {
+    Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .spawn()
+        .map_err(|e| format!("Failed to run shell command: {}", e))?;
+    Ok(())
+}
+
+fn run_custom_function(function_name: &str, params: &[String], app: &tauri::AppHandle) -> Result<(), String> {
+    match function_name {
+        "example_function" => {
+            println!("Running example function with params: {:?}", params);
+            Ok(())
+        }
+        _ => Err(format!("Unknown function: {}", function_name))
+    }
 }
 
 fn toggle_window(app_handle: &tauri::AppHandle) {
@@ -127,7 +193,6 @@ pub fn run() {
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // When a second instance is launched, toggle the window of the first instance
             toggle_window(app);
         }))
         .setup(|app| {
@@ -163,9 +228,7 @@ pub fn run() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {
                         if sub.name == "toggle" {
-                            // This will trigger the single_instance plugin
-                            // which will toggle the window in the running instance
-                            // and this instance will exit automatically
+                            // Trigger single_instance plugin
                         }
                     }
                 }
@@ -178,3 +241,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

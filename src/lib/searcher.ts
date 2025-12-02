@@ -2,10 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import type { SearchResult } from "../stores/search";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-export async function execute(executable: string, name: string, currentQuery: string) {
+export async function execute(action_id: string, name: string, currentQuery: string) {
+  console.log(action_id);
   try {
     await invoke("execute", { 
-      executable,
+      actionId: action_id,
       name,
       query: currentQuery 
     });
@@ -22,7 +23,7 @@ export async function search(query: string): Promise<SearchResult> {
   } catch (e) {
     console.error("Search failed:", e);
     return {
-      results: [{ name: "error", exec: "notify-send 'Error'" }],
+      results: [{ name: "error", action_id: "notify-send 'Error'" }],
       result_type: "List",
     };
   }

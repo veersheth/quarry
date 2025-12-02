@@ -44,7 +44,7 @@ export function handleKeydown(
     if (event.key === "p" && event.ctrlKey) return index === 0 ? items.length - 1 : index - 1;
     if (event.key === "Enter") {
       const currentQuery = get(query);
-      execute(items[index].exec, items[index].name, currentQuery);
+      execute(items[index].action_id, items[index].name, currentQuery);
     }
     return index;
   });

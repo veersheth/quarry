@@ -2,7 +2,7 @@ import { writable } from "svelte/store";
 
 export type ResultItem = {
   name: string;
-  exec: string;
+  action_id: string;
   description?: string;
   icon?: string;
 };
