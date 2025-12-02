@@ -3,7 +3,7 @@
 
   export let listitems: {
     name: string;        // description for display below emoji
-    exec: string;
+    action_id: string;
     description?: string; // optional, can show more info if desired
     icon?: string;       // the emoji itself
   }[] = [];

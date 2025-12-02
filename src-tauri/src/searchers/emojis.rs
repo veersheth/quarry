@@ -1,7 +1,9 @@
-use tauri::AppHandle;
-
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult};
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::ACTION_REGISTRY;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use tauri::AppHandle;
 
 pub struct EmojiSearcher;
 
@@ -12,11 +14,24 @@ impl SearchProvider for EmojiSearcher {
         let results: Vec<ResultItem> = EMOJI_LIST
             .iter()
             .filter(|(_, desc)| desc.contains(&q))
-            .map(|(emoji, desc)| ResultItem {
-                name: "".to_string(),
-                exec: Some(format!("wl-copy {}", emoji)),
-                description: Some(desc.to_string()),
-                icon: Some(emoji.to_string()),
+            .map(|(emoji, desc)| {
+                let action_id = format!("emoji_{}", emoji);
+
+                if let Ok(mut registry) = ACTION_REGISTRY.lock() {
+                    registry.register(
+                        action_id.clone(),
+                        ActionData::CopyToClipboard {
+                            text: emoji.to_string(),
+                        },
+                    );
+                }
+
+                ResultItem {
+                    name: "".to_string(),
+                    action_id,
+                    description: Some(desc.to_string()),
+                    icon: Some(emoji.to_string()),
+                }
             })
             .collect();
 
