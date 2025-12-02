@@ -12,6 +12,7 @@ pub struct ResultItem {
 pub enum ResultType {
     List,
     Grid,
+    Dictionary,
 }
 
 #[derive(Debug, Serialize, Clone)]

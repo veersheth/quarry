@@ -6,6 +6,7 @@ mod action_registry;
 use searchers::apps::AppSearcher;
 use searchers::emojis::EmojiSearcher;
 use searchers::math::MathSearcher;
+use searchers::dictionary::DictionarySearcher;
 use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher, GitHubSearcher};
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
@@ -22,7 +23,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::TrayIconBuilder,
 };
 use tauri_plugin_cli::CliExt;
 
@@ -49,6 +50,8 @@ lazy_static! {
         (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
         (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
+        (Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
+
         (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
@@ -158,7 +161,7 @@ fn run_shell_command(command: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn run_custom_function(function_name: &str, params: &[String], app: &tauri::AppHandle) -> Result<(), String> {
+fn run_custom_function(function_name: &str, params: &[String], _app: &tauri::AppHandle) -> Result<(), String> {
     match function_name {
         "example_function" => {
             println!("Running example function with params: {:?}", params);

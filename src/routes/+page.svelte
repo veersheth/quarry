@@ -6,6 +6,7 @@
   import { query, resultItems, resultType, activeIndex } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
+    import RenderDictionary from "$lib/RenderDictionary.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -41,8 +42,12 @@
     <div class="results">
       {#if $resultType === "List"}
         <RenderList listitems={visibleItems} activeIndex={$activeIndex} />
-      {:else}
+      {:else if $resultType === "Grid"}
         <RenderGrid listitems={visibleItems} activeIndex={$activeIndex} />
+      {:else if $resultType === "Dictionary"}
+        <RenderDictionary listitems={visibleItems} activeIndex={$activeIndex} />
+      {:else}
+        Oops
       {/if}
     </div>
   </div>

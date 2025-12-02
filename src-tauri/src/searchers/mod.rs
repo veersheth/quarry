@@ -3,6 +3,7 @@ pub mod emojis;
 pub mod lorem;
 pub mod math;
 pub mod shell;
+pub mod dictionary;
 pub mod web_searchers;
 
 use tauri::AppHandle;

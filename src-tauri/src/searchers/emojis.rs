@@ -1,8 +1,6 @@
 use super::SearchProvider;
 use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::ACTION_REGISTRY;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use tauri::AppHandle;
 
 pub struct EmojiSearcher;
