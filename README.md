@@ -14,20 +14,23 @@ $ pnpm run tauri dev
 
 # current capabilities
 
-- app search 
+- app search (prefix `app` or type normally)
 ![](for-readme/ss-apps.png)
 
-- emoji search 
+- emoji search  (prefix `em`)
 ![](for-readme/ss-emojis.png)
 
-- math
+- math (prefix `=` or type normally)
 ![](for-readme/ss-math.png)
 
-- web search
+- web search (prefix `http`, `g`, `yt`, `nxp`, `gh`)
 ![](for-readme/ss-web.png)
 
-- dictionary
+- dictionary (prefix `def`)
 ![](for-readme/ss-dictionary.png)
+
+- clipboard (prefix `cp`, to clear run `cp !clear`)
+![](for-readme/ss-clipboard.png)
 
 # checklist
 
