@@ -60,7 +60,7 @@ impl SearchProvider for ClipboardSearcher {
                 ResultItem {
                     name: entry.content.clone(),
                     action_id,
-                    description: None,
+                    description: Some(entry.timestamp.to_string()),
                     icon: None,
                 }
             })
