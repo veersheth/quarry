@@ -1,52 +1,38 @@
-# quarry
+# Quarry
 
-- globalized app/shortcut launcher, written in tauri/svelte
-- currently developed focused on a hyprland/nixos setup
-    - therefore depends on wayland protocols like `wl-copy` and `cliphist`
-- currently aiming to fix _my_ gripes with already existing app launchers
-- lots of inspiration taken from [raycast](https://www.raycast.com/) 
-- this is my first big project, so development might be slow. if you're smart i'd appreciate any feedback 😁
+- Globalized app/shortcut launcher, written in Tauri/Svelte
+- Currently developed focused on a Hyprland/NixOS setup but _should_ work everywhere 
+- Currently aiming to fix _my_ gripes with already existing app launchers
+- Lots of inspiration taken from [raycast](https://www.raycast.com/) 
+- This is my first big project, so development might be slow. If you're smart I'd appreciate any feedback 😁
 
 ```
 $ pnpm install
 $ pnpm run tauri dev
 ```
 
-# current capabilities
+# Current capabilities
 
-- app search (prefix `app` or type normally)
+- App search (prefix `app` or type normally)
 ![](for-readme/ss-apps.png)
 
-- emoji search  (prefix `em`)
+- Emoji search  (prefix `em`)
 ![](for-readme/ss-emojis.png)
 
-- math (prefix `=` or type normally)
+- Math (prefix `=` or type normally)
 ![](for-readme/ss-math.png)
 
-- web search (prefix `http`, `g`, `yt`, `nxp`, `gh`)
+- Web search (prefix `http`, `g`, `yt`, `nxp`, `gh`)
 ![](for-readme/ss-web.png)
 
-- dictionary (prefix `def`)
+- Dictionary (prefix `def`)
 ![](for-readme/ss-dictionary.png)
 
-- clipboard (prefix `cp`, to clear run `cp !clear`)
+- Clipboard (prefix `cp`, to clear run `cp !clear`)
 ![](for-readme/ss-clipboard.png)
 
-# checklist
+# Todo 
 
-FRONTEND
-- [x] build out basic list layout
-- [x] dumbdown frontend (move ALL functionality to backend)
-- [x] emacs based keybindings? (the ones used in vim insert mode)
-- [ ] basic markdown renderer layout
-- [x] grid layout
-
-
-BACKEND
-- [x] basic skeleton 
-- [x] module-based structure
-- [x] run in system tray
-- [x] cli to toggle visbility of main window
 - [ ] prefix settings separate from lib.rs 
 - [ ] figure out extendability somehow
 
@@ -61,6 +47,6 @@ BACKEND
 - [x] lorem generator
 - [ ] notes integration  BUILTIN
 - [ ] translation 
-- [ ] clipboard history BUILTIN
+- [x] clipboard history BUILTIN
 - [ ] basic chatgpt/gemini integration(?) 
 - [ ] spotify controls (or general media playback contorls)

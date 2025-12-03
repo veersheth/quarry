@@ -25,10 +25,10 @@ impl SearchProvider for EmojiSearcher {
                 }
 
                 ResultItem {
-                    name: "".to_string(),
+                    name: emoji.to_string(),
                     action_id,
                     description: Some(desc.to_string()),
-                    icon: Some(emoji.to_string()),
+                    icon: None,
                 }
             })
             .collect();
@@ -1248,7 +1248,7 @@ pub static EMOJI_LIST: &[(&str, &str)] = &[
     ("🛠️", "hammer and wrench tools build create"),
     ("🗡️", "dagger weapon"),
     ("⚔️", "crossed swords weapon"),
-    ("🔫", "pistol violence weapon pistol revolver"),
+    ("🔫", "gun pistol violence weapon pistol revolver"),
     ("🏹", "bow and arrow sports"),
     ("🛡️", "shield protection security"),
     ("🔧", "wrench tools diy ikea fix maintainer"),

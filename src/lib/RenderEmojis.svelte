@@ -1,6 +1,5 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import Icon from "./Icon.svelte";
   import { runItemAction } from "./keyHandler";
 
   function handleClick(item: ResultItem) {
@@ -31,8 +30,7 @@
       on:mouseenter={() => activeIndex.set(index)}
       on:click={() => handleClick(item)}
     >
-      <Icon icon={item.icon || ""} />
-      <span class="item-name">{truncate(item.name, 20)}</span>
+      <span class="emoji">{item.name}</span>
     </div>
   {/each}
 </div>
@@ -57,7 +55,9 @@
     background-color: rgba(30, 30, 30, 0.5);
     cursor: pointer;
     text-align: center;
-    transition: transform 100ms ease, border-radius 100ms ease;
+    transition:
+      transform 100ms ease,
+      border-radius 100ms ease;
   }
 
   .grid-item.active {
@@ -66,11 +66,14 @@
     border: 1px solid rgba(140, 140, 140, 0.9);
   }
 
-  .grid-item:hover { transform: scale(1.08); border-radius: 20px; }
+  .grid-item:hover {
+    transform: scale(1.08);
+    border-radius: 20px;
+  }
 
-  .item-name {
-    font-size: 0.9rem;
-    color: #e0e0e0;
-    word-break: break-word;
+  span.emoji {
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 6px;
   }
 </style>

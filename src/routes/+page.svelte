@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import RenderList from "$lib/RenderList.svelte";
-  import RenderGrid from "$lib/RenderGrid.svelte";
+  import RenderEmojis from "$lib/RenderEmojis.svelte";
   import RenderDictionary from "$lib/RenderDictionary.svelte";
   import {
     query,
@@ -58,7 +58,7 @@
       {#if $resultType === "List"}
         <RenderList listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Grid"}
-        <RenderGrid listitems={$resultItems} {activeIndex} />
+        <RenderEmojis listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Dictionary"}
         <RenderDictionary listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Clipboard"}
