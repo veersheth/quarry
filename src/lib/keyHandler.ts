@@ -36,6 +36,8 @@ export function handleKeydown(
   if (!items || items.length === 0) return;
 
   activeIndex.update((index) => {
+    if (event.key === "ArrowDown") return (index + 1) % items.length;
+    if (event.key === "ArrowUp") return index === 0 ? items.length - 1 : index - 1;
     if (event.key === "Tab" && !event.shiftKey) return (index + 1) % items.length;
     if (event.key === "Tab" && event.shiftKey) return index === 0 ? items.length - 1 : index - 1;
     if (event.key === "n" && event.ctrlKey) return (index + 1) % items.length;
