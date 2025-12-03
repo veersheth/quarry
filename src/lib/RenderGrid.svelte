@@ -57,13 +57,16 @@
     background-color: rgba(30, 30, 30, 0.5);
     cursor: pointer;
     text-align: center;
+    transition: transform 100ms ease, border-radius 100ms ease;
   }
 
   .grid-item.active {
     background-color: rgba(60, 60, 60, 0.7);
     box-shadow: 0 0 20px 4px rgba(50, 50, 50, 1);
-    border: 2px solid rgba(140, 140, 140, 0.9);
+    border: 1px solid rgba(140, 140, 140, 0.9);
   }
+
+  .grid-item:hover { transform: scale(1.08); border-radius: 20px; }
 
   .item-name {
     font-size: 0.9rem;

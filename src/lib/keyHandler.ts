@@ -43,6 +43,18 @@ export function handleKeydown(
     if (event.key === "Enter") {
       runItemAction(items[index]);
     }
+    if (event.key === "1" && event.altKey) {
+      runItemAction(items[0]);
+    }
+    if (event.key === "2" && event.altKey) {
+      runItemAction(items[1]);
+    }
+    if (event.key === "3" && event.altKey) {
+      runItemAction(items[2]);
+    }
+    if (event.key === "4" && event.altKey) {
+      runItemAction(items[3]);
+    }
     return index;
   });
 }

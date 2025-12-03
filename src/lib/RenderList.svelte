@@ -37,6 +37,9 @@
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
       {/if}
+      {#if index < 4}
+        <div class="shortcut">Alt + {index + 1}</div>
+      {/if}
     </div>
   {/each}
 </div>
@@ -51,6 +54,7 @@
 
   .result-item {
     display: flex;
+    align-items: center;
     width: auto;
     padding: 12px 18px;
     margin: 0 12px;
@@ -61,10 +65,15 @@
     color: #e0e0e0;
     cursor: pointer;
     border: 1px solid rgba(0, 0, 0, 0);
+    transition: transform 200ms ease;
   }
 
   .result-item.active {
     background-color: rgba(60, 60, 60, 0.7);
+  }
+
+  .result-item:hover { 
+    transform: scale(1.005); 
   }
 
   .item-name {
@@ -75,4 +84,12 @@
     opacity: 0.4;
     font-size: 16px;
   }
+
+  .shortcut {
+    margin-left: auto;
+    opacity: 0.4;
+    font-size: 14px;
+    font-family: monospace;
+  }
 </style>
+
