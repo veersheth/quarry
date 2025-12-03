@@ -4,9 +4,15 @@
   import RenderList from "$lib/RenderList.svelte";
   import RenderGrid from "$lib/RenderGrid.svelte";
   import RenderDictionary from "$lib/RenderDictionary.svelte";
-  import { query, resultItems, resultType, activeIndex } from "../stores/search";
+  import {
+    query,
+    resultItems,
+    resultType,
+    activeIndex,
+  } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
+  import RenderClipboard from "$lib/RenderClipboard.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -19,12 +25,12 @@
     });
 
     return () => {
-      unlisten.then(fn => fn());
+      unlisten.then((fn) => fn());
     };
   });
 
   $: if ($query !== undefined) {
-    search($query).then(res => {
+    search($query).then((res) => {
       resultItems.set(res.results);
       resultType.set(res.result_type);
       activeIndex.set(0);
@@ -32,23 +38,34 @@
   }
 </script>
 
-<svelte:window on:keydown={(e) => handleKeydown(e, searchInput, activeIndex, resultItems, appWindow)} />
+<svelte:window
+  on:keydown={(e) =>
+    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow)}
+/>
 
 <main class="container">
   <div class="panel">
-    <input type="text" placeholder="Search…" bind:value={$query} bind:this={searchInput} autofocus class="search" />
+    <!-- svelte-ignore a11y_autofocus -->
+    <input
+      type="text"
+      placeholder="Search…"
+      bind:value={$query}
+      bind:this={searchInput}
+      autofocus
+      class="search"
+    />
     <div class="results">
-
       {#if $resultType === "List"}
-        <RenderList listitems={$resultItems} activeIndex={activeIndex} />
+        <RenderList listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Grid"}
-        <RenderGrid listitems={$resultItems} activeIndex={activeIndex} />
+        <RenderGrid listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Dictionary"}
-        <RenderDictionary listitems={$resultItems} activeIndex={activeIndex} />
+        <RenderDictionary listitems={$resultItems} {activeIndex} />
+      {:else if $resultType === "Clipboard"}
+        <RenderClipboard listitems={$resultItems} {activeIndex} />
       {:else}
         Oops
       {/if}
-
     </div>
   </div>
 </main>
@@ -68,7 +85,11 @@
     border-radius: 14px;
     * {
       color: #fffffff8;
-      font-family: Segoe UI, Inter, Adwaita Sans, sans-serif;
+      font-family:
+        Segoe UI,
+        Inter,
+        Adwaita Sans,
+        sans-serif;
     }
   }
 
@@ -101,4 +122,3 @@
     overflow-y: auto;
   }
 </style>
-
