@@ -35,7 +35,7 @@ impl SearchProvider for ClipboardSearcher {
                 
                 
                 ResultItem {
-                    name: entry.preview.clone(),
+                    name: entry.content.clone(),
                     action_id,
                     description: None,
                     icon: None,

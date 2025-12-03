@@ -49,7 +49,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 5px 0;
+    padding: 15px 0 5px;
   }
 
   .result-item {

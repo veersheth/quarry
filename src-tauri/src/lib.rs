@@ -56,7 +56,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        ( Regex::new(r"^clip\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
+        ( Regex::new(r"^cp\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
         ( Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),

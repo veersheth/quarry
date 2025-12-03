@@ -116,7 +116,6 @@
     margin: 0;
     padding: 0;
     border-top: 1px solid rgba(80, 80, 80, 1);
-    padding-top: 10px;
     flex: 1;
     box-sizing: border-box;
     overflow-y: auto;

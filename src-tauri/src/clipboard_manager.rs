@@ -9,24 +9,16 @@ use std::time::Duration;
 pub struct ClipboardEntry {
     pub content: String,
     pub timestamp: u64,
-    pub preview: String,
 }
 
 impl ClipboardEntry {
     fn new(content: String) -> Self {
-        let preview = if content.len() > 100 {
-            format!("{}...", &content[..100])
-        } else {
-            content.clone()
-        };
-
         Self {
             content,
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs(),
-            preview,
         }
     }
 }
