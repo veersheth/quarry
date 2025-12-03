@@ -46,13 +46,9 @@
     background: none;
     text-align: left;
     color: #e0e0e0;
-    cursor: pointer;
     border: 1px solid rgba(255, 255, 255, 0);
   }
 
-  .result-item.active {
-    background-color: rgba(60, 60, 60, 0.4);
-  }
   .result-item:first-child.active {
     background-color: rgba(60, 60, 60, 0);
   }
