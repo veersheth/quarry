@@ -72,10 +72,6 @@
     background-color: rgba(60, 60, 60, 0.7);
   }
 
-  .result-item:hover { 
-    transform: scale(1.005); 
-  }
-
   .item-name {
     margin: auto 0.7rem;
   }
