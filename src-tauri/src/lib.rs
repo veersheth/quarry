@@ -1,22 +1,27 @@
+mod action_registry;
+mod clipboard_manager;
 mod searchers;
 mod types;
 mod usage_tracker;
-mod action_registry;
 
-use searchers::apps::AppSearcher;
-use searchers::emojis::EmojiSearcher;
-use searchers::math::MathSearcher;
-use searchers::dictionary::DictionarySearcher;
-use searchers::web_searchers::{GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher, GitHubSearcher};
+use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::system::SystemSearcher;
+use searchers::apps::AppSearcher;
+use searchers::dictionary::DictionarySearcher;
+use searchers::emojis::EmojiSearcher;
+use searchers::math::MathSearcher;
+use searchers::web_searchers::{
+    GitHubSearcher, GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher,
+};
 use searchers::SearchProvider;
 
-use tauri::Manager;
-use types::{SearchResult, ActionData};
-use usage_tracker::{UsageHistory, boost_results_by_usage};
 use action_registry::ActionRegistry;
+use clipboard_manager::ClipboardManager;
+use tauri::Manager;
+use types::{ActionData, SearchResult};
+use usage_tracker::{boost_results_by_usage, UsageHistory};
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -28,13 +33,22 @@ use tauri::{
 };
 use tauri_plugin_cli::CliExt;
 
-
 // ---------------------------------------------------------
 // GLOBAL STATE
 // ---------------------------------------------------------
 lazy_static! {
     static ref USAGE_HISTORY: Mutex<UsageHistory> = Mutex::new(UsageHistory::load());
     static ref ACTION_REGISTRY: Mutex<ActionRegistry> = Mutex::new(ActionRegistry::new());
+    static ref CLIPBOARD_MANAGER: ClipboardManager = {
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap())
+            .join("tauri");
+
+        std::fs::create_dir_all(&data_dir).ok();
+        let clipboard_path = data_dir.join("clipboard_history.json");
+
+        ClipboardManager::with_storage(clipboard_path)
+    };
 }
 
 // ---------------------------------------------------------
@@ -42,19 +56,19 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
+        ( Regex::new(r"^clip\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-        (Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
+        ( Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+        ( Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
+        ( Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
         (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
+        ( Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        (Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
-        (Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
-
-        (Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
+        ( Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
+        ( Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
+        ( Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }
@@ -65,7 +79,7 @@ lazy_static! {
 #[tauri::command]
 fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
     let mut result = None;
-    
+
     for (regex, searcher) in PREFIX_SEARCHERS.iter() {
         if let Some(caps) = regex.captures(query) {
             let rest = caps.get(1).map_or("", |m| m.as_str());
@@ -78,18 +92,14 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
 
     // Boost results based on usage history
     if let Ok(history) = USAGE_HISTORY.lock() {
-        search_result.results = boost_results_by_usage(
-            search_result.results,
-            query,
-            &history,
-        );
+        search_result.results = boost_results_by_usage(search_result.results, query, &history);
     }
 
     search_result
 }
 
 // ---------------------------------------------------------
-// EXECUTE COMMAND 
+// EXECUTE COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
 fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -100,21 +110,14 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
     let result = match action_data {
-        ActionData::LaunchApp { executable, args } => {
-            launch_app(&executable, &args)
-        }
-        ActionData::OpenUrl { url } => {
-            open_url(&url, &app)
-        }
-        ActionData::CopyToClipboard { text } => {
-            copy_to_clipboard(&text, &app)
-        }
-        ActionData::RunFunction { function_name, params } => {
-            run_custom_function(&function_name, &params, &app)
-        }
-        ActionData::ShellCommand { command } => {
-            run_shell_command(&command)
-        }
+        ActionData::LaunchApp { executable, args } => launch_app(&executable, &args),
+        ActionData::OpenUrl { url } => open_url(&url, &app),
+        ActionData::CopyToClipboard { text } => copy_to_clipboard(&text, &app),
+        ActionData::RunFunction {
+            function_name,
+            params,
+        } => run_custom_function(&function_name, &params, &app),
+        ActionData::ShellCommand { command } => run_shell_command(&command),
     };
 
     // record usage if execution successful
@@ -125,6 +128,15 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
     }
 
     result
+}
+
+// ---------------------------------------------------------
+// CLIPBOARD COMMANDS
+// ---------------------------------------------------------
+#[tauri::command]
+fn clear_clipboard_history() -> Result<(), String> {
+    CLIPBOARD_MANAGER.clear_history();
+    Ok(())
 }
 
 // ---------------------------------------------------------
@@ -163,13 +175,17 @@ fn run_shell_command(command: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn run_custom_function(function_name: &str, params: &[String], _app: &tauri::AppHandle) -> Result<(), String> {
+fn run_custom_function(
+    function_name: &str,
+    params: &[String],
+    _app: &tauri::AppHandle,
+) -> Result<(), String> {
     match function_name {
         "example_function" => {
             println!("Running example function with params: {:?}", params);
             Ok(())
         }
-        _ => Err(format!("Unknown function: {}", function_name))
+        _ => Err(format!("Unknown function: {}", function_name)),
     }
 }
 
@@ -190,6 +206,8 @@ fn toggle_window(app_handle: &tauri::AppHandle) {
 // ---------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    CLIPBOARD_MANAGER.start_monitoring();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_cli::init())
@@ -239,8 +257,11 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![search, execute])
+        .invoke_handler(tauri::generate_handler![
+            search,
+            execute,
+            clear_clipboard_history
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

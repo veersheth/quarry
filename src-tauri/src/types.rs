@@ -13,6 +13,7 @@ pub enum ResultType {
     List,
     Grid,
     Dictionary,
+    Clipboard
 }
 
 #[derive(Debug, Serialize, Clone)]

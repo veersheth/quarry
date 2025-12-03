@@ -6,6 +6,7 @@ pub mod shell;
 pub mod dictionary;
 pub mod system;
 pub mod web_searchers;
+pub mod clipboard;
 
 use tauri::AppHandle;
 use crate::types::SearchResult;
