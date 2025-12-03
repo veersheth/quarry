@@ -4,6 +4,7 @@ import { execute } from "./searcher";
 import { get } from "svelte/store";
 import { query } from "../stores/search";
 
+// existing keyboard handler
 export function handleKeydown(
   event: KeyboardEvent,
   searchInput: HTMLInputElement,
@@ -28,10 +29,7 @@ export function handleKeydown(
     return;
   }
 
-  //////////////////////////////////////////////////////////////
-  /////////////////    navigation    ///////////////////////////
-  //////////////////////////////////////////////////////////////
-
+  // navigation
   let items: ResultItem[];
   resultItems.subscribe(v => items = v)();
 
@@ -43,10 +41,14 @@ export function handleKeydown(
     if (event.key === "n" && event.ctrlKey) return (index + 1) % items.length;
     if (event.key === "p" && event.ctrlKey) return index === 0 ? items.length - 1 : index - 1;
     if (event.key === "Enter") {
-      const currentQuery = get(query);
-      execute(items[index].action_id, items[index].name, currentQuery);
+      runItemAction(items[index]);
     }
     return index;
   });
+}
+
+export function runItemAction(item: ResultItem) {
+  const currentQuery = get(query);
+  execute(item.action_id, item.name, currentQuery);
 }
 

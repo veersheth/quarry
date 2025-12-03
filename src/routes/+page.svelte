@@ -38,15 +38,17 @@
   <div class="panel">
     <input type="text" placeholder="Search…" bind:value={$query} bind:this={searchInput} autofocus class="search" />
     <div class="results">
+
       {#if $resultType === "List"}
         <RenderList listitems={$resultItems} activeIndex={activeIndex} />
       {:else if $resultType === "Grid"}
         <RenderGrid listitems={$resultItems} activeIndex={activeIndex} />
       {:else if $resultType === "Dictionary"}
-        <RenderDictionary listitems={$resultItems} activeIndex={$activeIndex} />
+        <RenderDictionary listitems={$resultItems} activeIndex={activeIndex} />
       {:else}
         Oops
       {/if}
+
     </div>
   </div>
 </main>

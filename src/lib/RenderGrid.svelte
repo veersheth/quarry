@@ -1,9 +1,14 @@
 <script lang="ts">
-    import { writable, type Writable } from "svelte/store";
-    import Icon from "./Icon.svelte";
+  import { writable, type Writable } from "svelte/store";
+  import Icon from "./Icon.svelte";
+  import { runItemAction } from "./keyHandler";
+
+  function handleClick(item: ResultItem) {
+    runItemAction(item);
+  }
 
   export let listitems: {
-    name: string;        
+    name: string;
     action_id: string;
     description?: string;
     icon?: string;
@@ -18,8 +23,14 @@
 
 <div class="result-grid">
   {#each listitems as item, index}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="grid-item" class:active={index === $activeIndex} on:mouseenter={() => activeIndex.set(index)}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="grid-item"
+      class:active={index === $activeIndex}
+      on:mouseenter={() => activeIndex.set(index)}
+      on:click={() => handleClick(item)}
+    >
       <Icon icon={item.icon || ""} />
       <span class="item-name">{truncate(item.name, 20)}</span>
     </div>
@@ -60,4 +71,3 @@
     word-break: break-word;
   }
 </style>
-

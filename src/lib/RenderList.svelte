@@ -1,6 +1,12 @@
 <script lang="ts">
-    import { writable, type Writable } from "svelte/store";
-    import Icon from "./Icon.svelte";
+  import { writable, type Writable } from "svelte/store";
+  import Icon from "./Icon.svelte";
+  import type { ResultItem } from "../stores/search";
+  import { runItemAction } from "./keyHandler";
+
+  function handleClick(item: ResultItem) {
+    runItemAction(item);
+  }
 
   export let listitems: {
     name: string;
@@ -19,13 +25,19 @@
 <div class="result-list">
   {#each listitems as item, index}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="result-item" class:active={index === $activeIndex} on:mouseenter={() => activeIndex.set(index)}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="result-item"
+      class:active={index === $activeIndex}
+      on:mouseenter={() => activeIndex.set(index)}
+      on:click={() => handleClick(item)}
+    >
       <Icon icon={item.icon || ""} />
       <span class="item-name">{item.name}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
       {/if}
-    </div> 
+    </div>
   {/each}
 </div>
 
@@ -53,12 +65,12 @@
 
   .result-item.active {
     background-color: rgba(60, 60, 60, 0.7);
-    /* border: 1px solid rgba(120, 120, 120, 0.7); */
   }
 
   .item-name {
     margin: auto 0.7rem;
   }
+
   .item-desc {
     opacity: 0.4;
     font-size: 16px;

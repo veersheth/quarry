@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { writable, type Writable } from "svelte/store";
+
   export let listitems: {
     name: string;
     action_id: string;
@@ -6,12 +8,17 @@
     icon?: string;
   }[] = [];
 
-  export let activeIndex: number = 0;
+  export let activeIndex: Writable<number> = writable(0);
 </script>
 
 <div class="result-list">
   {#each listitems as item, index}
-    <div class="result-item" class:active={index === activeIndex}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="result-item"
+      class:active={index === $activeIndex}
+      on:mouseenter={() => activeIndex.set(index)}
+    >
       <span class="item-name">{item.name}</span>
       {#if item.description}
         <span class="item-desc">{item.description}</span>
@@ -51,7 +58,7 @@
   }
 
   .result-item:first-child {
-    padding: 1.5rem 1rem 1.0rem;
+    padding: 1.5rem 1rem 1rem;
     border-radius: 0px;
 
     .item-name {
