@@ -181,8 +181,8 @@ fn run_custom_function(
     _app: &tauri::AppHandle,
 ) -> Result<(), String> {
     match function_name {
-        "example_function" => {
-            println!("Running example function with params: {:?}", params);
+        "clear_clipboard" => {
+            let _ = clear_clipboard_history();
             Ok(())
         }
         _ => Err(format!("Unknown function: {}", function_name)),
