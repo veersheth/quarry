@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { writable, type Writable } from "svelte/store";
     import Icon from "./Icon.svelte";
 
   export let listitems: {
@@ -7,7 +8,7 @@
     description?: string;
     icon?: string;
   }[] = [];
-  export let activeIndex: number = 0;
+  export let activeIndex: Writable<number> = writable(0);
 
   function truncate(str: string | undefined, maxLength: number): string {
     if (!str) return "";
@@ -17,7 +18,8 @@
 
 <div class="result-list">
   {#each listitems as item, index}
-    <div class="result-item" class:active={index === activeIndex}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="result-item" class:active={index === $activeIndex} on:mouseenter={() => activeIndex.set(index)}>
       <Icon icon={item.icon || ""} />
       <span class="item-name">{item.name}</span>
       {#if item.description}

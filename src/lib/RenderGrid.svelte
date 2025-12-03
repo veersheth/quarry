@@ -1,13 +1,14 @@
 <script lang="ts">
+    import { writable, type Writable } from "svelte/store";
     import Icon from "./Icon.svelte";
 
   export let listitems: {
-    name: string;        // description for display below emoji
+    name: string;        
     action_id: string;
-    description?: string; // optional, can show more info if desired
-    icon?: string;       // the emoji itself
+    description?: string;
+    icon?: string;
   }[] = [];
-  export let activeIndex: number = 0;
+  export let activeIndex: Writable<number> = writable(0);
 
   function truncate(str: string | undefined, maxLength: number): string {
     if (!str) return "";
@@ -17,8 +18,9 @@
 
 <div class="result-grid">
   {#each listitems as item, index}
-    <div class="grid-item" class:active={index === activeIndex}>
-      <Icon icon={item.icon} />
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="grid-item" class:active={index === $activeIndex} on:mouseenter={() => activeIndex.set(index)}>
+      <Icon icon={item.icon || ""} />
       <span class="item-name">{truncate(item.name, 20)}</span>
     </div>
   {/each}
@@ -27,7 +29,7 @@
 <style>
   .result-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 12px;
     padding: 10px;
     margin: 2px;
@@ -38,7 +40,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 28px 16px;
     border-radius: 12px;
     border: 1px solid rgba(60, 60, 60, 0.7);
     background-color: rgba(30, 30, 30, 0.5);

@@ -3,10 +3,10 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import RenderList from "$lib/RenderList.svelte";
   import RenderGrid from "$lib/RenderGrid.svelte";
+  import RenderDictionary from "$lib/RenderDictionary.svelte";
   import { query, resultItems, resultType, activeIndex } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
-    import RenderDictionary from "$lib/RenderDictionary.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -30,8 +30,6 @@
       activeIndex.set(0);
     });
   }
-
-  $: visibleItems = $resultItems.slice(0, $resultType === "List" ? 9 : 60);
 </script>
 
 <svelte:window on:keydown={(e) => handleKeydown(e, searchInput, activeIndex, resultItems, appWindow)} />
@@ -41,11 +39,11 @@
     <input type="text" placeholder="Search…" bind:value={$query} bind:this={searchInput} autofocus class="search" />
     <div class="results">
       {#if $resultType === "List"}
-        <RenderList listitems={visibleItems} activeIndex={$activeIndex} />
+        <RenderList listitems={$resultItems} activeIndex={activeIndex} />
       {:else if $resultType === "Grid"}
-        <RenderGrid listitems={visibleItems} activeIndex={$activeIndex} />
+        <RenderGrid listitems={$resultItems} activeIndex={activeIndex} />
       {:else if $resultType === "Dictionary"}
-        <RenderDictionary listitems={visibleItems} activeIndex={$activeIndex} />
+        <RenderDictionary listitems={$resultItems} activeIndex={$activeIndex} />
       {:else}
         Oops
       {/if}
@@ -53,14 +51,13 @@
   </div>
 </main>
 
-
 <style>
   .container {
     display: flex;
     flex: 1;
     height: calc(100vh - 20px);
     flex-direction: column;
-    margin: 0px;
+    margin: 0;
     padding: 0;
     box-sizing: border-box;
     background-color: rgba(20, 20, 20, 1);
@@ -69,11 +66,7 @@
     border-radius: 14px;
     * {
       color: #fffffff8;
-      font-family:
-        Segoe UI,
-        Inter,
-        Adwaita Sans,
-        sans-serif;
+      font-family: Segoe UI, Inter, Adwaita Sans, sans-serif;
     }
   }
 
@@ -103,6 +96,7 @@
     padding-top: 10px;
     flex: 1;
     box-sizing: border-box;
-    /* overflow-y: hidden; */
+    overflow-y: auto;
   }
 </style>
+
