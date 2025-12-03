@@ -63,7 +63,7 @@
     margin: 0px;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(20, 20, 20, 0.85);
+    background-color: rgba(20, 20, 20, 1);
     border: 1px solid rgba(80, 80, 80, 1);
     overflow: hidden;
     border-radius: 14px;
@@ -102,7 +102,7 @@
     border-top: 1px solid rgba(80, 80, 80, 1);
     padding-top: 10px;
     flex: 1;
-    overflow-y: hidden;
     box-sizing: border-box;
+    /* overflow-y: hidden; */
   }
 </style>
