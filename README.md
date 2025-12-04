@@ -31,6 +31,9 @@ $ pnpm run tauri dev
 - Clipboard (prefix `cp`, to clear run `cp !clear`)
 ![](for-readme/ss-clipboard.png)
 
+- Color Picker (`color`)
+![](for-readme/ss-colorpicker.png)
+
 # Todo 
 
 - [ ] prefix settings separate from lib.rs 
