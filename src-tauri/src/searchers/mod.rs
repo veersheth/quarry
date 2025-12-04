@@ -7,6 +7,7 @@ pub mod dictionary;
 pub mod system;
 pub mod web_searchers;
 pub mod clipboard;
+pub mod colorpicker;
 
 use tauri::AppHandle;
 use crate::types::SearchResult;

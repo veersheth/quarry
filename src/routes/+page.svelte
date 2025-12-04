@@ -57,14 +57,15 @@
     />
     <div class="results">
       {#if $resultType === "List"}
-        <!-- <RenderList listitems={$resultItems} {activeIndex} /> -->
-        <RenderColorPicker />
+        <RenderList listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Grid"}
         <RenderEmojis listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Dictionary"}
         <RenderDictionary listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Clipboard"}
         <RenderClipboard listitems={$resultItems} {activeIndex} />
+      {:else if $resultType === "ColorPicker"}
+        <RenderColorPicker />
       {:else}
         Oops
       {/if}

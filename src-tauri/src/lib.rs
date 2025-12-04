@@ -5,6 +5,7 @@ mod types;
 mod usage_tracker;
 
 use crate::searchers::clipboard::ClipboardSearcher;
+use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::system::SystemSearcher;
@@ -68,6 +69,7 @@ lazy_static! {
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
         ( Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
         ( Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
+        ( Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
         ( Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
