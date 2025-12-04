@@ -87,6 +87,7 @@
     overflow: hidden;
     border-radius: 14px;
     * {
+      z-index: 0;
       color: #fffffff8;
       font-family:
         Segoe UI,

@@ -4,7 +4,7 @@
   let lightness = 50;
   let isDraggingSL = false;
   let isDraggingHue = false;
-  
+
   let slPickerEl;
   let hueSliderEl;
 
@@ -12,26 +12,47 @@
     s /= 100;
     l /= 100;
     const c = (1 - Math.abs(2 * l - 1)) * s;
-    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
     const m = l - c / 2;
-    let r = 0, g = 0, b = 0;
-    
-    if (h < 60) { r = c; g = x; b = 0; }
-    else if (h < 120) { r = x; g = c; b = 0; }
-    else if (h < 180) { r = 0; g = c; b = x; }
-    else if (h < 240) { r = 0; g = x; b = c; }
-    else if (h < 300) { r = x; g = 0; b = c; }
-    else { r = c; g = 0; b = x; }
-    
+    let r = 0,
+      g = 0,
+      b = 0;
+
+    if (h < 60) {
+      r = c;
+      g = x;
+      b = 0;
+    } else if (h < 120) {
+      r = x;
+      g = c;
+      b = 0;
+    } else if (h < 180) {
+      r = 0;
+      g = c;
+      b = x;
+    } else if (h < 240) {
+      r = 0;
+      g = x;
+      b = c;
+    } else if (h < 300) {
+      r = x;
+      g = 0;
+      b = c;
+    } else {
+      r = c;
+      g = 0;
+      b = x;
+    }
+
     return {
       r: Math.round((r + m) * 255),
       g: Math.round((g + m) * 255),
-      b: Math.round((b + m) * 255)
+      b: Math.round((b + m) * 255),
     };
   }
 
   function rgbToHex(r, g, b) {
-    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    return "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("");
   }
 
   $: currentColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
@@ -63,19 +84,23 @@
     isDraggingSL = false;
     isDraggingHue = false;
   }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text);
+  }
 </script>
 
-<svelte:window 
-  on:mousemove={handleMouseMove}
-  on:mouseup={handleMouseUp}
-/>
+<svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="color-picker">
+  <div class="background-blob" style="background-color: {currentColor};"></div>
   <div class="left-section">
     <!-- Preview -->
     <div class="preview" style="background-color: {currentColor}"></div>
-    
+
     <!-- Saturation/Lightness Picker -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       bind:this={slPickerEl}
       class="sl-picker"
@@ -93,6 +118,7 @@
   </div>
 
   <!-- Hue Slider -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     bind:this={hueSliderEl}
     class="hue-slider"
@@ -101,31 +127,32 @@
       handleHueSliderMove(e);
     }}
   >
-    <div
-      class="hue-cursor"
-      style="top: {(hue / 360) * 100}%"
-    ></div>
+    <div class="hue-cursor" style="top: {(hue / 360) * 100}%"></div>
   </div>
 
   <!-- Right section: Color values -->
   <div class="values-section">
-    <!-- HSL -->
-    <div class="value-box">
+    <button
+      class="value-box"
+      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`)}
+    >
       <span class="value-title">HSL</span>
-      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span>
-    </div>
+      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span
+      >
+    </button>
 
-    <!-- RGB -->
-    <div class="value-box">
+    <button
+      class="value-box"
+      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`)}
+    >
       <span class="value-title">RGB</span>
       <span class="value-content mono">{rgb.r}, {rgb.g}, {rgb.b}</span>
-    </div>
+    </button>
 
-    <!-- HEX -->
-    <div class="value-box">
+    <button class="value-box" on:click={() => copyText(hex)}>
       <span class="value-title">HEX</span>
       <span class="value-content mono">{hex}</span>
-    </div>
+    </button>
   </div>
 </div>
 
@@ -140,6 +167,21 @@
     padding: 20px;
   }
 
+  .background-blob {
+    position: fixed;
+    bottom: 0%;
+    right: 0;
+    transform: translate(-86%, 50%);
+    height: 56%;
+    width: 57%;
+    z-index: -1;
+
+    background-size: 300% 300%;
+    opacity: 0.2;
+    filter: blur(120px);
+    border-radius: 50%;
+  }
+
   .left-section {
     display: flex;
     flex-direction: column;
@@ -149,7 +191,7 @@
   .preview {
     width: 240px;
     height: 80px;
-    border-radius: 8px;
+    border-radius: 111px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border: 2px solid rgba(255, 255, 255, 0.2);
   }
@@ -169,7 +211,9 @@
     height: 18px;
     border: 3px solid white;
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.4);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.4);
     pointer-events: none;
     transform: translate(-50%, -50%);
   }
@@ -179,13 +223,14 @@
     border-radius: 8px;
     cursor: grab;
     position: relative;
-    background: linear-gradient(to bottom, 
-      #ff0000 0%, 
-      #ffff00 17%, 
-      #00ff00 33%, 
-      #00ffff 50%, 
-      #0000ff 67%, 
-      #ff00ff 83%, 
+    background: linear-gradient(
+      to bottom,
+      #ff0000 0%,
+      #ffff00 17%,
+      #00ff00 33%,
+      #00ffff 50%,
+      #0000ff 67%,
+      #ff00ff 83%,
       #ff0000 100%
     );
   }
@@ -212,17 +257,29 @@
 
   .value-box {
     cursor: pointer;
+    color: white;
+    margin-left: 24px;
     padding: 22px;
     border-radius: 8px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     background-color: rgba(60, 60, 60, 0.3);
     display: flex;
     justify-content: space-between;
+    transition: all 300ms ease;
+  }
+
+  .value-box:hover {
+    transform: scale(1.03);
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .value-box:active {
+    transform: scale(1);
   }
 
   .value-content {
     font-size: 16px;
     font-weight: 500;
-    font-family: 'JetBrainsMono Nerd Font', 'Courier New', monospace;
+    font-family: "JetBrainsMono Nerd Font", "Courier New", monospace;
   }
 </style>
