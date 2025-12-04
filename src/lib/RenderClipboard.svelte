@@ -97,10 +97,11 @@
   .preview {
     flex: 9;
     overflow-y: auto;
-    padding: 12px;
+    padding: 16px;
     font-family: "JetBrainsMono Nerd Font", "Courier New", Courier, monospace;
     white-space: pre-wrap;
     word-wrap: normal;
+    color: rgba(255, 181, 188, 1);
   }
 
   .data {

@@ -13,6 +13,7 @@
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
+    import RenderColorPicker from "$lib/RenderColorPicker.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -56,7 +57,8 @@
     />
     <div class="results">
       {#if $resultType === "List"}
-        <RenderList listitems={$resultItems} {activeIndex} />
+        <!-- <RenderList listitems={$resultItems} {activeIndex} /> -->
+        <RenderColorPicker />
       {:else if $resultType === "Grid"}
         <RenderEmojis listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Dictionary"}

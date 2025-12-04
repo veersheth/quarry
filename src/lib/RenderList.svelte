@@ -1,6 +1,5 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import Icon from "./Icon.svelte";
   import type { ResultItem } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
@@ -32,7 +31,7 @@
       on:mouseenter={() => activeIndex.set(index)}
       on:click={() => handleClick(item)}
     >
-      <Icon icon={item.icon || ""} />
+      <img class="item-icon" src={item.icon} alt="" />
       <span class="item-name">{item.name}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
@@ -72,6 +71,10 @@
     background-color: rgba(60, 60, 60, 0.7);
   }
 
+  img.item-icon {
+    width: 20px;
+    height: 20px;
+  }
   .item-name {
     margin: auto 0.7rem;
   }
@@ -88,4 +91,3 @@
     font-family: monospace;
   }
 </style>
-
