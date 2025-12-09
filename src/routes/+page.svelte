@@ -14,6 +14,7 @@
   import { handleKeydown } from "../lib/keyHandler";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
     import RenderColorPicker from "$lib/RenderColorPicker.svelte";
+    import RenderWebSearch from "$lib/RenderWebSearch.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -60,6 +61,8 @@
         <RenderList listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Grid"}
         <RenderEmojis listitems={$resultItems} {activeIndex} />
+      {:else if $resultType === "WebSearch"}
+        <RenderWebSearch listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Dictionary"}
         <RenderDictionary listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "Clipboard"}

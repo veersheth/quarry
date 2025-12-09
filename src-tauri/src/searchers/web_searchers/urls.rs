@@ -11,7 +11,7 @@ impl SearchProvider for URLSearcher {
         if q.is_empty() {
             return SearchResult {
                 results: vec![],
-                result_type: ResultType::List,
+                result_type: ResultType::WebSearch
             };
         }
 
@@ -23,15 +23,15 @@ impl SearchProvider for URLSearcher {
         }
 
         let results = vec![ResultItem {
-            name: format!("Search Google for '{}'", q),
+            name: format!("Open '{}'", q),
             action_id,
-            description: Some("Open in browser".into()),
+            description: None,
             icon: None,
         }];
 
         SearchResult {
             results,
-            result_type: ResultType::List,
+            result_type: ResultType::WebSearch
         }
     }
 }

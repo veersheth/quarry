@@ -21,7 +21,6 @@ pub struct UsageHistory {
 impl UsageHistory {
     fn get_storage_path() -> PathBuf {
         let mut path = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
-        println!("HIHIHIHIHI {}", path.display());
         path.push("quarry");
         fs::create_dir_all(&path).ok();
         path.push("usage.json");

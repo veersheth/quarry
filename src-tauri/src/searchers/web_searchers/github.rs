@@ -9,13 +9,6 @@ impl SearchProvider for GitHubSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         
-        if q.is_empty() {
-            return SearchResult {
-                results: vec![],
-                result_type: ResultType::List,
-            };
-        }
-        
         let url = format!( "https://www.github.com/search?q={}", urlencoding::encode(q));
         let action_id = format!("search_{}", url);
         
@@ -30,12 +23,12 @@ impl SearchProvider for GitHubSearcher {
             name: format!("Search GitHub for '{}'", q),
             action_id,
             description: Some("Open in browser".into()),
-            icon: None,
+            icon: Some("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png".into()),
         }];
         
         SearchResult {
             results,
-            result_type: ResultType::List,
+            result_type: ResultType::WebSearch,
         }
     }
 }

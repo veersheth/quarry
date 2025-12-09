@@ -9,13 +9,6 @@ impl SearchProvider for NixSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         
-        if q.is_empty() {
-            return SearchResult {
-                results: vec![],
-                result_type: ResultType::List,
-            };
-        }
-        
         let url = format!( "https://search.nixos.org/packages?channel=25.05&query={}", urlencoding::encode(q));
         let action_id = format!("search_{}", url);
         
@@ -30,12 +23,12 @@ impl SearchProvider for NixSearcher {
             name: format!("Search Nix Packages for '{}'", q),
             action_id,
             description: Some("Open in browser".into()),
-            icon: None,
+            icon: Some("https://upload.wikimedia.org/wikipedia/commons/3/35/Nix_Snowflake_Logo.svg".into())
         }];
         
         SearchResult {
             results,
-            result_type: ResultType::List,
+            result_type: ResultType::WebSearch,
         }
     }
 }

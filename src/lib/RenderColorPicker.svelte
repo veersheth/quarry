@@ -260,7 +260,7 @@
     color: white;
     margin-left: 24px;
     padding: 22px;
-    border-radius: 8px;
+    border-radius: 22px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     background-color: rgba(60, 60, 60, 0.3);
     display: flex;
