@@ -33,23 +33,3 @@ $ pnpm run tauri dev
 
 - Color Picker (`color`)
 ![](for-readme/ss-colorpicker.png)
-
-# Todo 
-
-- [ ] prefix settings separate from lib.rs 
-- [ ] figure out extendability somehow
-
-
-"PLUGINS"
-- [x] web searches BUILTIN
-- [x] math BUILTIN
-- [ ] currency conversion
-- [ ] color preview/picker
-- [x] emoji picker BUILTIN
-- [ ] world/clock/timer management  
-- [x] lorem generator
-- [ ] notes integration  BUILTIN
-- [ ] translation 
-- [x] clipboard history BUILTIN
-- [ ] basic chatgpt/gemini integration(?) 
-- [ ] spotify controls (or general media playback contorls)
