@@ -8,11 +8,20 @@
 
 > Rust/Svelte
 
+## Setup
+
+Clone the repo and `cd` to it
+
 ```
 $ nix-shell 
 $ pnpm install
 $ pnpm run tauri dev
 ```
+
+- This should start a process and put an icon in your system tray
+- To toggle visibility
+    - Either use the tray icon menu
+    - Or run the `quarry-toggle` binary in `src-tauri/target/debug/quarry-toggle`, I have this mapped to `Alt-Space`
 
 # Current capabilities
 
