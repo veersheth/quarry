@@ -1,12 +1,15 @@
 # Quarry
 
-- Globalized app/shortcut launcher, written in Tauri/Svelte
-- Currently developed focused on a Hyprland/NixOS setup but _should_ work everywhere 
+- Globalized app/shortcut launcher
+- Currently developed focused on a Hyprland / NixOS setup, but it _should_ work on most distributions (not tested)
 - Currently aiming to fix _my_ gripes with already existing app launchers
-- Lots of inspiration taken from [raycast](https://www.raycast.com/) 
+- Lots of inspiration taken from [Raycast](https://www.raycast.com/) 
 - This is my first big project, so development might be slow. If you're smart I'd appreciate any feedback 😁
 
+> Rust/Svelte
+
 ```
+$ nix-shell 
 $ pnpm install
 $ pnpm run tauri dev
 ```
