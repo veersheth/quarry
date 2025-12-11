@@ -12,9 +12,9 @@
     icon?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
-  
+
   let showFallback = false;
-  
+
   function truncate(str: string | undefined, maxLength: number): string {
     if (!str) return "";
     return str.length > maxLength ? str.slice(0, maxLength) + "…" : str;
@@ -27,6 +27,7 @@
     showFallback = !item.icon;
   }
 </script>
+
 {#if item}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -44,19 +45,21 @@
     </div>
     {#if item.icon && !showFallback}
       <img
+        class="item-icon-glow"
+        src={item.icon}
+        alt=""
+        on:error={handleIconError}
+      />
+      <img
         class="item-icon"
         src={item.icon}
         alt=""
         on:error={handleIconError}
       />
-    {:else}
-      <svg class="item-icon fallback-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2"/>
-        <path d="M14.5 14.5L20 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
     {/if}
   </div>
 {/if}
+
 <style>
   .result-item {
     position: relative;
@@ -74,13 +77,14 @@
       background 120ms ease,
       transform 120ms ease;
   }
+
   .item-content {
     display: flex;
     flex-direction: column;
     flex: 1;
   }
-  img.item-icon,
-  svg.item-icon {
+
+  img.item-icon {
     width: 45%;
     height: auto;
     opacity: 0.15;
@@ -93,12 +97,49 @@
     filter: drop-shadow(0 0 30px rgba(66, 133, 244, 0.15))
       drop-shadow(0 0 60px rgba(66, 133, 244, 0.08));
   }
-  
-  svg.fallback-icon {
-    color: #4285f4;
-    opacity: 0.12;
+
+  @keyframes glowPulse {
+    0% {
+      opacity: 0.25;
+      transform: rotate(-15deg) scale(1.1);
+      filter: blur(18px);
+    }
+    20% {
+      opacity: 0.85;
+      transform: rotate(-15deg) scale(1.18);
+      filter: blur(8px);
+    }
+    40% {
+      opacity: 0.55;
+      transform: rotate(-15deg) scale(1.18);
+      filter: blur(18px);
+    }
+    70% {
+      opacity: 0.75;
+      transform: rotate(-15deg) scale(1.18);
+      filter: blur(28px);
+    }
+    100% {
+      opacity: 0.45;
+      transform: rotate(-15deg) scale(1.1);
+      filter: blur(18px);
+    }
   }
- 
+
+  img.item-icon-glow {
+    animation: glowPulse 6s linear forwards;
+    width: 45%;
+    height: auto;
+    opacity: 0.5;
+    object-fit: contain;
+    position: absolute;
+    right: -30px;
+    bottom: -30px;
+    pointer-events: none;
+    transform: rotate(-15deg) scale(1.15);
+    filter: blur(62px);
+  }
+
   .item-name {
     font-size: 1.4rem;
     font-weight: 500;

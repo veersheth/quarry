@@ -31,7 +31,7 @@ impl SearchProvider for DefaultSearcher {
             results.extend(AppSearcher.search(q, app).results);
             return SearchResult {
                 results,
-                result_type: ResultType::List,
+                result_type: ResultType::Home,
             };
         }
 

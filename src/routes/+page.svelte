@@ -13,8 +13,9 @@
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
-    import RenderColorPicker from "$lib/RenderColorPicker.svelte";
-    import RenderWebSearch from "$lib/RenderWebSearch.svelte";
+  import RenderColorPicker from "$lib/RenderColorPicker.svelte";
+  import RenderWebSearch from "$lib/RenderWebSearch.svelte";
+  import RenderHome from "$lib/RenderHome.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -69,6 +70,8 @@
         <RenderClipboard listitems={$resultItems} {activeIndex} />
       {:else if $resultType === "ColorPicker"}
         <RenderColorPicker />
+      {:else if $resultType === "Home"}
+        <RenderHome listitems={$resultItems} {activeIndex} />
       {:else}
         Oops
       {/if}

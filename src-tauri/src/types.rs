@@ -15,7 +15,8 @@ pub enum ResultType {
     WebSearch,
     Dictionary,
     Clipboard,
-    ColorPicker
+    ColorPicker,
+    Home
 }
 
 #[derive(Debug, Serialize, Clone)]
