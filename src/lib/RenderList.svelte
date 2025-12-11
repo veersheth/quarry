@@ -86,6 +86,9 @@
     height: 20px;
     margin-right: 0.7rem;
     display: inline-block;
+
+    object-fit: contain; 
+    object-position: center;
   }
 
   .item-name {
