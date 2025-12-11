@@ -1,3 +1,4 @@
+pub mod default;
 pub mod apps;
 pub mod emojis;
 pub mod lorem;

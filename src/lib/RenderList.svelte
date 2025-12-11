@@ -31,8 +31,18 @@
       on:mouseenter={() => activeIndex.set(index)}
       on:click={() => handleClick(item)}
     >
-      <img class="item-icon" src={item.icon} alt="" />
-      <span class="item-name">{item.name}</span>
+      {#if item.icon}
+        <img
+          class="item-icon"
+          src={item.icon}
+          alt=""
+          on:error={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      {/if}
+
+      <span class="item-name">{truncate(item.name, 80)}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
       {/if}
@@ -74,9 +84,13 @@
   img.item-icon {
     width: 20px;
     height: 20px;
+    margin-right: 0.7rem;
+    display: inline-block;
   }
+
   .item-name {
-    margin: auto 0.7rem;
+    margin-left: 0;
+    margin-right: 0.7rem;
   }
 
   .item-desc {

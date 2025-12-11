@@ -92,10 +92,6 @@ lazy_static! {
             Box::new(SystemSearcher)
         ),
         (Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
-        (
-            Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(),
-            Box::new(MathSearcher)
-        ),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }
@@ -115,7 +111,10 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
         }
     }
 
-    let mut search_result = result.unwrap_or_else(|| AppSearcher.search(query, &app));
+    let mut search_result = result.unwrap_or_else(|| {
+        use searchers::default::DefaultSearcher;
+        DefaultSearcher::new().search(query, &app)
+    });
 
     // Boost results based on usage history
     if let Ok(history) = USAGE_HISTORY.lock() {
@@ -246,7 +245,7 @@ pub fn run() {
             // START IPC SERVER
             let app_handle = app.handle().clone();
             ipc_server::start_ipc_server(app_handle);
-            
+
             // Setup tray menu
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

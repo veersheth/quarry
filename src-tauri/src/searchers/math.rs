@@ -28,7 +28,7 @@ impl SearchProvider for MathSearcher {
                     name: format!("{} = {}", expr, result),
                     action_id,
                     description: Some("Copy result to clipboard".into()),
-                    icon: None,
+                    icon: Some("icons/math.png".to_string()),
                 }]
             }
             Err(_) => vec![],
