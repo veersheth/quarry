@@ -1,5 +1,6 @@
 mod action_registry;
 mod clipboard_manager;
+mod ipc_server;
 mod searchers;
 mod types;
 mod usage_tracker;
@@ -57,20 +58,44 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        ( Regex::new(r"^cp\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
+        (
+            Regex::new(r"^cp\s+(.*)$").unwrap(),
+            Box::new(ClipboardSearcher)
+        ),
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-        ( Regex::new(r"^(https?://.*)$").unwrap(), Box::new(URLSearcher)),
+        (
+            Regex::new(r"^(https?://.*)$").unwrap(),
+            Box::new(URLSearcher)
+        ),
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-        ( Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+        (
+            Regex::new(r"^yt\s+(.*)$").unwrap(),
+            Box::new(YouTubeSearcher)
+        ),
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-        ( Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
+        (
+            Regex::new(r"^gh\s+(.*)$").unwrap(),
+            Box::new(GitHubSearcher)
+        ),
         (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-        ( Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
+        (
+            Regex::new(r"^lorem\s+(.*)$").unwrap(),
+            Box::new(LoremSearcher)
+        ),
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        ( Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
-        ( Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
-        ( Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
-        ( Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(), Box::new(MathSearcher)),
+        (
+            Regex::new(r"^def\s+(.*)$").unwrap(),
+            Box::new(DictionarySearcher)
+        ),
+        (
+            Regex::new(r"^sys\s+(.*)$").unwrap(),
+            Box::new(SystemSearcher)
+        ),
+        (Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
+        (
+            Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap(),
+            Box::new(MathSearcher)
+        ),
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }
@@ -218,6 +243,11 @@ pub fn run() {
             toggle_window(app);
         }))
         .setup(|app| {
+            // START IPC SERVER
+            let app_handle = app.handle().clone();
+            ipc_server::start_ipc_server(app_handle);
+            
+            // Setup tray menu
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&toggle, &quit])?;
@@ -236,6 +266,7 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // Setup window event handlers
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
@@ -246,6 +277,7 @@ pub fn run() {
                 });
             }
 
+            // Handle CLI args (for backwards compatibility with single_instance)
             match app.cli().matches() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {
