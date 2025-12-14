@@ -98,36 +98,7 @@
       drop-shadow(0 0 60px rgba(66, 133, 244, 0.08));
   }
 
-  @keyframes glowPulse {
-    0% {
-      opacity: 0.25;
-      transform: rotate(-15deg) scale(1.1);
-      filter: blur(18px);
-    }
-    20% {
-      opacity: 0.85;
-      transform: rotate(-15deg) scale(1.18);
-      filter: blur(8px);
-    }
-    40% {
-      opacity: 0.55;
-      transform: rotate(-15deg) scale(1.18);
-      filter: blur(18px);
-    }
-    70% {
-      opacity: 0.75;
-      transform: rotate(-15deg) scale(1.18);
-      filter: blur(28px);
-    }
-    100% {
-      opacity: 0.45;
-      transform: rotate(-15deg) scale(1.1);
-      filter: blur(18px);
-    }
-  }
-
   img.item-icon-glow {
-    animation: glowPulse 6s linear forwards;
     width: 45%;
     height: auto;
     opacity: 0.5;
