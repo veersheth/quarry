@@ -16,6 +16,7 @@
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderHome from "$lib/RenderHome.svelte";
+    import RenderMedia from "$lib/RenderMedia.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -72,6 +73,8 @@
         <RenderColorPicker />
       {:else if $resultType === "Home"}
         <RenderHome listitems={$resultItems} {activeIndex} />
+      {:else if $resultType === "Media"}
+        <RenderMedia listitems={$resultItems} {activeIndex} />
       {:else}
         Oops
       {/if}

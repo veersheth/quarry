@@ -9,6 +9,7 @@ pub mod system;
 pub mod web_searchers;
 pub mod clipboard;
 pub mod colorpicker;
+pub mod media;
 
 use tauri::AppHandle;
 use crate::types::SearchResult;

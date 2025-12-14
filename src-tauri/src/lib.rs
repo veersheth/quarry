@@ -8,6 +8,7 @@ mod usage_tracker;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::lorem::LoremSearcher;
+use crate::searchers::media::MediaSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::system::SystemSearcher;
 use searchers::apps::AppSearcher;
@@ -58,6 +59,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
+        (Regex::new(r"^md\s+(.*)$").unwrap(), Box::new(MediaSearcher)),
         (
             Regex::new(r"^cp\s+(.*)$").unwrap(),
             Box::new(ClipboardSearcher)
@@ -144,6 +146,7 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
             params,
         } => run_custom_function(&function_name, &params, &app),
         ActionData::ShellCommand { command } => run_shell_command(&command),
+        ActionData::None => Ok(()), 
     };
 
     // record usage if execution successful
