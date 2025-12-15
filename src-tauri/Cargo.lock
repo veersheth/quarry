@@ -3456,6 +3456,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tokio",
  "urlencoding",
+ "walkdir",
 ]
 
 [[package]]
