@@ -72,11 +72,6 @@
       class:loading={isLoading}
     />
     <div class="results" class:loading-overlay={isLoading}>
-      {#if isLoading}
-        <div class="loading-indicator">
-          <div class="spinner"></div>
-        </div>
-      {/if}
       <div class="results-content" class:dimmed={isLoading}>
         {#if $resultType === "List"}
           <RenderList listitems={$resultItems} {activeIndex} />
@@ -159,14 +154,6 @@
     box-sizing: border-box;
     overflow-y: auto;
     position: relative;
-  }
-
-  .loading-indicator {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    z-index: 100;
-    pointer-events: none;
   }
 
   .spinner {
