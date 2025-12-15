@@ -8,6 +8,7 @@ use crate::searchers::{
     math::MathSearcher,
     shell::ShellSearcher,
     system::SystemSearcher,
+    files::FileSearcher,
     web_searchers::{GoogleSearcher, YouTubeSearcher},
     SearchProvider,
 };
@@ -39,6 +40,9 @@ impl SearchProvider for DefaultSearcher {
 
         // apps first
         combined.extend(AppSearcher.search(q, app).results);
+
+        // files
+        combined.extend(FileSearcher.search(q, app).results);
 
         // emojis
         if q.len() >= 1 {
