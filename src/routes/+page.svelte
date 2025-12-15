@@ -156,15 +156,6 @@
     position: relative;
   }
 
-  .spinner {
-    width: 24px;
-    height: 24px;
-    border: 2px solid rgba(255, 255, 255, 0.15);
-    border-top-color: rgba(255, 255, 255, 0.7);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-  }
-
   .results-content {
     transition: opacity 0.1s ease;
   }
@@ -174,9 +165,4 @@
     pointer-events: none;
   }
 
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
 </style>

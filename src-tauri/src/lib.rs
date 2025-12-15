@@ -5,6 +5,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::lorem::LoremSearcher;
@@ -59,6 +60,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
+        (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
         (Regex::new(r"^md\s+(.*)$").unwrap(), Box::new(MediaSearcher)),
         (
             Regex::new(r"^cp\s+(.*)$").unwrap(),
