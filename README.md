@@ -31,6 +31,9 @@ $ pnpm run tauri dev
 - Emoji search  (prefix `em`)
 ![](for-readme/ss-emojis.png)
 
+- File search (prefix `f`)
+![](for-readme/ss-files.png)
+
 - Math (prefix `=` or type normally)
 ![](for-readme/ss-math.png)
 
