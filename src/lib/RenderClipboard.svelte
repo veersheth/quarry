@@ -58,10 +58,12 @@
     display: flex;
     flex-direction: row;
     height: 100%;
+    min-width: 0; 
   }
 
   .result-list {
     flex: 1;
+    min-width: 0; 
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -87,8 +89,15 @@
     background-color: rgba(60, 60, 60, 0.7);
   }
 
+  .item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .info {
     flex: 3;
+    min-width: 0; 
     display: flex;
     flex-direction: column;
     border-left: 1px solid rgba(80, 80, 80, 1);
@@ -96,11 +105,15 @@
 
   .preview {
     flex: 9;
+    min-width: 0; 
     overflow-y: auto;
+    overflow-x: auto; 
     padding: 16px;
     font-family: "JetBrainsMono Nerd Font", "Courier New", Courier, monospace;
     white-space: pre-wrap;
-    word-wrap: normal;
+    word-wrap: break-word; 
+    word-break: break-word; 
+    overflow-wrap: break-word; 
     color: rgba(255, 181, 188, 1);
   }
 

@@ -46,9 +46,6 @@
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
       {/if}
-      {#if index < 4}
-        <div class="shortcut">Alt + {index + 1}</div>
-      {/if}
     </div>
   {/each}
 </div>
@@ -99,12 +96,5 @@
   .item-desc {
     opacity: 0.4;
     font-size: 16px;
-  }
-
-  .shortcut {
-    margin-left: auto;
-    opacity: 0.4;
-    font-size: 14px;
-    font-family: monospace;
   }
 </style>
