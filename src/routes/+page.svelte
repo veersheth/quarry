@@ -116,6 +116,7 @@
     z-index: 0;
     color: #fffffff8;
     font-family:
+      /* JetBrainsMono Nerd Font, */
       Segoe UI,
       Inter,
       Adwaita Sans,

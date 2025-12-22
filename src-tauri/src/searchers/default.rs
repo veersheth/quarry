@@ -2,15 +2,7 @@ use tauri::AppHandle;
 use regex::Regex;
 
 use crate::searchers::{
-    apps::AppSearcher,
-    clipboard::ClipboardSearcher,
-    emojis::EmojiSearcher,
-    math::MathSearcher,
-    shell::ShellSearcher,
-    system::SystemSearcher,
-    files::FileSearcher,
-    web_searchers::{GoogleSearcher, YouTubeSearcher},
-    SearchProvider,
+    apps::AppSearcher, clipboard::ClipboardSearcher, emojis::EmojiSearcher, files::FileSearcher, firefox::FirefoxSearcher, math::MathSearcher, shell::ShellSearcher, system::SystemSearcher, web_searchers::{GoogleSearcher, YouTubeSearcher}, SearchProvider
 };
 use crate::types::{ResultItem, ResultType, SearchResult};
 
@@ -43,6 +35,9 @@ impl SearchProvider for DefaultSearcher {
 
         // files
         combined.extend(FileSearcher.search(q, app).results);
+
+        // bookmakrs
+        combined.extend(FirefoxSearcher.search(q, app).results);
 
         // emojis
         if q.len() >= 1 {
