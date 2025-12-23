@@ -182,9 +182,14 @@ fn clear_clipboard_history() -> Result<(), String> {
 // ---------------------------------------------------------
 // EXECUTION HANDLERS
 // ---------------------------------------------------------
+
 fn launch_app(executable: &str, args: &[String]) -> Result<(), String> {
-    Command::new(executable)
+    Command::new("setsid")
+        .arg(executable)
         .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to launch {}: {}", executable, e))?;
     Ok(())
