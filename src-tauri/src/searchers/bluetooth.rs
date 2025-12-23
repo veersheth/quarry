@@ -1,11 +1,11 @@
-use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::ACTION_REGISTRY;
+use once_cell::sync::Lazy;
 use std::process::Command;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
 use std::time::{Duration, Instant};
+use tauri::AppHandle;
 
 pub struct BluetoothSearcher;
 
@@ -37,7 +37,8 @@ impl BluetoothSearcher {
             .ok()
             .and_then(|output| {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                stdout.lines()
+                stdout
+                    .lines()
                     .find(|line| line.trim().starts_with("Powered:"))
                     .and_then(|line| line.split(':').nth(1))
                     .map(|val| val.trim() == "yes")
@@ -64,10 +65,10 @@ impl BluetoothSearcher {
             if parts.len() >= 3 && parts[0] == "Device" {
                 let mac = parts[1].to_string();
                 let name = parts[2..].join(" ");
-                
+
                 // Check if connected
                 let connected = Self::is_device_connected(&mac);
-                
+
                 devices.push(BluetoothDevice {
                     mac,
                     name,
@@ -88,7 +89,8 @@ impl BluetoothSearcher {
             .ok()
             .and_then(|output| {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                stdout.lines()
+                stdout
+                    .lines()
                     .find(|line| line.trim().starts_with("Connected:"))
                     .and_then(|line| line.split(':').nth(1))
                     .map(|val| val.trim() == "yes")
@@ -125,7 +127,7 @@ impl BluetoothSearcher {
 
             let stdin = child.stdin.as_mut().unwrap();
             let stdout = child.stdout.take().unwrap();
-            
+
             // Send scan on command
             use std::io::Write;
             let _ = stdin.write_all(b"scan on\n");
@@ -146,19 +148,19 @@ impl BluetoothSearcher {
                 }
 
                 let Ok(line) = line else { continue };
-                
+
                 // Look for [NEW] Device lines
                 // Format: "[NEW] Device 84:5F:04:C8:88:86 Galaxy Buds2 (8886)"
                 if line.contains("[NEW] Device") || line.contains("[CHG] Device") {
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() >= 4 {
                         let mac = parts[2].to_string();
-                        
+
                         // Skip if already paired
                         if paired_macs.contains(&mac) {
                             continue;
                         }
-                        
+
                         // Get device name (everything after MAC address)
                         let name = if parts.len() > 3 {
                             parts[3..].join(" ")
@@ -244,7 +246,7 @@ impl SearchProvider for BluetoothSearcher {
             let paired = Self::get_paired_devices();
             for device in paired {
                 let status = if device.connected {
-                    "Connected"
+                    "🔵 Connected"
                 } else {
                     "Paired"
                 };
@@ -318,7 +320,10 @@ impl SearchProvider for BluetoothSearcher {
             results,
             result_type: ResultType::List,
             usage_sorted: false,
-            additional_info: None,
+            additional_info: Some(
+                "Note: Requires bluetoothctl to correctly function. Press <space> to refresh"
+                    .to_string(),
+            ),
         }
     }
 }

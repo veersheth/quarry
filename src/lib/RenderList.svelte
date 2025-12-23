@@ -94,7 +94,7 @@
   }
 
   .item-desc {
-    opacity: 0.4;
+    color: #767676;
     font-size: 16px;
   }
 </style>
