@@ -5,6 +5,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::bluetooth::BluetoothSearcher;
 use crate::searchers::firefox::FirefoxSearcher;
 use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
@@ -61,6 +62,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
+        (Regex::new(r"^bt\s+(.*)$").unwrap(), Box::new(BluetoothSearcher)),
         (Regex::new(r"^fr (.*)$").unwrap(), Box::new(FirefoxSearcher)),
         (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
         (Regex::new(r"^md\s+(.*)$").unwrap(), Box::new(MediaSearcher)),
