@@ -13,6 +13,8 @@ impl SearchProvider for LoremSearcher {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
+                usage_sorted: true,
+                additional_info: None,
             };
         };
 
@@ -43,6 +45,8 @@ impl SearchProvider for LoremSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
+            usage_sorted: true,
+            additional_info: None,
         }
     }
 }

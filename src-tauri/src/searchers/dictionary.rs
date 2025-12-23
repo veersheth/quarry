@@ -1,8 +1,8 @@
-use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::ACTION_REGISTRY;
 use serde::Deserialize;
+use tauri::AppHandle;
 
 pub struct DictionarySearcher;
 
@@ -37,16 +37,18 @@ struct Phonetic {
 impl SearchProvider for DictionarySearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let word = query.trim();
-        
+
         if word.is_empty() {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
+                usage_sorted: false,
+                additional_info: None,
             };
         }
 
         let url = format!("https://api.dictionaryapi.dev/api/v2/entries/en/{}", word);
-        
+
         let response = match reqwest::blocking::get(url) {
             Ok(resp) => resp,
             Err(_) => {
@@ -58,6 +60,8 @@ impl SearchProvider for DictionarySearcher {
                         icon: None,
                     }],
                     result_type: ResultType::List,
+                    usage_sorted: false,
+                    additional_info: None,
                 };
             }
         };
@@ -73,6 +77,8 @@ impl SearchProvider for DictionarySearcher {
                         icon: None,
                     }],
                     result_type: ResultType::List,
+                    usage_sorted: false,
+                    additional_info: None,
                 };
             }
         };
@@ -84,13 +90,11 @@ impl SearchProvider for DictionarySearcher {
             if let Some(phonetic) = first.phonetics.first() {
                 if let Some(text) = &phonetic.text {
                     let action_id = format!("dict_phonetic_{}", word);
-                    
+
                     if let Ok(mut registry) = ACTION_REGISTRY.lock() {
                         registry.register(
                             action_id.clone(),
-                            ActionData::CopyToClipboard {
-                                text: text.clone(),
-                            },
+                            ActionData::CopyToClipboard { text: text.clone() },
                         );
                     }
 
@@ -107,7 +111,7 @@ impl SearchProvider for DictionarySearcher {
             for (idx, meaning) in first.meanings.iter().enumerate() {
                 for (def_idx, def) in meaning.definitions.iter().take(3).enumerate() {
                     let action_id = format!("dict_def_{}_{}", idx, def_idx);
-                    
+
                     let description = if let Some(example) = &def.example {
                         format!("Example: {}", example)
                     } else {
@@ -119,15 +123,16 @@ impl SearchProvider for DictionarySearcher {
                         first.word,
                         meaning.part_of_speech,
                         def.definition,
-                        def.example.as_ref().map(|e| format!("Example: {}", e)).unwrap_or_default()
+                        def.example
+                            .as_ref()
+                            .map(|e| format!("Example: {}", e))
+                            .unwrap_or_default()
                     );
 
                     if let Ok(mut registry) = ACTION_REGISTRY.lock() {
                         registry.register(
                             action_id.clone(),
-                            ActionData::CopyToClipboard {
-                                text: full_text,
-                            },
+                            ActionData::CopyToClipboard { text: full_text },
                         );
                     }
 
@@ -144,6 +149,8 @@ impl SearchProvider for DictionarySearcher {
         SearchResult {
             results,
             result_type: ResultType::Dictionary,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

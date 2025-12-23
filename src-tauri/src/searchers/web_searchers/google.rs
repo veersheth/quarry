@@ -26,6 +26,8 @@ impl SearchProvider for GoogleSearcher {
         SearchResult {
             results,
             result_type: ResultType::WebSearch,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

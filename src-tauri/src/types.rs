@@ -24,6 +24,8 @@ pub enum ResultType {
 pub struct SearchResult {
     pub results: Vec<ResultItem>,
     pub result_type: ResultType,
+    pub usage_sorted: bool,
+    pub additional_info: Option<String>,
 }
 
 // Action data that gets stored with the action_id

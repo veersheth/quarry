@@ -1,7 +1,7 @@
-use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::ACTION_REGISTRY;
+use tauri::AppHandle;
 
 pub struct SystemSearcher;
 
@@ -26,14 +26,14 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         command: "systemctl suspend",
         description: "Suspend the system (sleep mode)",
         keywords: &["suspend", "sleep", "hibernate"],
-        icon: "icons/system/lock.png"
+        icon: "icons/system/lock.png",
     },
     SystemAction {
         name: "Hibernate",
         command: "systemctl hibernate",
         description: "Hibernate the system (save to disk)",
         keywords: &["hibernate", "sleep", "suspend"],
-        icon: "icons/system/power.png"
+        icon: "icons/system/power.png",
     },
     SystemAction {
         name: "Shutdown",
@@ -113,8 +113,7 @@ impl SearchProvider for SystemSearcher {
         let results: Vec<ResultItem> = matching
             .iter()
             .map(|action| {
-                let action_id =
-                    format!("system_{}", action.name.to_lowercase().replace(' ', "_"));
+                let action_id = format!("system_{}", action.name.to_lowercase().replace(' ', "_"));
 
                 // Register action in global ACTION_REGISTRY
                 if let Ok(mut registry) = ACTION_REGISTRY.lock() {
@@ -138,7 +137,8 @@ impl SearchProvider for SystemSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
+            usage_sorted: true,
+            additional_info: None,
         }
     }
 }
-

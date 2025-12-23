@@ -93,6 +93,8 @@ impl SearchProvider for FirefoxSearcher {
                         icon: None,
                     }],
                     result_type: ResultType::List,
+                    usage_sorted: true,
+                    additional_info: None,
                 };
             }
         };
@@ -127,6 +129,8 @@ impl SearchProvider for FirefoxSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
+            usage_sorted: true,
+            additional_info: None,
         }
     }
 }

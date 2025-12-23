@@ -317,6 +317,8 @@ impl SearchProvider for BluetoothSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

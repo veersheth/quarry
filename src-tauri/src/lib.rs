@@ -6,10 +6,10 @@ mod types;
 mod usage_tracker;
 
 use crate::searchers::bluetooth::BluetoothSearcher;
-use crate::searchers::firefox::FirefoxSearcher;
-use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
+use crate::searchers::files::FileSearcher;
+use crate::searchers::firefox::FirefoxSearcher;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::media::MediaSearcher;
 use crate::searchers::shell::ShellSearcher;
@@ -62,7 +62,10 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        (Regex::new(r"^bt\s+(.*)$").unwrap(), Box::new(BluetoothSearcher)),
+        (
+            Regex::new(r"^bt\s+(.*)$").unwrap(),
+            Box::new(BluetoothSearcher)
+        ),
         (Regex::new(r"^fr (.*)$").unwrap(), Box::new(FirefoxSearcher)),
         (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
         (Regex::new(r"^md\s+(.*)$").unwrap(), Box::new(MediaSearcher)),
@@ -124,9 +127,11 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
         DefaultSearcher::new().search(query, &app)
     });
 
-    // Boost results based on usage history
-    if let Ok(history) = USAGE_HISTORY.lock() {
-        search_result.results = boost_results_by_usage(search_result.results, query, &history);
+    // Boost results based on usage history ONLY IF SEARCHER SUPPORTS IT
+    if search_result.usage_sorted {
+        if let Ok(history) = USAGE_HISTORY.lock() {
+            search_result.results = boost_results_by_usage(search_result.results, query, &history);
+        }
     }
 
     search_result
@@ -152,7 +157,7 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
             params,
         } => run_custom_function(&function_name, &params, &app),
         ActionData::ShellCommand { command } => run_shell_command(&command),
-        ActionData::None => Ok(()), 
+        ActionData::None => Ok(()),
     };
 
     // record usage if execution successful

@@ -29,6 +29,8 @@ impl SearchProvider for YouTubeSearcher {
         SearchResult {
             results,
             result_type: ResultType::WebSearch,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

@@ -36,6 +36,8 @@ impl SearchProvider for EmojiSearcher {
         SearchResult {
             results,
             result_type: ResultType::Grid,
+            usage_sorted: true,
+            additional_info: None,
         }
     }
 }

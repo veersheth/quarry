@@ -11,7 +11,9 @@ impl SearchProvider for URLSearcher {
         if q.is_empty() {
             return SearchResult {
                 results: vec![],
-                result_type: ResultType::WebSearch
+                result_type: ResultType::WebSearch,
+                usage_sorted: false,
+                additional_info: None,
             };
         }
 
@@ -31,7 +33,9 @@ impl SearchProvider for URLSearcher {
 
         SearchResult {
             results,
-            result_type: ResultType::WebSearch
+            result_type: ResultType::WebSearch,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

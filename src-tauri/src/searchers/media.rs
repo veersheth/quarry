@@ -6,8 +6,8 @@
 use super::SearchProvider;
 use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::ACTION_REGISTRY;
-use tauri::AppHandle;
 use std::process::Command;
+use tauri::AppHandle;
 
 pub struct MediaSearcher;
 
@@ -44,11 +44,7 @@ impl MediaSearcher {
 
         for line in stdout.lines() {
             if line.contains("org.mpris.MediaPlayer2.") {
-                if let Some(bus_name) = line
-                    .split('"')
-                    .nth(1)
-                    .map(|s| s.to_string())
-                {
+                if let Some(bus_name) = line.split('"').nth(1).map(|s| s.to_string()) {
                     if let Some(player) = Self::get_player_info(&bus_name) {
                         players.push(player);
                     }
@@ -181,7 +177,7 @@ impl MediaSearcher {
         } else {
             "Paused"
         };
-        
+
         let action_id = format!("media_playpause_{}", player.name.replace(" ", "_"));
         if let Ok(mut registry) = ACTION_REGISTRY.lock() {
             registry.register(
@@ -316,10 +312,14 @@ impl SearchProvider for MediaSearcher {
                 results: vec![ResultItem {
                     name: "No active media players found".to_string(),
                     action_id: "no_media".to_string(),
-                    description: Some("Start a media player (Spotify, VLC, Firefox, etc.)".to_string()),
+                    description: Some(
+                        "Start a media player (Spotify, VLC, Firefox, etc.)".to_string(),
+                    ),
                     icon: None,
                 }],
                 result_type: ResultType::List,
+                usage_sorted: false,
+                additional_info: None,
             };
         }
 
@@ -333,6 +333,8 @@ impl SearchProvider for MediaSearcher {
         SearchResult {
             results: all_results,
             result_type: ResultType::Media,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

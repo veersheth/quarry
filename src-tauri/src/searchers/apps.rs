@@ -124,6 +124,8 @@ impl SearchProvider for AppSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
+            usage_sorted: true,
+            additional_info: None,
         }
     }
 }

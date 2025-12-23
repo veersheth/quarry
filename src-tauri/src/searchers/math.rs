@@ -37,6 +37,8 @@ impl SearchProvider for MathSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

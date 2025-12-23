@@ -10,6 +10,8 @@ impl SearchProvider for ColorPicker {
         SearchResult {
             results: vec![],
             result_type: ResultType::ColorPicker,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }

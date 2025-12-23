@@ -30,6 +30,8 @@ impl SearchProvider for ClipboardSearcher {
                     icon: None,
                 }],
                 result_type: ResultType::List, 
+                usage_sorted: false,
+                additional_info: None,
             };
         }
 
@@ -69,6 +71,8 @@ impl SearchProvider for ClipboardSearcher {
         SearchResult {
             results,
             result_type: ResultType::Clipboard,
+            usage_sorted: false,
+            additional_info: None,
         }
     }
 }
