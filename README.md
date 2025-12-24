@@ -23,6 +23,16 @@ $ pnpm run tauri dev
     - Either use the tray icon menu
     - Or run the `quarry-toggle` binary in `src-tauri/target/debug/quarry-toggle`, I have this mapped to `Alt-Space`
 
+```
+# hyprland.conf
+bind = ALT, SPACE, exec, /home/veer/code/personal/quarry/src-tauri/target/debug/quarry-toggle
+windowrulev2 = pin, class:^(quarry)$
+windowrule = noborder, class:^(quarry)$
+windowrulev2 = animation gnomed, class:^(quarry)$
+# windowrulev2 = noanim, class:^(quarry)$
+windowrulev2 =  noblur,class:^(quarry)$
+```
+
 # Current capabilities
 
 - App search (prefix `app` or type normally)
