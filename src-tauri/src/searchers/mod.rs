@@ -13,6 +13,7 @@ pub mod media;
 pub mod files;
 pub mod firefox;
 pub mod bluetooth;
+pub mod wifi;
 
 use tauri::AppHandle;
 use crate::types::SearchResult;
