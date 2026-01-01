@@ -5,7 +5,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
-use crate::searchers::firefox::FirefoxSearcher;
+use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
@@ -61,7 +61,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        (Regex::new(r"^fr (.*)$").unwrap(), Box::new(FirefoxSearcher)),
+        (Regex::new(r"^bk (.*)$").unwrap(), Box::new(BookmarksSearcher)),
         (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
         (Regex::new(r"^md\s+(.*)$").unwrap(), Box::new(MediaSearcher)),
         (
@@ -217,6 +217,20 @@ fn run_custom_function(
         "clear_clipboard" => {
             let _ = clear_clipboard_history();
             Ok(())
+        }
+        "add_bookmark" => {
+            if params.len() != 2 {
+                return Err("add_bookmark requires name and url".to_string());
+            }
+            BookmarksSearcher::add_bookmark(params[0].clone(), params[1].clone())
+                .map(|_| ())
+        }
+        "remove_bookmark" => {
+            if params.is_empty() {
+                return Err("remove_bookmark requires a name".to_string());
+            }
+            BookmarksSearcher::remove_bookmark(&params[0])
+                .map(|_| ())
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }

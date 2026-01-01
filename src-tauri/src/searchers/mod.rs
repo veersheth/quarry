@@ -11,7 +11,7 @@ pub mod clipboard;
 pub mod colorpicker;
 pub mod media;
 pub mod files;
-pub mod firefox;
+pub mod bookmarks;
 
 use tauri::AppHandle;
 use crate::types::SearchResult;
