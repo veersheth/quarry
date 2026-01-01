@@ -159,6 +159,7 @@
 
   .results-content {
     transition: opacity 0.1s ease;
+    height: 100%;
   }
 
   .results-content.dimmed {
