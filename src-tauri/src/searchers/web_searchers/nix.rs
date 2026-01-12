@@ -9,7 +9,7 @@ impl SearchProvider for NixSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         
-        let url = format!( "https://search.nixos.org/packages?channel=25.05&query={}", urlencoding::encode(q));
+        let url = format!( "https://search.nixos.org/packages?query={}", urlencoding::encode(q));
         let action_id = format!("search_{}", url);
         
         if let Ok(mut registry) = ACTION_REGISTRY.lock() {
