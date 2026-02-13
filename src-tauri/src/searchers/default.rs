@@ -42,7 +42,7 @@ impl SearchProvider for DefaultSearcher {
         // emojis
         if q.len() >= 1 {
             let mut res = EmojiSearcher.search(q, app).results;
-            res.truncate(3);
+            res.truncate(6);
             combined.extend(res);
         }
 
