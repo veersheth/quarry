@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+echo running quarry
+nix-shell --run "pnpm tauri dev"
