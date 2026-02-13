@@ -120,6 +120,7 @@
       Segoe UI,
       Inter,
       Adwaita Sans,
+      Noto Color Emoji,
       sans-serif;
   }
 
