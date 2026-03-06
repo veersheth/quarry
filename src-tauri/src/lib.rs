@@ -176,8 +176,13 @@ fn clear_clipboard_history() -> Result<(), String> {
 // EXECUTION HANDLERS
 // ---------------------------------------------------------
 fn launch_app(executable: &str, args: &[String]) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
     Command::new(executable)
         .args(args)
+        .process_group(0)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to launch {}: {}", executable, e))?;
     Ok(())
@@ -200,9 +205,14 @@ fn copy_to_clipboard(text: &str, app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 fn run_shell_command(command: &str) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
     Command::new("sh")
         .arg("-c")
         .arg(command)
+        .process_group(0)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to run shell command: {}", e))?;
     Ok(())
