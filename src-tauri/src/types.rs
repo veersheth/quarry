@@ -18,6 +18,7 @@ pub enum ResultType {
     ColorPicker,
     Home,
     Media,
+    Math,
 }
 
 #[derive(Debug, Serialize, Clone)]

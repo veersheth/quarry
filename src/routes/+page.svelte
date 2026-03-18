@@ -17,6 +17,7 @@
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderHome from "$lib/RenderHome.svelte";
   import RenderMedia from "$lib/RenderMedia.svelte";
+  import RenderMath from "$lib/RenderMath.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -89,6 +90,8 @@
           <RenderHome listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Media"}
           <RenderMedia listitems={$resultItems} {activeIndex} />
+        {:else if $resultType === "Math"}
+          <RenderMath listitems={$resultItems} {activeIndex} />
         {:else}
           Oops
         {/if}
