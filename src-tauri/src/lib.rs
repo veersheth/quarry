@@ -10,7 +10,6 @@ use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::lorem::LoremSearcher;
-use crate::searchers::media::MediaSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::system::SystemSearcher;
 use searchers::apps::AppSearcher;
@@ -63,7 +62,6 @@ lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
         (Regex::new(r"^bk (.*)$").unwrap(), Box::new(BookmarksSearcher)),
         (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
-        (Regex::new(r"^md\s+(.*)$").unwrap(), Box::new(MediaSearcher)),
         (
             Regex::new(r"^cp\s+(.*)$").unwrap(),
             Box::new(ClipboardSearcher)

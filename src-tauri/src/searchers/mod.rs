@@ -9,7 +9,6 @@ pub mod system;
 pub mod web_searchers;
 pub mod clipboard;
 pub mod colorpicker;
-pub mod media;
 pub mod files;
 pub mod bookmarks;
 

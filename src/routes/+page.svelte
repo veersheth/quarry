@@ -16,7 +16,6 @@
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderHome from "$lib/RenderHome.svelte";
-  import RenderMedia from "$lib/RenderMedia.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
 
   let searchInput: HTMLInputElement;
@@ -88,8 +87,6 @@
           <RenderColorPicker />
         {:else if $resultType === "Home"}
           <RenderHome listitems={$resultItems} {activeIndex} />
-        {:else if $resultType === "Media"}
-          <RenderMedia listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Math"}
           <RenderMath listitems={$resultItems} {activeIndex} />
         {:else}
@@ -112,7 +109,7 @@
     background-color: rgba(20, 20, 20, 1);
     border: 1px solid rgba(80, 80, 80, 1);
     overflow: hidden;
-    border-radius: 14px;
+    border-radius: 22px;
   }
 
   .container * {
@@ -137,7 +134,7 @@
   .search {
     width: 100%;
     display: block;
-    padding: 20px;
+    padding: 30px;
     margin: 0;
     box-sizing: border-box;
     border: none;
@@ -154,7 +151,7 @@
   .results {
     margin: 0;
     padding: 0;
-    border-top: 1px solid rgba(80, 80, 80, 1);
+    border-top: 1px solid rgba(80, 80, 80, 0.5);
     flex: 1;
     box-sizing: border-box;
     overflow-y: auto;
