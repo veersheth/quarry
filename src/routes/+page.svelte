@@ -106,7 +106,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(20, 20, 20, 1);
+    background-color: rgba(10, 10, 10, 1);
     border: 1px solid rgba(80, 80, 80, 1);
     overflow: hidden;
     border-radius: 22px;

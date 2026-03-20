@@ -78,7 +78,7 @@
   }
 
   .result-item.active {
-    background-color: rgba(60, 60, 60, 0.7);
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
   img.item-icon {
