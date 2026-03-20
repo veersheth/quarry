@@ -68,9 +68,10 @@ lazy_static! {
         ),
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
         (
-            Regex::new(r"^(https?://.*)$").unwrap(),
+            Regex::new(r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$").unwrap(),
             Box::new(URLSearcher)
         ),
+
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
         (
             Regex::new(r"^yt\s+(.*)$").unwrap(),
