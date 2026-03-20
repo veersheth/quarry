@@ -19,29 +19,17 @@
       b = 0;
 
     if (h < 60) {
-      r = c;
-      g = x;
-      b = 0;
+      r = c; g = x; b = 0;
     } else if (h < 120) {
-      r = x;
-      g = c;
-      b = 0;
+      r = x; g = c; b = 0;
     } else if (h < 180) {
-      r = 0;
-      g = c;
-      b = x;
+      r = 0; g = c; b = x;
     } else if (h < 240) {
-      r = 0;
-      g = x;
-      b = c;
+      r = 0; g = x; b = c;
     } else if (h < 300) {
-      r = x;
-      g = 0;
-      b = c;
+      r = x; g = 0; b = c;
     } else {
-      r = c;
-      g = 0;
-      b = x;
+      r = c; g = 0; b = x;
     }
 
     return {
@@ -59,13 +47,37 @@
   $: rgb = hslToRgb(hue, saturation, lightness);
   $: hex = rgbToHex(rgb.r, rgb.g, rgb.b);
 
+  // The SL picker gradient is:
+  //   - bottom layer: white (left) → pure hue at hsl(h,100%,50%) (right)
+  //   - top layer:    black (bottom) → transparent (top)
+  //
+  // This means the actual colour at any (x, y) in [0..1]×[0..1] is:
+  //   S = x * 100
+  //   L = (1 - y) * (100 - x * 50)    ← ranges from 100% (top-left) to 50% (top-right) to 0% (bottom)
+  //
+  // Inverse (cursor position from S/L):
+  //   x = S / 100
+  //   lightnessAtTop = 100 - S / 2
+  //   y = 1 - L / lightnessAtTop        (clamped to [0,1])
+
+  $: cursorX = saturation;   // percentage, directly maps to left%
+  $: cursorY = (() => {
+    const lightnessAtTop = 100 - saturation / 2;
+    if (lightnessAtTop <= 0) return 100;
+    return Math.max(0, Math.min(100, (1 - lightness / lightnessAtTop) * 100));
+  })();
+
   function handleSLPickerMove(e) {
     if (!slPickerEl) return;
     const rect = slPickerEl.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
-    saturation = Math.round((x / rect.width) * 100);
-    lightness = Math.round(100 - (y / rect.height) * 100);
+    const xRaw = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const yRaw = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+    const xNorm = xRaw / rect.width;   // 0..1
+    const yNorm = yRaw / rect.height;  // 0..1
+
+    saturation = Math.round(xNorm * 100);
+    const lightnessAtTop = 100 - saturation / 2;
+    lightness = Math.round((1 - yNorm) * lightnessAtTop);
   }
 
   function handleHueSliderMove(e) {
@@ -85,8 +97,14 @@
     isDraggingHue = false;
   }
 
-  function copyText(text) {
+  let copiedKey = null;
+  let copyTimeout = null;
+
+  function copyText(text, key) {
     navigator.clipboard.writeText(text);
+    copiedKey = key;
+    clearTimeout(copyTimeout);
+    copyTimeout = setTimeout(() => (copiedKey = null), 1200);
   }
 </script>
 
@@ -104,7 +122,7 @@
     <div
       bind:this={slPickerEl}
       class="sl-picker"
-      style="background: linear-gradient(to top, black, transparent), linear-gradient(to right, white, hsl({hue}, 100%, 50%))"
+      style="background: linear-gradient(to bottom, transparent, black), linear-gradient(to right, white, hsl({hue}, 100%, 50%))"
       on:mousedown={(e) => {
         isDraggingSL = true;
         handleSLPickerMove(e);
@@ -112,7 +130,7 @@
     >
       <div
         class="sl-cursor"
-        style="left: {saturation}%; top: {100 - lightness}%"
+        style="left: {cursorX}%; top: {cursorY}%"
       ></div>
     </div>
   </div>
@@ -134,23 +152,27 @@
   <div class="values-section">
     <button
       class="value-box"
-      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`)}
+      class:copied={copiedKey === 'hsl'}
+      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`, 'hsl')}
     >
-      <span class="value-title">HSL</span>
-      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span
-      >
+      {#if copiedKey === 'hsl'}<span class="ripple"></span>{/if}
+      <span class="value-title">{copiedKey === 'hsl' ? 'Copied' : 'HSL'}</span>
+      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span>
     </button>
 
     <button
       class="value-box"
-      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`)}
+      class:copied={copiedKey === 'rgb'}
+      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`, 'rgb')}
     >
-      <span class="value-title">RGB</span>
+      {#if copiedKey === 'rgb'}<span class="ripple"></span>{/if}
+      <span class="value-title">{copiedKey === 'rgb' ? 'Copied' : 'RGB'}</span>
       <span class="value-content mono">{rgb.r}, {rgb.g}, {rgb.b}</span>
     </button>
 
-    <button class="value-box" on:click={() => copyText(hex)}>
-      <span class="value-title">HEX</span>
+    <button class="value-box" class:copied={copiedKey === 'hex'} on:click={() => copyText(hex, 'hex')}>
+      {#if copiedKey === 'hex'}<span class="ripple"></span>{/if}
+      <span class="value-title">{copiedKey === 'hex' ? 'Copied' : 'HEX'}</span>
       <span class="value-content mono">{hex}</span>
     </button>
   </div>
@@ -167,20 +189,19 @@
     padding: 20px;
   }
 
-  .background-blob {
-    position: fixed;
-    bottom: 0%;
-    right: 0;
-    transform: translate(-86%, 50%);
-    height: 56%;
-    width: 57%;
-    z-index: -1;
-
-    background-size: 300% 300%;
-    opacity: 0.2;
-    filter: blur(120px);
-    border-radius: 50%;
-  }
+  <!-- .background-blob { -->
+  <!--   position: fixed; -->
+  <!--   bottom: 0%; -->
+  <!--   right: 0; -->
+  <!--   transform: translate(-86%, -50%); -->
+  <!--   height: 56%; -->
+  <!--   width: 57%; -->
+  <!--   z-index: -1; -->
+  <!--   background-size: 300% 300%; -->
+  <!--   opacity: 0.2; -->
+  <!--   filter: blur(120px); -->
+  <!--   border-radius: 50%; -->
+  <!-- } -->
 
   .left-section {
     display: flex;
@@ -265,7 +286,9 @@
     background-color: rgba(60, 60, 60, 0.3);
     display: flex;
     justify-content: space-between;
-    transition: all 300ms ease;
+    transition: background-color 200ms ease, border 200ms ease, transform 100ms ease;
+    position: relative;
+    overflow: hidden;
   }
 
   .value-box:hover {
@@ -275,6 +298,29 @@
   }
   .value-box:active {
     transform: scale(1);
+  }
+
+  .value-box.copied {
+    background-color: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .value-title {
+    transition: opacity 150ms ease;
+  }
+
+  .ripple {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.4) 0%, transparent 65%);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: ripple-burst 600ms ease-out forwards;
+  }
+
+  @keyframes ripple-burst {
+    from { opacity: 1; transform: scale(0.5); }
+    to   { opacity: 0; transform: scale(2);   }
   }
 
   .value-content {
