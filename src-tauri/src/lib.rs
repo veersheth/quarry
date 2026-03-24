@@ -5,6 +5,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::camera::CameraSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
@@ -60,43 +61,38 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
+        (Regex::new(r"^camera$").unwrap(), Box::new(CameraSearcher)),
+
         (Regex::new(r"^bk (.*)$").unwrap(), Box::new(BookmarksSearcher)),
+
         (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
-        (
-            Regex::new(r"^cp\s+(.*)$").unwrap(),
-            Box::new(ClipboardSearcher)
-        ),
+
+        (Regex::new(r"^cp\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
+
         (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
-        (
-            Regex::new(r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$").unwrap(),
-            Box::new(URLSearcher)
-        ),
+
+        (Regex::new(r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$").unwrap(), Box::new(URLSearcher)),
 
         (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-        (
-            Regex::new(r"^yt\s+(.*)$").unwrap(),
-            Box::new(YouTubeSearcher)
-        ),
+
+        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
+
         (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-        (
-            Regex::new(r"^gh\s+(.*)$").unwrap(),
-            Box::new(GitHubSearcher)
-        ),
+
+        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
+
         (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-        (
-            Regex::new(r"^lorem\s+(.*)$").unwrap(),
-            Box::new(LoremSearcher)
-        ),
+
+        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
+
         (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-        (
-            Regex::new(r"^def\s+(.*)$").unwrap(),
-            Box::new(DictionarySearcher)
-        ),
-        (
-            Regex::new(r"^sys\s+(.*)$").unwrap(),
-            Box::new(SystemSearcher)
-        ),
+
+        (Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
+
+        (Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
+
         (Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
+
         (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
     ];
 }

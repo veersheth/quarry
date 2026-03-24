@@ -16,6 +16,7 @@
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
+  import RenderCamera from "$lib/RenderCamera.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -82,8 +83,8 @@
           <RenderDictionary listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
           <RenderClipboard listitems={$resultItems} {activeIndex} />
-        {:else if $resultType === "ColorPicker"}
-          <RenderColorPicker />
+        {:else if $resultType === "Camera"}
+          <RenderCamera />
         {:else if $resultType === "Home"}
           <RenderList listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Math"}
