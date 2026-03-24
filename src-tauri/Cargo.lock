@@ -3539,6 +3539,7 @@ dependencies = [
  "tokio",
  "urlencoding",
  "walkdir",
+ "webkit2gtk",
 ]
 
 [[package]]

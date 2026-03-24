@@ -61,7 +61,7 @@ lazy_static! {
 // ---------------------------------------------------------
 lazy_static! {
     static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        (Regex::new(r"^camera$").unwrap(), Box::new(CameraSearcher)),
+        (Regex::new(r"^cam$").unwrap(), Box::new(CameraSearcher)),
 
         (Regex::new(r"^bk (.*)$").unwrap(), Box::new(BookmarksSearcher)),
 
@@ -145,7 +145,7 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
             params,
         } => run_custom_function(&function_name, &params, &app),
         ActionData::ShellCommand { command } => run_shell_command(&command),
-        ActionData::None => Ok(()), 
+        ActionData::None => Ok(()),
     };
 
     // record usage if execution successful
@@ -291,7 +291,7 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Setup window event handlers
+            // setup window event handlers + camera permission on linux
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
@@ -300,14 +300,28 @@ pub fn run() {
                         let _ = window.hide();
                     }
                 });
+
+                // grant camera (and microphone) permission requests from webkitgtk on linux.
+                // without this, getusermedia silently fails - webkit never surfaces a
+                // permission dialog to the user in an embedded context.
+                #[cfg(target_os = "linux")]
+                webview.with_webview(|wv| {
+                    use webkit2gtk::WebViewExt;
+                    use webkit2gtk::PermissionRequestExt;
+                    let wk = wv.inner();
+                    wk.connect_permission_request(|_, request| {
+                        request.allow();
+                        true
+                    });
+                })?;
             }
 
-            // Handle CLI args (for backwards compatibility with single_instance)
+            // handle cli args (for backwards compatibility with single_instance)
             match app.cli().matches() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {
                         if sub.name == "toggle" {
-                            // Trigger single_instance plugin
+                            // trigger single_instance plugin
                         }
                     }
                 }
