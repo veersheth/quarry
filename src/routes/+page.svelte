@@ -15,7 +15,6 @@
   import RenderClipboard from "$lib/RenderClipboard.svelte";
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
-  import RenderHome from "$lib/RenderHome.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
 
   let searchInput: HTMLInputElement;
@@ -64,7 +63,7 @@
     <!-- svelte-ignore a11y_autofocus -->
     <input
       type="text"
-      placeholder="Search…"
+      placeholder="quarry"
       bind:value={$query}
       bind:this={searchInput}
       autofocus
@@ -107,22 +106,21 @@
     padding: 0;
     box-sizing: border-box;
     background-color: rgba(10, 10, 10, 1);
-    border: 1px solid rgba(80, 80, 80, 1);
+    border: 1px solid rgba(255,255,255,0.15);
     overflow: hidden;
-    border-radius: 22px;
+    border-radius: 14px;
   }
 
   .container * {
     z-index: 0;
     color: #fffffff8;
     font-family:
-      JetBrainsMono Nerd Font, 
-      Courier New,
-
+      "JetBrainsMono Nerd Font",
+      "Courier New",
       Inter,
-      Segoe UI,
-      Adwaita Sans,
-      Noto Color Emoji,
+      "Segoe UI",
+      "Adwaita Sans",
+      "Noto Color Emoji",
       sans-serif;
   }
 
@@ -131,20 +129,21 @@
     flex-direction: column;
     flex: 1;
     max-height: 95vh;
+    min-height: 0;
   }
 
   .search {
     width: 100%;
     display: block;
-    padding: 30px;
+    padding: 0 20px;
     margin: 0;
     box-sizing: border-box;
     border: none;
     outline: none;
     background: none;
-    height: 50px;
+    height: 56px;
+    flex-shrink: 0;
     transition: opacity 0.15s ease;
-    <!-- font-family: "JetBrainsMono Nerd Font", "Cascadia Cove", monospace; -->
   }
 
   .search.loading {
@@ -159,6 +158,7 @@
     box-sizing: border-box;
     overflow-y: auto;
     position: relative;
+    min-height: 0;
   }
 
   .results-content {
@@ -171,4 +171,8 @@
     pointer-events: none;
   }
 
+  .hint {
+    font-size: 11px;
+    color: rgba(156, 197, 204, 0.35);
+  }
 </style>

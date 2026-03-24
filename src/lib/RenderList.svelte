@@ -16,15 +16,12 @@
 
   export let activeIndex: Writable<number> = writable(0);
 
-  function truncate(str: string | undefined, maxLength: number): string {
-    if (!str) return "";
-    return str.length > maxLength ? str.slice(0, maxLength) + "…" : str;
-  }
-
   function getBadge(action_id: string): string {
-    if (action_id.includes("search_google")) return "google";
-    if (action_id.includes("search_youtube")) return "youtube";
     if (action_id.includes("shell")) return "shell";
+    if (action_id.includes("math")) return "math";
+    if (action_id.includes("bookmark")) return "bookmark";
+    if (action_id.includes("lorem")) return "copy";
+    if (action_id.includes("system")) return "system";
     if (action_id.includes("url") || action_id.includes("http")) return "url";
     return "app";
   }
@@ -50,10 +47,12 @@
           }}
         />
       {/if}
-      <span class="item-name">{truncate(item.name, 80)}</span>
-      {#if item.description}
-        <span class="item-desc">{truncate(item.description, 70)}</span>
-      {/if}
+      <div class="item-text">
+        <span class="item-name">{item.name}</span>
+        {#if item.description}
+          <span class="item-desc">{item.description}</span>
+        {/if}
+      </div>
       <span class="item-badge">{getBadge(item.action_id)}</span>
       {#if index === $activeIndex}
         <span class="item-enter">↵</span>
@@ -79,22 +78,19 @@
     border-radius: 10px;
     background: none;
     text-align: left;
-    color: #e0e0e0;
+    color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
     border: 2px solid transparent;
+    transition: background 80ms ease, border-color 80ms ease;
   }
 
   .result-item.active {
-    background-color: rgba(106, 147, 154, 0.1);
-    border: 2px solid rgba(106, 147, 154, 0.5);
+    background-color: rgba(60, 60, 60, 0.4);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
-  .result-item.active .item-name {
-    color: rgba(156, 197, 204, 1);
-  }
-
-  .result-item.active .item-desc {
-    color: rgba(156, 197, 204, 0.5);
+  .result-item.active .item-icon {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
   }
 
   img.item-icon {
@@ -106,20 +102,38 @@
     object-position: center;
   }
 
+  .item-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    overflow: hidden;
+  }
+
   .item-name {
-    margin-right: 0.8rem;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    max-width: 40%;
   }
 
   .item-desc {
     opacity: 0.4;
-    font-size: 14px;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .item-badge {
     margin-left: auto;
-    font-size: 10px;
-    color: rgba(106, 147, 154, 0.5);
-    border: 1px solid rgba(106, 147, 154, 0.2);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     padding: 1px 6px;
     flex-shrink: 0;
@@ -127,8 +141,8 @@
 
   .item-enter {
     font-size: 11px;
-    color: rgba(156, 197, 204, 0.6);
     margin-left: 8px;
     flex-shrink: 0;
+    opacity: 0.6;
   }
 </style>
