@@ -1,170 +1,176 @@
-use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::ACTION_REGISTRY;
-use std::path::PathBuf;
-use walkdir::WalkDir;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use tauri::AppHandle;
+use walkdir::WalkDir;
+
+// ---------------------------------------------------------
+// CONSTANTS
+// ---------------------------------------------------------
+
+const MAX_DEPTH: usize = 4;
+const MAX_RESULTS: usize = 10;
+
+/// Directories that are never worth descending into.
+const SKIP_DIRS: &[&str] = &[
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".svn",
+    ".hg",
+    "target",
+    "build",
+    "dist",
+    ".gradle",
+    ".mvn",
+    ".idea",
+    ".vscode",
+    "venv",
+    ".venv",
+    "env",
+    ".env",
+    "vendor",
+    "bin",
+    "obj",
+    ".cache",
+    "__MACOSX",
+];
+
+// ---------------------------------------------------------
+// SEARCHER
+// ---------------------------------------------------------
 
 pub struct FileSearcher;
 
 impl FileSearcher {
-    fn get_search_paths() -> Vec<PathBuf> {
-        let mut paths = Vec::new();
-        
-        if let Some(home) = dirs::home_dir() {
-            paths.push(home);
-        }
-        
-        // if let Some(documents) = dirs::document_dir() {
-        //     paths.push(documents);
-        // }
-        // if let Some(downloads) = dirs::download_dir() {
-        //     paths.push(downloads);
-        // }
-        // if let Some(desktop) = dirs::desktop_dir() {
-        //     paths.push(desktop);
-        // }
-        
-        paths
+    /// Directories to walk. Add more arms here to expand search scope.
+    fn search_paths() -> Vec<PathBuf> {
+        [
+            dirs::home_dir(),
+            // dirs::document_dir(),
+            // dirs::download_dir(),
+            // dirs::desktop_dir(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
-    fn search_files(query: &str, max_results: usize) -> Vec<(PathBuf, u64)> {
+    /// Walk `search_paths`, collecting files whose names contain `query`,
+    /// sorted by modification time (newest first).
+    fn search_files(query: &str) -> Vec<PathBuf> {
         let query_lower = query.to_lowercase();
-        let mut results = Vec::new();
-        
-        for base_path in Self::get_search_paths() {
-            if results.len() >= max_results * 2 {
-                break;
-            }
-            
-            for entry in WalkDir::new(&base_path)
-                .max_depth(4)
+        let mut hits: Vec<(PathBuf, u64)> = Vec::new();
+
+        'outer: for base in Self::search_paths() {
+            for entry in WalkDir::new(&base)
+                .max_depth(MAX_DEPTH)
                 .follow_links(false)
                 .into_iter()
                 .filter_entry(|e| {
-                    let file_name = e.file_name().to_str().unwrap_or("");
-                    
-                    if file_name.starts_with('.') { // hidden
-                        return false;
-                    }
-                    
-                    let skip_dirs = [ // bloat
-                        "node_modules",
-                        "__pycache__",
-                        ".git",
-                        ".svn",
-                        ".hg",
-                        "target",      // Rust build directory
-                        "build",       // Common build directory
-                        "dist",        // Distribution directory
-                        ".gradle",     // Gradle cache
-                        ".mvn",        // Maven directory
-                        ".idea",       // IntelliJ IDEA
-                        ".vscode",     // VS Code settings
-                        "venv",        // Python virtual environment
-                        ".venv",       // Python virtual environment
-                        "env",         // Environment directory
-                        ".env",        // Environment directory
-                        "vendor",      // PHP/Ruby dependencies
-                        "bin",         // Binary directory (in some contexts)
-                        "obj",         // Object files
-                        ".cache",      // Cache directory
-                        "__MACOSX",    // macOS metadata
-                        ".DS_Store",   // macOS file
-                        "Thumbs.db",   // Windows thumbnail cache
-                    ];
-                    
-                    if e.path().is_dir() && skip_dirs.contains(&file_name) {
-                        return false;
-                    }
-                    
-                    true
+                    let name = e.file_name().to_str().unwrap_or("");
+                    // skip hidden files/dirs and known bloat dirs
+                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
-                if results.len() >= max_results * 2 {
-                    break;
-                }
-                
                 let path = entry.path();
-                let file_name = path.file_name()
+                let name = path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("");
-                
-                if file_name.to_lowercase().contains(&query_lower) {
-                    let modified = std::fs::metadata(path)
-                        .ok()
-                        .and_then(|m| m.modified().ok())
-                        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
-                    
-                    results.push((path.to_path_buf(), modified));
+
+                if name.to_lowercase().contains(&query_lower) {
+                    let mtime = mtime_secs(path);
+                    hits.push((path.to_path_buf(), mtime));
+
+                    if hits.len() >= MAX_RESULTS * 3 {
+                        break 'outer;
+                    }
                 }
             }
         }
-        
-        results.sort_by(|a, b| b.1.cmp(&a.1));
-        results.truncate(max_results);
-        
-        results
+
+        hits.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        hits.truncate(MAX_RESULTS);
+        hits.into_iter().map(|(p, _)| p).collect()
     }
 
-    fn get_file_icon(path: &PathBuf) -> String {
+    /// Returns an icon path based on whether the path is a directory or file.
+    fn icon_for(path: &Path) -> String {
         if path.is_dir() {
             "icons/folder.png".to_string()
         } else {
             "icons/file.png".to_string()
         }
     }
+
+    /// Stable, collision-resistant action ID for a path.
+    fn action_id(path: &Path) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        path.hash(&mut hasher);
+        format!("file_{:x}", hasher.finish())
+    }
 }
 
 impl SearchProvider for FileSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
-        
         if trimmed.is_empty() {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
             };
         }
-        
-        let files = Self::search_files(trimmed, 10);
-        let mut results = Vec::new();
-        
-        for (path, _) in files {
-            let path_str = path.to_string_lossy().to_string();
-            let file_name = path.file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
-            
-            let action_id = format!("file_{}", path_str.replace('/', "_").replace(' ', "_"));
-            
-            if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-                registry.register(
-                    action_id.clone(),
-                    ActionData::OpenUrl {
-                        url: format!("file://{}", path_str),
-                    },
-                );
-            }
-            
-            let icon = Some(Self::get_file_icon(&path));
-            
-            results.push(ResultItem {
-                name: file_name,
-                action_id,
-                description: Some(path_str),
-                icon,
-            });
-        }
-        
+
+        let results = Self::search_files(trimmed)
+            .into_iter()
+            .filter_map(|path| {
+                let path_str = path.to_string_lossy().into_owned();
+                let name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&path_str)
+                    .to_string();
+
+                let action_id = Self::action_id(&path);
+
+                ACTION_REGISTRY
+                    .lock()
+                    .ok()?
+                    .register(
+                        action_id.clone(),
+                        ActionData::OpenUrl {
+                            url: format!("file://{}", path_str),
+                        },
+                    );
+
+                Some(ResultItem {
+                    name,
+                    action_id,
+                    description: Some(path_str),
+                    icon: Some(Self::icon_for(&path)),
+                })
+            })
+            .collect();
+
         SearchResult {
             results,
             result_type: ResultType::List,
         }
     }
+}
+
+fn mtime_secs(path: &Path) -> u64 {
+    std::fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
