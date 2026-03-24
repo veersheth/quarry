@@ -86,7 +86,7 @@
         {:else if $resultType === "ColorPicker"}
           <RenderColorPicker />
         {:else if $resultType === "Home"}
-          <RenderHome listitems={$resultItems} {activeIndex} />
+          <RenderList listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Math"}
           <RenderMath listitems={$resultItems} {activeIndex} />
         {:else}
@@ -116,9 +116,11 @@
     z-index: 0;
     color: #fffffff8;
     font-family:
-      /* JetBrainsMono Nerd Font, */
-      Segoe UI,
+      JetBrainsMono Nerd Font, 
+      Courier New,
+
       Inter,
+      Segoe UI,
       Adwaita Sans,
       Noto Color Emoji,
       sans-serif;
@@ -142,6 +144,7 @@
     background: none;
     height: 50px;
     transition: opacity 0.15s ease;
+    <!-- font-family: "JetBrainsMono Nerd Font", "Cascadia Cove", monospace; -->
   }
 
   .search.loading {

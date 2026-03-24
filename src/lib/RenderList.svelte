@@ -13,11 +13,20 @@
     description?: string;
     icon?: string;
   }[] = [];
+
   export let activeIndex: Writable<number> = writable(0);
 
   function truncate(str: string | undefined, maxLength: number): string {
     if (!str) return "";
     return str.length > maxLength ? str.slice(0, maxLength) + "…" : str;
+  }
+
+  function getBadge(action_id: string): string {
+    if (action_id.includes("search_google")) return "google";
+    if (action_id.includes("search_youtube")) return "youtube";
+    if (action_id.includes("shell")) return "shell";
+    if (action_id.includes("url") || action_id.includes("http")) return "url";
+    return "app";
   }
 </script>
 
@@ -41,10 +50,13 @@
           }}
         />
       {/if}
-
       <span class="item-name">{truncate(item.name, 80)}</span>
       {#if item.description}
         <span class="item-desc">{truncate(item.description, 70)}</span>
+      {/if}
+      <span class="item-badge">{getBadge(item.action_id)}</span>
+      {#if index === $activeIndex}
+        <span class="item-enter">↵</span>
       {/if}
     </div>
   {/each}
@@ -64,37 +76,59 @@
     width: auto;
     padding: 12px 18px;
     margin: 0 12px;
-    border: none;
-    border-radius: 12px;
+    border-radius: 10px;
     background: none;
     text-align: left;
     color: #e0e0e0;
     cursor: pointer;
-    border: 1px solid rgba(0, 0, 0, 0);
-    transition: transform 200ms ease;
+    border: 2px solid transparent;
   }
 
   .result-item.active {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(106, 147, 154, 0.1);
+    border: 2px solid rgba(106, 147, 154, 0.5);
+  }
+
+  .result-item.active .item-name {
+    color: rgba(156, 197, 204, 1);
+  }
+
+  .result-item.active .item-desc {
+    color: rgba(156, 197, 204, 0.5);
   }
 
   img.item-icon {
     width: 20px;
     height: 20px;
     margin-right: 0.7rem;
-    display: inline-block;
-
-    object-fit: contain; 
+    flex-shrink: 0;
+    object-fit: contain;
     object-position: center;
   }
 
   .item-name {
-    margin-left: 0;
-    margin-right: 0.7rem;
+    margin-right: 0.8rem;
   }
 
   .item-desc {
     opacity: 0.4;
-    font-size: 16px;
+    font-size: 14px;
+  }
+
+  .item-badge {
+    margin-left: auto;
+    font-size: 10px;
+    color: rgba(106, 147, 154, 0.5);
+    border: 1px solid rgba(106, 147, 154, 0.2);
+    border-radius: 4px;
+    padding: 1px 6px;
+    flex-shrink: 0;
+  }
+
+  .item-enter {
+    font-size: 11px;
+    color: rgba(156, 197, 204, 0.6);
+    margin-left: 8px;
+    flex-shrink: 0;
   }
 </style>
