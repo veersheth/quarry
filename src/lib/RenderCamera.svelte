@@ -17,7 +17,7 @@
     stream?.getTracks().forEach((t) => t.stop());
   });
   function capture() {
-    // placeholder
+    alert("placeholder");
   }
 </script>
 

@@ -83,12 +83,14 @@
           <RenderDictionary listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
           <RenderClipboard listitems={$resultItems} {activeIndex} />
-        {:else if $resultType === "Camera"}
-          <RenderCamera />
+        {:else if $resultType === "ColorPicker"}
+          <RenderColorPicker />
         {:else if $resultType === "Home"}
           <RenderList listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Math"}
           <RenderMath listitems={$resultItems} {activeIndex} />
+        {:else if $resultType === "Camera"}
+          <RenderCamera />
         {:else}
           Oops
         {/if}
