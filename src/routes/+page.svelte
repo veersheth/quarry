@@ -108,7 +108,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(15, 15, 15, 0.8);
+    background-color: rgba(15, 15, 15, 0.9);
     border: 1px solid rgba(255,255,255,0.25);
     overflow: hidden;
     border-radius: 14px;
