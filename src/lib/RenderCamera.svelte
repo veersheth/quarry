@@ -121,6 +121,8 @@
 
   .capture-btn:hover {
     background: #c82020;
+    background: rgba(20, 20, 20, 1);
+    cursor: not-allowed;
   }
 
   .shutter-inner {
