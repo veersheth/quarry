@@ -26,20 +26,23 @@
     <p class="error">{error}</p>
   {:else}
     <div class="video-wrapper">
-      <video
-        bind:this={videoEl}
-        autoplay
-        playsinline
-        muted
-        class:mirrored
-      />
+      <video bind:this={videoEl} autoplay playsinline muted class:mirrored
+      ></video>
     </div>
     <div class="controls">
-      <button class="control-btn mirror-btn" on:click={() => (mirrored = !mirrored)} title="Toggle mirror">
+      <button
+        class="control-btn mirror-btn"
+        on:click={() => (mirrored = !mirrored)}
+        title="Toggle mirror"
+      >
         Flip
       </button>
-      <button class="control-btn capture-btn" on:click={capture} title="Capture">
-        <div class="shutter-inner" />
+      <button
+        class="control-btn capture-btn"
+        on:click={capture}
+        title="Capture"
+      >
+        <div class="shutter-inner"></div>
       </button>
     </div>
   {/if}

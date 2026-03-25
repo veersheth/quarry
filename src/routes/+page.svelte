@@ -64,7 +64,7 @@
     <!-- svelte-ignore a11y_autofocus -->
     <input
       type="text"
-      placeholder="quarry"
+      placeholder="quarry..."
       bind:value={$query}
       bind:this={searchInput}
       autofocus
@@ -108,8 +108,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(10, 10, 10, 1);
-    border: 1px solid rgba(255,255,255,0.15);
+    background-color: rgba(15, 15, 15, 0.8);
+    border: 1px solid rgba(255,255,255,0.25);
     overflow: hidden;
     border-radius: 14px;
   }
@@ -117,9 +117,7 @@
   .container * {
     z-index: 0;
     color: #fffffff8;
-    font-family:
-      "JetBrainsMono Nerd Font",
-      "Courier New",
+    font-family: 
       Inter,
       "Segoe UI",
       "Adwaita Sans",
@@ -147,6 +145,7 @@
     height: 56px;
     flex-shrink: 0;
     transition: opacity 0.15s ease;
+
   }
 
   .search.loading {
@@ -156,7 +155,7 @@
   .results {
     margin: 0;
     padding: 0;
-    border-top: 1px solid rgba(80, 80, 80, 0.5);
+    border-top: 1px solid rgba(80, 80, 80, 0.7);
     flex: 1;
     box-sizing: border-box;
     overflow-y: auto;

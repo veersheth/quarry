@@ -12,6 +12,7 @@
     description?: string;
     icon?: string;
   }[] = [];
+
   export let activeIndex: Writable<number> = writable(0);
 
   function truncate(str: string | undefined, maxLength: number): string {
@@ -64,11 +65,6 @@
     background-color: rgba(60, 60, 60, 0.7);
     box-shadow: 0 0 20px 4px rgba(50, 50, 50, 1);
     border: 1px solid rgba(140, 140, 140, 0.9);
-  }
-
-  .grid-item:hover {
-    transform: scale(1.08);
-    border-radius: 20px;
   }
 
   span.emoji {
