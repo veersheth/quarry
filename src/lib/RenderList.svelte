@@ -81,12 +81,12 @@
     color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
     border: 2px solid transparent;
-    transition: background 80ms ease, border-color 80ms ease;
   }
 
   .result-item.active {
     background-color: rgba(60, 60, 60, 0.4);
-    border-color: rgba(255, 255, 255, 0.1);
+    // background-color: rgba(255, 0 , 0, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.1);
   }
 
   .result-item.active .item-icon {

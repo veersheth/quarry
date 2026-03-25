@@ -11,6 +11,7 @@ pub mod clipboard;
 pub mod colorpicker;
 pub mod files;
 pub mod bookmarks;
+pub mod camera;
 
 use tauri::AppHandle;
 use crate::types::SearchResult;

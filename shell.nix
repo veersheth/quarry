@@ -2,6 +2,12 @@
 
 pkgs.mkShell {
   buildInputs = with pkgs; [
+    # for camera permissions
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-base
+    gst_all_1.gst-plugins-good
+    gst_all_1.gst-plugins-bad
+
     # Rust toolchain
     cargo
     rustc
@@ -45,6 +51,8 @@ pkgs.mkShell {
 
     # Ensure runtime can find libappindicator
     export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${pkgs.libappindicator}/lib"
+
+    export GST_PLUGIN_PATH="${pkgs.gst_all_1.gstreamer}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-bad}/lib/gstreamer-1.0"
 
     echo "Tauri development environment loaded!"
     echo "You can now run: pnpm tauri dev"
