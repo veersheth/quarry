@@ -1,10 +1,28 @@
 use tauri::AppHandle;
 use regex::Regex;
+use once_cell::sync::Lazy;
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+use std::collections::HashSet;
 
 use crate::searchers::{
-    apps::AppSearcher, clipboard::ClipboardSearcher, emojis::EmojiSearcher, files::FileSearcher, bookmarks::BookmarksSearcher, math::MathSearcher, shell::ShellSearcher, system::SystemSearcher, web_searchers::{GoogleSearcher, YouTubeSearcher}, SearchProvider
+    apps::AppSearcher,
+    emojis::EmojiSearcher,
+    files::FileSearcher,
+    bookmarks::BookmarksSearcher,
+    math::MathSearcher,
+    shell::ShellSearcher,
+    system::SystemSearcher,
+    web_searchers::{GoogleSearcher, YouTubeSearcher},
+    SearchProvider,
 };
 use crate::types::{ResultItem, ResultType, SearchResult};
+
+static MATH_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap()
+});
+
+static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(SkimMatcherV2::default);
 
 pub struct DefaultSearcher;
 
@@ -12,57 +30,88 @@ impl DefaultSearcher {
     pub fn new() -> Self {
         Self
     }
+
+    fn score_item(item: &ResultItem, query: &str) -> i64 {
+        let combined = format!(
+            "{} {}",
+            item.name,
+            item.description.as_deref().unwrap_or("")
+        );
+        let combined_score = MATCHER.fuzzy_match(&combined, query).unwrap_or(0);
+        let name_score = MATCHER.fuzzy_match(&item.name, query)
+            .map(|s| s * 2)
+            .unwrap_or(0);
+        combined_score.max(name_score)
+    }
 }
 
 impl SearchProvider for DefaultSearcher {
     fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
-        // early return 
         if q.is_empty() {
-            let mut results = Vec::new();
-            results.extend(AppSearcher.search(q, app).results);
             return SearchResult {
-                results,
+                results: AppSearcher.search(q, app).results,
                 result_type: ResultType::Home,
             };
         }
 
-        let mut combined: Vec<ResultItem> = Vec::new();
+        let app_handle = app.clone();
+        let q_owned = q.to_string();
 
-        // apps first
-        combined.extend(AppSearcher.search(q, app).results);
+        let (app_results, (file_results, bookmark_results)) = rayon::join(
+            || AppSearcher.search(&q_owned, &app_handle).results,
+            || rayon::join(
+                || FileSearcher.search(&q_owned, &app_handle).results,
+                || BookmarksSearcher.search(&q_owned, &app_handle).results,
+            ),
+        );
 
-        // files
-        combined.extend(FileSearcher.search(q, app).results);
+        // score and merge the parallel results into a single sorted list.
+        // group_priority breaks ties so apps > files > bookmarks when scores are equal.
+        let mut scored: Vec<(ResultItem, i64, u8)> = Vec::new();
 
-        // bookmakrs
-        combined.extend(BookmarksSearcher.search(q, app).results);
-
-        // emojis
-        if q.len() >= 1 {
-            let mut res = EmojiSearcher.search(q, app).results;
-            res.truncate(6);
-            combined.extend(res);
+        for item in app_results {
+            let score = Self::score_item(&item, q);
+            scored.push((item, score, 0));
+        }
+        for item in file_results {
+            let score = Self::score_item(&item, q);
+            scored.push((item, score, 1));
+        }
+        for item in bookmark_results {
+            let score = Self::score_item(&item, q);
+            scored.push((item, score, 2));
         }
 
-        // math
-        let math_re = Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap();
-        if math_re.is_match(q) {
+        scored.sort_unstable_by(|a, b| {
+            b.1.cmp(&a.1).then(a.2.cmp(&b.2))
+        });
+
+        let mut seen_names: HashSet<String> = HashSet::new();
+        let mut combined: Vec<ResultItem> = scored
+            .into_iter()
+            .filter_map(|(item, _, _)| {
+                let key = item.name.to_lowercase();
+                if seen_names.insert(key) { Some(item) } else { None }
+            })
+            .collect();
+
+        let mut emojis = EmojiSearcher.search(q, app).results;
+        emojis.truncate(6);
+        combined.extend(emojis);
+
+        if MATH_RE.is_match(q) {
             let mut res = MathSearcher.search(q, app).results;
             res.truncate(2);
             combined.extend(res);
         }
 
-        // system
         if q.len() >= 2 {
             let mut sys = SystemSearcher.search(q, app).results;
             sys.truncate(3);
             combined.extend(sys);
-        }
 
-        // web
-        if q.len() >= 2 {
             let mut g = GoogleSearcher.search(q, app).results;
             g.truncate(1);
             combined.extend(g);
@@ -71,14 +120,12 @@ impl SearchProvider for DefaultSearcher {
             yt.truncate(1);
             combined.extend(yt);
         }
-       
-        // shell
+
         if q.len() >= 3 {
             let mut sh = ShellSearcher.search(q, app).results;
             sh.truncate(2);
             combined.extend(sh);
         }
-
 
         SearchResult {
             results: combined,
@@ -86,4 +133,3 @@ impl SearchProvider for DefaultSearcher {
         }
     }
 }
-

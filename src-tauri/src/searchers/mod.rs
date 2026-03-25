@@ -42,21 +42,18 @@ pub trait SearchProvider {
 }
 
 fn fuzzy_score(matcher: &SkimMatcherV2, item: &ResultItem, query: &str) -> i64 {
-    let name_score = matcher
-        .fuzzy_match(&item.name, query)
-        .map(|s| s * 3)          // name
+    let combined = format!(
+        "{} {} {}",
+        item.name,
+        item.description.as_deref().unwrap_or(""),
+        item.action_id
+    );
+
+    let combined_score = matcher.fuzzy_match(&combined, query).unwrap_or(0);
+
+    let name_score = matcher.fuzzy_match(&item.name, query)
+        .map(|s| s * 2)
         .unwrap_or(0);
 
-    let desc_score = item.description
-        .as_deref()
-        .and_then(|d| matcher.fuzzy_match(d, query))
-        .map(|s| s * 2)          // description
-        .unwrap_or(0);
-
-    let id_score = matcher
-        .fuzzy_match(&item.action_id, query)
-        .unwrap_or(0);           // action id
-
-    name_score.max(desc_score).max(id_score)
+    combined_score.max(name_score)
 }
-
