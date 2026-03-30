@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashSet;
+use rayon;
 
 use crate::searchers::{
     apps::AppSearcher,
