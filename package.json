@@ -18,6 +18,8 @@
     "@tauri-apps/plugin-clipboard-manager": "~2",
     "@tauri-apps/plugin-opener": "^2",
     "fuse.js": "^7.1.0",
+    "marked": "^17.0.5",
+    "snarkdown": "^2.0.0",
     "svelte-icons": "^2.1.0"
   },
   "devDependencies": {

@@ -17,6 +17,7 @@
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
   import RenderCamera from "$lib/RenderCamera.svelte";
+    import RenderMarkdown from "$lib/RenderMarkdown.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -80,7 +81,7 @@
         {:else if $resultType === "WebSearch"}
           <RenderWebSearch listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Dictionary"}
-          <RenderDictionary listitems={$resultItems} {activeIndex} />
+          <RenderMarkdown listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
           <RenderClipboard listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "ColorPicker"}

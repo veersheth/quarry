@@ -40,7 +40,7 @@ impl SearchProvider for DictionarySearcher {
         if word.is_empty() {
             return SearchResult {
                 results: vec![],
-                result_type: ResultType::List,
+                result_type: ResultType::Markdown,
             };
         }
 
@@ -51,12 +51,12 @@ impl SearchProvider for DictionarySearcher {
             Err(_) => return SearchResult {
                 results: vec![
                     ResultItem::new(
-                        format!("Failed to fetch definition for '{}'", word),
+                        format!("Failed to fetch '{}'", word),
                         ActionData::None,
                     )
-                    .description("Check your internet connection"),
+                    .description("# Error\n\nCheck your internet connection."),
                 ],
-                result_type: ResultType::List,
+                result_type: ResultType::Markdown,
             },
         };
 
@@ -68,56 +68,43 @@ impl SearchProvider for DictionarySearcher {
                         format!("No definition found for '{}'", word),
                         ActionData::None,
                     )
-                    .description("Word not found in dictionary"),
+                    .description(format!("# Not Found\n\n'{}' was not found in the dictionary.", word)),
                 ],
-                result_type: ResultType::List,
+                result_type: ResultType::Markdown,
             },
         };
 
         let mut results = vec![];
 
         if let Some(first) = definitions.first() {
-            if let Some(phonetic) = first.phonetics.first() {
-                if let Some(text) = &phonetic.text {
-                    results.push(
-                        ResultItem::new(
-                            format!("{} {}", first.word, text),
-                            ActionData::CopyToClipboard { text: text.clone() },
-                        )
-                        .description("Copy pronunciation"),
-                    );
+            let phonetic_text = first.phonetics.iter()
+                .find_map(|p| p.text.clone())
+                .unwrap_or_default();
+
+            let mut markdown = format!("# {} {}\n\n", first.word, phonetic_text);
+
+            for meaning in &first.meanings {
+                markdown.push_str(&format!("### {}\n\n", meaning.part_of_speech));
+                for (i, def) in meaning.definitions.iter().take(3).enumerate() {
+                    markdown.push_str(&format!("{}. {}\n\n", i + 1, def.definition));
+                    if let Some(example) = &def.example {
+                        markdown.push_str(&format!("> *{}*\n\n", example));
+                    }
                 }
             }
 
-            for (_idx, meaning) in first.meanings.iter().enumerate() {
-                for (_def_idx, def) in meaning.definitions.iter().take(3).enumerate() {
-                    let description = match &def.example {
-                        Some(example) => format!("Example: {}", example),
-                        None => def.definition.clone(),
-                    };
-
-                    let full_text = format!(
-                        "{} ({}): {}\n{}",
-                        first.word,
-                        meaning.part_of_speech,
-                        def.definition,
-                        def.example.as_ref().map(|e| format!("Example: {}", e)).unwrap_or_default()
-                    );
-
-                    results.push(
-                        ResultItem::new(
-                            format!("[{}] {}", meaning.part_of_speech, def.definition),
-                            ActionData::CopyToClipboard { text: full_text },
-                        )
-                        .description(description),
-                    );
-                }
-            }
+            results.push(
+                ResultItem::new(
+                    format!("{} {}", first.word, phonetic_text),
+                    ActionData::CopyToClipboard { text: first.word.clone() },
+                )
+                .description(markdown),
+            );
         }
 
         SearchResult {
             results,
-            result_type: ResultType::Dictionary,
+            result_type: ResultType::Markdown,
         }
     }
 }

@@ -40,7 +40,7 @@ pub enum ResultType {
     List,
     Grid,
     WebSearch,
-    Dictionary,
+    Markdown,
     Clipboard,
     ColorPicker,
     Home,
