@@ -3,7 +3,6 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import RenderList from "$lib/RenderList.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
-  import RenderDictionary from "$lib/RenderDictionary.svelte";
   import {
     query,
     resultItems,
@@ -80,7 +79,7 @@
           <RenderEmojis listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "WebSearch"}
           <RenderWebSearch listitems={$resultItems} {activeIndex} />
-        {:else if $resultType === "Dictionary"}
+        {:else if $resultType === "Markdown"}
           <RenderMarkdown listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
           <RenderClipboard listitems={$resultItems} {activeIndex} />
