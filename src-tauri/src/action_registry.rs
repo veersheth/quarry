@@ -1,22 +1,22 @@
 use crate::types::ActionData;
-use std::collections::HashMap;
+use dashmap::DashMap;
 
 pub struct ActionRegistry {
-    actions: HashMap<String, ActionData>,
+    actions: DashMap<String, ActionData>,
 }
 
 impl ActionRegistry {
     pub fn new() -> Self {
         Self {
-            actions: HashMap::new(),
+            actions: DashMap::new(),
         }
     }
 
-    pub fn register(&mut self, id: String, action: ActionData) {
+    pub fn register(&self, id: String, action: ActionData) {
         self.actions.insert(id, action);
     }
 
     pub fn get_action(&self, id: &str) -> Option<ActionData> {
-        self.actions.get(id).cloned()
+        self.actions.get(id).map(|v| v.clone())
     }
 }

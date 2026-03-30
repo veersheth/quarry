@@ -5,7 +5,6 @@ use tauri::AppHandle;
 use std::fs;
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
-use crate::ACTION_REGISTRY;
 
 fn clean_exec_field(exec: &str) -> String {
     exec.split_whitespace()
@@ -40,36 +39,31 @@ static APP_CACHE: Lazy<Vec<CachedApp>> = Lazy::new(|| {
     let entries = Iter::new(default_paths())
         .entries(Some(&locales))
         .collect::<Vec<_>>();
-    
+
     for entry in entries {
         if entry.no_display() || entry.hidden() {
             continue;
         }
-        
+
         let name = entry
             .name(&locales)
             .or_else(|| entry.name::<&str>(&[]))
             .unwrap_or("Unknown".into())
             .to_string();
-        
+
         let exec = match entry.exec() {
             Some(e) => clean_exec_field(&e),
-            None => continue, // Skip apps without exec
+            None => continue,
         };
-        
+
         let description = entry
             .comment(&locales)
             .or_else(|| entry.comment::<&str>(&[]))
             .map(|s| s.to_string());
-        
+
         let icon = entry.icon().and_then(|i| resolve_icon(&i));
-        
-        apps.push(CachedApp {
-            name,
-            exec,
-            description,
-            icon,
-        });
+
+        apps.push(CachedApp { name, exec, description, icon });
     }
     apps
 });
@@ -78,49 +72,36 @@ pub struct AppSearcher;
 
 impl SearchProvider for AppSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
-        let q = query.to_lowercase();
-        
-        let mut results = Vec::new();
-        
-        for cached_app in APP_CACHE.iter() {
-            if !cached_app.name.to_lowercase().contains(&q)
-                && !cached_app
-                    .description
-                    .as_ref()
-                    .map_or(false, |d| d.to_lowercase().contains(&q))
-                && !cached_app.exec.to_lowercase().contains(&q)
-            {
-                continue;
-            }
-            
-            let action_id = format!("app_{}", cached_app.name);
-            
-            let parts: Vec<String> = cached_app.exec
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect();
-            
-            let executable = parts.first().cloned().unwrap_or_default();
-            let args = parts.into_iter().skip(1).collect();
-            
-            if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-                registry.register(
-                    action_id.clone(),
-                    ActionData::LaunchApp {
-                        executable,
-                        args,
-                    },
+        let candidates: Vec<ResultItem> = APP_CACHE
+            .iter()
+            .map(|cached_app| {
+                let parts: Vec<String> = cached_app.exec
+                    .split_whitespace()
+                    .map(|s| s.to_string())
+                    .collect();
+                let executable = parts.first().cloned().unwrap_or_default();
+                let args = parts.into_iter().skip(1).collect();
+
+                let mut item = ResultItem::new(
+                    cached_app.name.clone(),
+                    ActionData::LaunchApp { executable, args },
                 );
-            }
-            
-            results.push(ResultItem {
-                name: cached_app.name.clone(),
-                action_id,
-                description: cached_app.description.clone(),
-                icon: cached_app.icon.clone(),
-            });
-        }
-        
+                if let Some(desc) = &cached_app.description {
+                    item = item.description(desc.clone());
+                }
+                if let Some(icon) = &cached_app.icon {
+                    item = item.icon(icon.clone());
+                }
+                item
+            })
+            .collect();
+
+        let results = if query.is_empty() {
+            candidates
+        } else {
+            self.fuzzy_filter(candidates, query)
+        };
+
         SearchResult {
             results,
             result_type: ResultType::List,

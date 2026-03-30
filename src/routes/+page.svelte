@@ -108,8 +108,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(15, 15, 15, 0.8);
-    border: 1px solid rgba(255,255,255,0.25);
+    background-color: rgba(15, 15, 15, 1);
+    border: 1px solid rgba(255,255,255,0.35);
     overflow: hidden;
     border-radius: 14px;
   }

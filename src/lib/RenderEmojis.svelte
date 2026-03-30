@@ -14,11 +14,6 @@
   }[] = [];
 
   export let activeIndex: Writable<number> = writable(0);
-
-  function truncate(str: string | undefined, maxLength: number): string {
-    if (!str) return "";
-    return str.length > maxLength ? str.slice(0, maxLength) + "…" : str;
-  }
 </script>
 
 <div class="result-grid">

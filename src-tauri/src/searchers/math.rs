@@ -1,39 +1,25 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
-use crate::ACTION_REGISTRY;
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct MathSearcher;
 
 impl SearchProvider for MathSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let expr = query.trim();
-        let value = meval::eval_str(expr);
-        
-        let results = match value {
-            Ok(result) => {
-                let result_str = result.to_string();
-                let action_id = format!("math_{}", result_str);
-                
-                if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-                    registry.register(
-                        action_id.clone(),
-                        ActionData::CopyToClipboard {
-                            text: result_str.clone(),
-                        },
-                    );
-                }
-                
-                vec![ResultItem {
-                    name: format!("{} = {}", expr, result),
-                    action_id,
-                    description: Some("Copy result to clipboard".into()),
-                    icon: Some("icons/math.png".to_string()),
-                }]
-            }
+
+        let results = match meval::eval_str(expr) {
+            Ok(result) => vec![
+                ResultItem::new(
+                    format!("{} = {}", expr, result),
+                    ActionData::CopyToClipboard { text: result.to_string() },
+                )
+                .description("Copy result to clipboard")
+                .icon("icons/math.png"),
+            ],
             Err(_) => vec![],
         };
-        
+
         SearchResult {
             results,
             result_type: ResultType::Math,
