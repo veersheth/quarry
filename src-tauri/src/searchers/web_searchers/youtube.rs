@@ -1,6 +1,5 @@
 use super::super::SearchProvider;
 use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
-use crate::ACTION_REGISTRY;
 use tauri::AppHandle;
 
 pub struct YouTubeSearcher;
@@ -13,18 +12,15 @@ impl SearchProvider for YouTubeSearcher {
             "https://www.youtube.com/results?search_query={}",
             urlencoding::encode(q)
         );
-        let action_id = format!("search_{}", url);
 
-        if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-            registry.register(action_id.clone(), ActionData::OpenUrl { url: url.clone() });
-        }
-
-        let results = vec![ResultItem {
-            name: format!("Search YouTube for '{}'", q),
-            action_id,
-            description: Some("Open in browser".into()),
-            icon: Some("https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/2560px-YouTube_full-color_icon_%282017%29.svg.png".into()),
-        }];
+        let results = vec![
+            ResultItem::new(
+                format!("Search YouTube for '{}'", q),
+                ActionData::OpenUrl { url },
+            )
+            .description("Open in browser")
+            .icon("https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/2560px-YouTube_full-color_icon_%282017%29.svg.png"),
+        ];
 
         SearchResult {
             results,

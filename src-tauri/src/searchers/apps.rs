@@ -5,7 +5,6 @@ use tauri::AppHandle;
 use std::fs;
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
-use crate::ACTION_REGISTRY;
 
 fn clean_exec_field(exec: &str) -> String {
     exec.split_whitespace()
@@ -64,12 +63,7 @@ static APP_CACHE: Lazy<Vec<CachedApp>> = Lazy::new(|| {
 
         let icon = entry.icon().and_then(|i| resolve_icon(&i));
 
-        apps.push(CachedApp {
-            name,
-            exec,
-            description,
-            icon,
-        });
+        apps.push(CachedApp { name, exec, description, icon });
     }
     apps
 });
@@ -80,32 +74,25 @@ impl SearchProvider for AppSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let candidates: Vec<ResultItem> = APP_CACHE
             .iter()
-            .filter_map(|cached_app| {
-                let action_id = format!("app_{}", cached_app.name);
-
-                let parts: Vec<String> = cached_app
-                    .exec
+            .map(|cached_app| {
+                let parts: Vec<String> = cached_app.exec
                     .split_whitespace()
                     .map(|s| s.to_string())
                     .collect();
-
                 let executable = parts.first().cloned().unwrap_or_default();
                 let args = parts.into_iter().skip(1).collect();
 
-                ACTION_REGISTRY
-                    .lock()
-                    .ok()?
-                    .register(
-                        action_id.clone(),
-                        ActionData::LaunchApp { executable, args },
-                    );
-
-                Some(ResultItem {
-                    name: cached_app.name.clone(),
-                    action_id,
-                    description: cached_app.description.clone(),
-                    icon: cached_app.icon.clone(),
-                })
+                let mut item = ResultItem::new(
+                    cached_app.name.clone(),
+                    ActionData::LaunchApp { executable, args },
+                );
+                if let Some(desc) = &cached_app.description {
+                    item = item.description(desc.clone());
+                }
+                if let Some(icon) = &cached_app.icon {
+                    item = item.icon(icon.clone());
+                }
+                item
             })
             .collect();
 

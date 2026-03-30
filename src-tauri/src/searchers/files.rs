@@ -1,6 +1,5 @@
 use super::SearchProvider;
 use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
-use crate::ACTION_REGISTRY;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use tauri::AppHandle;
@@ -49,7 +48,6 @@ impl FileSearcher {
             }
         }
 
-        // full home walk last as a catch-all
         if let Some(home) = dirs::home_dir() {
             paths.push(home);
         }
@@ -58,9 +56,6 @@ impl FileSearcher {
         paths
     }
 
-    /// Walk search_paths, collecting files where every query word appears
-    /// somewhere in the full path. No early-exit cap - truncation happens
-    /// after fuzzy_filter so the best matches always survive.
     fn collect_candidates(query: &str) -> Vec<PathBuf> {
         let query_lower = query.to_lowercase();
         let mut hits: Vec<PathBuf> = Vec::new();
@@ -79,7 +74,6 @@ impl FileSearcher {
             {
                 let path = entry.path();
                 let path_str = path.to_string_lossy().to_lowercase();
-
                 let all_words_match = query_lower
                     .split_whitespace()
                     .all(|word| path_str.contains(word));
@@ -96,20 +90,8 @@ impl FileSearcher {
         hits
     }
 
-    fn icon_for(path: &Path) -> String {
-        if path.is_dir() {
-            "icons/folder.png".to_string()
-        } else {
-            "icons/file.png".to_string()
-        }
-    }
-
-    fn action_id(path: &Path) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        format!("file_{:x}", hasher.finish())
+    fn icon_for(path: &Path) -> &'static str {
+        if path.is_dir() { "icons/folder.png" } else { "icons/file.png" }
     }
 }
 
@@ -125,7 +107,7 @@ impl SearchProvider for FileSearcher {
 
         let candidates: Vec<ResultItem> = Self::collect_candidates(trimmed)
             .into_iter()
-            .filter_map(|path| {
+            .map(|path| {
                 let path_str = path.to_string_lossy().into_owned();
                 let name = path
                     .file_name()
@@ -133,21 +115,11 @@ impl SearchProvider for FileSearcher {
                     .unwrap_or(&path_str)
                     .to_string();
 
-                let action_id = Self::action_id(&path);
-
-                ACTION_REGISTRY.lock().ok()?.register(
-                    action_id.clone(),
-                    ActionData::OpenUrl {
-                        url: format!("file://{}", path_str),
-                    },
-                );
-
-                Some(ResultItem {
-                    name,
-                    action_id,
-                    description: Some(path_str),
-                    icon: Some(Self::icon_for(&path)),
+                ResultItem::new(name, ActionData::OpenUrl {
+                    url: format!("file://{}", path_str),
                 })
+                .description(path_str)
+                .icon(Self::icon_for(&path))
             })
             .collect();
 

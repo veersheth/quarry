@@ -31,7 +31,10 @@ use usage_tracker::{boost_results_by_usage, UsageHistory};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::process::Command;
-use std::sync::Mutex;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    RwLock,
+};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
@@ -41,9 +44,12 @@ use tauri_plugin_cli::CliExt;
 // ---------------------------------------------------------
 // GLOBAL STATE
 // ---------------------------------------------------------
+
+static SEARCH_SEQ: AtomicU64 = AtomicU64::new(0);
+
 lazy_static! {
-    static ref USAGE_HISTORY: Mutex<UsageHistory> = Mutex::new(UsageHistory::load());
-    static ref ACTION_REGISTRY: Mutex<ActionRegistry> = Mutex::new(ActionRegistry::new());
+    static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
+    static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
     static ref CLIPBOARD_MANAGER: ClipboardManager = {
         let data_dir = dirs::data_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap())
@@ -101,9 +107,10 @@ lazy_static! {
 // SEARCH COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
-    let mut result = None;
+fn search(query: &str, app: tauri::AppHandle) -> Option<SearchResult> {
+    let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
 
+    let mut result = None;
     for (regex, searcher) in PREFIX_SEARCHERS.iter() {
         if let Some(caps) = regex.captures(query) {
             let rest = caps.get(1).map_or("", |m| m.as_str());
@@ -117,12 +124,21 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
         DefaultSearcher::new().search(query, &app)
     });
 
-    // Boost results based on usage history
-    if let Ok(history) = USAGE_HISTORY.lock() {
+    for (i, item) in search_result.results.iter_mut().enumerate() {
+        let id = format!("action_{}_{}", my_seq, i);
+        ACTION_REGISTRY.register(id.clone(), item.action.clone());
+        item.action_id = id;
+    }
+
+    if let Ok(history) = USAGE_HISTORY.read() {
         search_result.results = boost_results_by_usage(search_result.results, query, &history);
     }
 
-    search_result
+    if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
+        return None;
+    }
+
+    Some(search_result)
 }
 
 // ---------------------------------------------------------
@@ -130,9 +146,8 @@ fn search(query: &str, app: tauri::AppHandle) -> SearchResult {
 // ---------------------------------------------------------
 #[tauri::command]
 fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
+    // ACTION_REGISTRY is now a plain DashMap-backed struct — no .lock() needed.
     let action_data = ACTION_REGISTRY
-        .lock()
-        .map_err(|e| format!("Failed to lock registry: {}", e))?
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
@@ -148,9 +163,9 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
         ActionData::None => Ok(()),
     };
 
-    // record usage if execution successful
+    // record_usage needs a write lock — this is rare (only on selection).
     if result.is_ok() {
-        if let Ok(mut history) = USAGE_HISTORY.lock() {
+        if let Ok(mut history) = USAGE_HISTORY.write() {
             history.record_usage(&query, &action_id, &action_id);
         }
     }

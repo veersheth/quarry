@@ -1,7 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
-use crate::ACTION_REGISTRY;
+use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct SystemSearcher;
 
@@ -26,14 +25,14 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         command: "systemctl suspend",
         description: "Suspend the system (sleep mode)",
         keywords: &["suspend", "sleep", "hibernate"],
-        icon: "icons/system/lock.png"
+        icon: "icons/system/lock.png",
     },
     SystemAction {
         name: "Hibernate",
         command: "systemctl hibernate",
         description: "Hibernate the system (save to disk)",
         keywords: &["hibernate", "sleep", "suspend"],
-        icon: "icons/system/power.png"
+        icon: "icons/system/power.png",
     },
     SystemAction {
         name: "Shutdown",
@@ -82,18 +81,10 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
 impl SystemSearcher {
     fn matches_query(action: &SystemAction, query: &str) -> bool {
         let q = query.to_lowercase();
-
         if action.name.to_lowercase().contains(&q) {
             return true;
         }
-
-        for kw in action.keywords {
-            if kw.contains(&q) || q.contains(kw) {
-                return true;
-            }
-        }
-
-        false
+        action.keywords.iter().any(|kw| kw.contains(&q) || q.contains(kw))
     }
 }
 
@@ -101,37 +92,15 @@ impl SearchProvider for SystemSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
-        let matching: Vec<&SystemAction> = if q.is_empty() {
-            SYSTEM_ACTIONS.iter().collect()
-        } else {
-            SYSTEM_ACTIONS
-                .iter()
-                .filter(|action| Self::matches_query(action, q))
-                .collect()
-        };
-
-        let results: Vec<ResultItem> = matching
+        let results = SYSTEM_ACTIONS
             .iter()
+            .filter(|action| q.is_empty() || Self::matches_query(action, q))
             .map(|action| {
-                let action_id =
-                    format!("system_{}", action.name.to_lowercase().replace(' ', "_"));
-
-                // Register action in global ACTION_REGISTRY
-                if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-                    registry.register(
-                        action_id.clone(),
-                        ActionData::ShellCommand {
-                            command: action.command.to_string(),
-                        },
-                    );
-                }
-
-                ResultItem {
-                    name: action.name.to_string(),
-                    action_id,
-                    description: Some(action.description.to_string()),
-                    icon: Some(action.icon.to_string()),
-                }
+                ResultItem::new(action.name, ActionData::ShellCommand {
+                    command: action.command.to_string(),
+                })
+                .description(action.description)
+                .icon(action.icon)
             })
             .collect();
 
@@ -141,4 +110,3 @@ impl SearchProvider for SystemSearcher {
         }
     }
 }
-

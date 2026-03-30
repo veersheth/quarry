@@ -1,6 +1,5 @@
 use super::super::SearchProvider;
 use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
-use crate::ACTION_REGISTRY;
 use tauri::AppHandle;
 
 pub struct URLSearcher;
@@ -33,17 +32,14 @@ impl SearchProvider for URLSearcher {
             format!("https://{}", q)
         };
 
-        let action_id = format!("search_{}", url);
-        if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-            registry.register(action_id.clone(), ActionData::OpenUrl { url: url.clone() });
-        }
-
-        let results = vec![ResultItem {
-            name: format!("Open '{}'", q),
-            action_id,
-            description: None,
-            icon: None,
-        }];
+        let results = vec![
+            ResultItem::new(
+                format!("Open '{}'", q),
+                ActionData::OpenUrl { url },
+            )
+            .description("Open URL")
+            .icon(""),
+        ];
 
         SearchResult {
             results,

@@ -1,7 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
-use crate::ACTION_REGISTRY;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -94,22 +93,6 @@ impl BookmarksSearcher {
             s.split('.').count() >= 2
         )
     }
-
-    fn bookmarks_to_items(bookmarks: &[Bookmark]) -> Vec<ResultItem> {
-        bookmarks.iter().filter_map(|bookmark| {
-            let action_id = format!("bookmark_{}", bookmark.name);
-            ACTION_REGISTRY.lock().ok()?.register(
-                action_id.clone(),
-                ActionData::OpenUrl { url: bookmark.url.clone() },
-            );
-            Some(ResultItem {
-                name: bookmark.name.clone(),
-                action_id,
-                description: Some(bookmark.url.clone()),
-                icon: Some("icons/bookmark.png".to_string()),
-            })
-        }).collect()
-    }
 }
 
 impl SearchProvider for BookmarksSearcher {
@@ -118,34 +101,29 @@ impl SearchProvider for BookmarksSearcher {
 
         let bookmarks = match Self::load_bookmarks() {
             Ok(b) => b,
-            Err(e) => {
-                return SearchResult {
-                    results: vec![ResultItem {
-                        name: format!("error loading bookmarks: {}", e),
-                        action_id: "error".to_string(),
-                        description: None,
-                        icon: Some("icons/bookmark.png".to_string()),
-                    }],
-                    result_type: ResultType::List,
-                };
-            }
+            Err(e) => return SearchResult {
+                results: vec![
+                    ResultItem::new(format!("error loading bookmarks: {}", e), ActionData::None)
+                        .icon("icons/bookmark.png")
+                ],
+                result_type: ResultType::List,
+            },
         };
 
         // show all bookmarks
         if query.is_empty() {
             if bookmarks.is_empty() {
                 return SearchResult {
-                    results: vec![ResultItem {
-                        name: "No bookmarks yet".to_string(),
-                        action_id: "info".to_string(),
-                        description: Some("Type a name and URL to add a bookmark".to_string()),
-                        icon: Some("icons/bookmark.png".to_string()),
-                    }],
+                    results: vec![
+                        ResultItem::new("No bookmarks yet", ActionData::None)
+                            .description("Type a name and URL to add a bookmark")
+                            .icon("icons/bookmark.png")
+                    ],
                     result_type: ResultType::List,
                 };
             }
             return SearchResult {
-                results: Self::bookmarks_to_items(&bookmarks),
+                results: bookmarks.iter().map(bookmark_to_item).collect(),
                 result_type: ResultType::List,
             };
         }
@@ -155,28 +133,20 @@ impl SearchProvider for BookmarksSearcher {
         if parts.len() == 2 && Self::is_url(parts[1]) {
             let name = parts[0].to_string();
             let url = parts[1].to_string();
-            let action_id = format!("add_bookmark_{}_{}", name, url);
-            if let Ok(mut registry) = ACTION_REGISTRY.lock() {
-                registry.register(
-                    action_id.clone(),
-                    ActionData::RunFunction {
-                        function_name: "add_bookmark".to_string(),
-                        params: vec![name.clone(), url.clone()],
-                    },
-                );
-            }
             return SearchResult {
-                results: vec![ResultItem {
-                    name: format!("+ Add bookmark: {}", name),
-                    action_id,
-                    description: Some(url),
-                    icon: Some("icons/bookmark.png".to_string()),
-                }],
+                results: vec![
+                    ResultItem::new(format!("+ Add bookmark: {}", name), ActionData::RunFunction {
+                        function_name: "add_bookmark".to_string(),
+                        params: vec![name, url.clone()],
+                    })
+                    .description(url)
+                    .icon("icons/bookmark.png")
+                ],
                 result_type: ResultType::List,
             };
         }
 
-        // ";d <query>" — deletion UI, no fuzzy needed, just show matches
+        // ";d <query>" — show matching bookmarks as deletion candidates
         if query.starts_with(";d ") {
             let search_query = query[3..].trim().to_lowercase();
             let results: Vec<ResultItem> = bookmarks
@@ -185,34 +155,39 @@ impl SearchProvider for BookmarksSearcher {
                     b.name.to_lowercase().contains(&search_query)
                         || b.url.to_lowercase().contains(&search_query)
                 })
-                .map(|b| ResultItem {
-                    name: format!("Type: ;d {} (to delete)", b.name),
-                    action_id: "info".to_string(),
-                    description: Some(b.url.clone()),
-                    icon: Some("icons/trash.png".to_string()),
+                .map(|b| {
+                    ResultItem::new(format!("Delete bookmark: {}", b.name), ActionData::RunFunction {
+                        function_name: "remove_bookmark".to_string(),
+                        params: vec![b.name.clone()],
+                    })
+                    .description(b.url.clone())
+                    .icon("icons/trash.png")
                 })
                 .collect();
 
             if results.is_empty() {
                 return SearchResult {
-                    results: vec![ResultItem {
-                        name: "No matching bookmarks found".to_string(),
-                        action_id: "info".to_string(),
-                        description: Some("Use ;d <name> to delete a bookmark".to_string()),
-                        icon: Some("icons/bookmark.png".to_string()),
-                    }],
+                    results: vec![
+                        ResultItem::new("No matching bookmarks found", ActionData::None)
+                            .description("Use ;d <name> to delete a bookmark")
+                            .icon("icons/bookmark.png")
+                    ],
                     result_type: ResultType::List,
                 };
             }
             return SearchResult { results, result_type: ResultType::List };
         }
 
-        let candidates = Self::bookmarks_to_items(&bookmarks);
-        let results = self.fuzzy_filter(candidates, query);
-
+        let candidates: Vec<ResultItem> = bookmarks.iter().map(bookmark_to_item).collect();
         SearchResult {
-            results,
+            results: self.fuzzy_filter(candidates, query),
             result_type: ResultType::List,
         }
     }
+}
+
+fn bookmark_to_item(bookmark: &Bookmark) -> ResultItem {
+    ResultItem::new(bookmark.name.clone(), ActionData::OpenUrl { url: bookmark.url.clone() })
+        .description(bookmark.url.clone())
+        .icon("icons/bookmark.png")
 }
