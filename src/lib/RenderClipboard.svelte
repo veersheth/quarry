@@ -11,6 +11,9 @@
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
 
+  $: activeItem = listitems[$activeIndex];
+  $: activeColor = getValidColor(activeItem?.name);
+
   function handleClick(item: ResultItem) {
     runItemAction(item);
   }
@@ -24,7 +27,19 @@
     if (!timestamp) return "";
     const ts = typeof timestamp === "string" ? Number(timestamp) : timestamp;
     const date = new Date(ts * 1000);
-    return `Copied at ${date.toLocaleString()}`;
+    return `Copied ${date.toLocaleString()}`;
+  }
+
+  function getValidColor(str: string | undefined): string | null {
+    if (!str) return null;
+    const trimmed = str.trim();
+    const standardRegex = /^(#([A-Fa-f0-9]{3,4}){1,2}|(rgb|hsl)a?\s*\(.*\))$/i;
+    if (standardRegex.test(trimmed)) return trimmed;
+    const nakedRgb = /^(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*[\d.]+)?$/;
+    if (nakedRgb.test(trimmed)) return `rgb(${trimmed})`;
+    const nakedHsl = /^(\d{1,3})°?,\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*[\d.]+)?$/;
+    if (nakedHsl.test(trimmed)) return `hsl(${trimmed.replace('°', '')})`;
+    return null;
   }
 </script>
 
@@ -39,91 +54,164 @@
         on:mouseenter={() => activeIndex.set(index)}
         on:click={() => handleClick(item)}
       >
-        <span class="item-name">{truncate(item.name, 16)}</span>
+        <span class="item-name">{truncate(item.name, 26)}</span>
+        
+        <div class="swatch-container">
+          {#if getValidColor(item.name)}
+            <div class="mini-swatch" style:background-color={getValidColor(item.name)}></div>
+          {/if}
+        </div>
       </div>
     {/each}
   </div>
-  <div class="info">
-    <div class="preview">
-      {listitems[$activeIndex]?.name}
-    </div>
-    <div class="data">
-      {formatTimestamp(listitems[$activeIndex]?.description)}
-    </div>
+
+  <div class="info-panel">
+    {#if activeItem}
+      <div class="preview-area">
+        {#if activeColor}
+          <div class="color-hero">
+            <div class="checkerboard">
+              <div class="main-swatch" style:background-color={activeColor}></div>
+            </div>
+            <code class="color-value">{activeItem.name}</code>
+          </div>
+        {:else}
+          <div class="text-preview">
+            {activeItem.name}
+          </div>
+        {/if}
+      </div>
+
+      <div class="metadata">
+        <span class="timestamp">{formatTimestamp(activeItem.description)}</span>
+      </div>
+    {/if}
   </div>
 </div>
 
 <style>
   .clipboard {
     display: flex;
-    flex-direction: row;
     height: 100%;
-    min-width: 0; 
+    color: #eee;
   }
 
   .result-list {
-    flex: 1;
-    min-width: 0; 
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 12px 0 5px 0;
-    height: 95%;
+    flex: 0 0 218px; 
+    border-right: 1px solid #333;
     overflow-y: auto;
+    padding: 8px;
   }
 
   .result-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    width: auto;
-    padding: 12px 18px;
-    margin: 0 12px;
+    padding: 14px 14px;
+    margin-bottom: 4px;
     border-radius: 12px;
-    text-align: left;
-    color: #e0e0e0;
     cursor: pointer;
-    transition: transform 200ms ease;
   }
 
   .result-item.active {
-    background-color: rgba(60, 60, 60, 0.7);
+    background: #2a2a2a;
   }
 
   .item-name {
+    flex: 1;
+    font-size: 0.9rem;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    margin-right: 10px;
   }
 
-  .info {
-    flex: 3;
-    min-width: 0; 
+  .swatch-container {
+    width: 18px;
+    height: 18px;
     display: flex;
-    flex-direction: column;
-    border-left: 1px solid rgba(80, 80, 80, 1);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
-  .preview {
-    flex: 9;
-    min-width: 0; 
-    overflow-y: auto;
-    overflow-x: auto; 
-    padding: 16px;
-    font-family: "JetBrainsMono Nerd Font", "Courier New", Courier, monospace;
-    white-space: pre-wrap;
-    word-wrap: break-word; 
-    word-break: break-word; 
-    overflow-wrap: break-word; 
-    color: rgba(255, 181, 188, 1);
+  .mini-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 12px;
   }
 
-  .data {
+  .info-panel {
     flex: 1;
     display: flex;
-    justify-content: right;
+    flex-direction: column;
+  }
+
+  .preview-area {
+    flex: 1;
+    display: flex;
     align-items: center;
-    margin: 2px 32px;
-    font-size: 0.9em;
-    opacity: 0.3;
+    justify-content: center;
+    padding: 24px;
+    overflow: auto;
+  }
+
+  .color-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .checkerboard {
+    width: 200px;
+    height: 200px;
+    border-radius: 111px;
+    background-image: 
+      linear-gradient(45deg, #222 25%, transparent 25%), 
+      linear-gradient(-45deg, #222 25%, transparent 25%), 
+      linear-gradient(45deg, transparent 75%, #222 75%), 
+      linear-gradient(-45deg, transparent 75%, #222 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-color: #111;
+    overflow: hidden;
+    border: 1px solid #333;
+  }
+
+  .main-swatch {
+    width: 100%;
+    height: 100%;
+  }
+
+  .color-value {
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
+    font-size: 1.1rem;
+    background: #222;
+    padding: 8px 18px;
+    border-radius: 12px;
+    color: #eee;
+    border: 1px solid #333;
+  }
+
+  .text-preview {
+    width: 100%;
+    height: 100%;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: 'JetBrains Mono', monospace;
+    color: #ffb5bc;
+    font-size: 0.95rem;
+  }
+
+  .metadata {
+    padding: 12px 20px;
+    border-top: 1px solid #333;
+    text-align: right;
+  }
+
+  .timestamp {
+    opacity: 0.4;
+    font-size: 14px;
   }
 </style>
