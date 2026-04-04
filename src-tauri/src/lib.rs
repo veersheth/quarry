@@ -108,22 +108,31 @@ lazy_static! {
 // SEARCH COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn search(query: &str, app: tauri::AppHandle) -> Option<SearchResult> {
+async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
 
-    let mut result = None;
-    for (regex, searcher) in PREFIX_SEARCHERS.iter() {
-        if let Some(caps) = regex.captures(query) {
-            let rest = caps.get(1).map_or("", |m| m.as_str());
-            result = Some(searcher.search(rest, &app));
-            break;
-        }
-    }
+    let query_clone = query.clone(); 
 
-    let mut search_result = result.unwrap_or_else(|| {
-        use searchers::default::DefaultSearcher;
-        DefaultSearcher::new().search(query, &app)
-    });
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let mut result = None;
+
+        for (regex, searcher) in PREFIX_SEARCHERS.iter() {
+            if let Some(caps) = regex.captures(&query_clone) {
+                let rest = caps.get(1).map_or("", |m| m.as_str());
+                result = Some(searcher.search(rest, &app));
+                break;
+            }
+        }
+
+        result.unwrap_or_else(|| {
+            use searchers::default::DefaultSearcher;
+            DefaultSearcher::new().search(&query_clone, &app)
+        })
+    })
+    .await
+    .ok()?;
+
+    let mut search_result = result;
 
     for (i, item) in search_result.results.iter_mut().enumerate() {
         let id = format!("action_{}_{}", my_seq, i);
@@ -132,7 +141,8 @@ fn search(query: &str, app: tauri::AppHandle) -> Option<SearchResult> {
     }
 
     if let Ok(history) = USAGE_HISTORY.read() {
-        search_result.results = boost_results_by_usage(search_result.results, query, &history);
+        search_result.results =
+            boost_results_by_usage(search_result.results, &query, &history); 
     }
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
