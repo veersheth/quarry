@@ -43,6 +43,7 @@ emojis = "0.8.0"
 fuzzy-matcher = "0.3"
 rayon = "1.11.0"
 dashmap = "6.1.0"
+image = "0.25.9"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = { version = "2.0", features = ["v2_40"] }
