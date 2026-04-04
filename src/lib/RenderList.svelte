@@ -15,16 +15,6 @@
   }[] = [];
 
   export let activeIndex: Writable<number> = writable(0);
-
-  function getBadge(action_id: string): string {
-    if (action_id.includes("shell")) return "shell";
-    if (action_id.includes("math")) return "math";
-    if (action_id.includes("bookmark")) return "bookmark";
-    if (action_id.includes("lorem")) return "copy";
-    if (action_id.includes("system")) return "system";
-    if (action_id.includes("url") || action_id.includes("http")) return "url";
-    return "app";
-  }
 </script>
 
 <div class="result-list">
@@ -53,10 +43,6 @@
           <span class="item-desc">{item.description}</span>
         {/if}
       </div>
-      <span class="item-badge">{getBadge(item.action_id)}</span>
-      {#if index === $activeIndex}
-        <span class="item-enter">↵</span>
-      {/if}
     </div>
   {/each}
 </div>
@@ -127,22 +113,5 @@
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
-  }
-
-  .item-badge {
-    margin-left: auto;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    padding: 1px 6px;
-    flex-shrink: 0;
-  }
-
-  .item-enter {
-    font-size: 11px;
-    margin-left: 8px;
-    flex-shrink: 0;
-    opacity: 0.6;
   }
 </style>

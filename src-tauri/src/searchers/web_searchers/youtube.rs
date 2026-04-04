@@ -19,7 +19,7 @@ impl SearchProvider for YouTubeSearcher {
                 ActionData::OpenUrl { url },
             )
             .description("Open in browser")
-            .icon("https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/2560px-YouTube_full-color_icon_%282017%29.svg.png"),
+            .icon("https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png"),
         ];
 
         SearchResult {

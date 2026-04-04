@@ -43,20 +43,6 @@
         <div class="item-desc">{truncate(item.description, 70)}</div>
       {/if}
     </div>
-    {#if item.icon && !showFallback}
-      <img
-        class="item-icon-glow"
-        src={item.icon}
-        alt=""
-        on:error={handleIconError}
-      />
-      <img
-        class="item-icon"
-        src={item.icon}
-        alt=""
-        on:error={handleIconError}
-      />
-    {/if}
   </div>
 {/if}
 
