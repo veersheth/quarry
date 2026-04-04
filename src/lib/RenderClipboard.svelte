@@ -8,11 +8,12 @@
     action_id: string;
     description?: string;
     icon?: string;
+    thumbnail?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
 
   $: activeItem = listitems[$activeIndex];
-  $: activeColor = getValidColor(activeItem?.name);
+  $: activeColor = activeItem?.thumbnail ? null : getValidColor(activeItem?.name);
 
   function handleClick(item: ResultItem) {
     runItemAction(item);
@@ -51,16 +52,20 @@
       <div
         class="result-item"
         class:active={index === $activeIndex}
+        class:image-item={!!item.thumbnail}
         on:mouseenter={() => activeIndex.set(index)}
         on:click={() => handleClick(item)}
       >
-        <span class="item-name">{truncate(item.name, 26)}</span>
-        
-        <div class="swatch-container">
-          {#if getValidColor(item.name)}
-            <div class="mini-swatch" style:background-color={getValidColor(item.name)}></div>
-          {/if}
-        </div>
+        {#if item.thumbnail}
+          <img class="list-thumbnail" src={item.thumbnail} alt={item.name} />
+        {:else}
+          <span class="item-name">{truncate(item.name, 26)}</span>
+          <div class="swatch-container">
+            {#if getValidColor(item.name)}
+              <div class="mini-swatch" style:background-color={getValidColor(item.name)}></div>
+            {/if}
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
@@ -68,7 +73,9 @@
   <div class="info-panel">
     {#if activeItem}
       <div class="preview-area">
-        {#if activeColor}
+        {#if activeItem.thumbnail}
+          <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} />
+        {:else if activeColor}
           <div class="color-hero">
             <div class="checkerboard">
               <div class="main-swatch" style:background-color={activeColor}></div>
@@ -97,7 +104,7 @@
   }
 
   .result-list {
-    flex: 0 0 218px; 
+    flex: 0 0 218px;
     border-right: 1px solid #333;
     overflow-y: auto;
     padding: 8px;
@@ -111,10 +118,25 @@
     margin-bottom: 4px;
     border-radius: 12px;
     cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0);
+  }
+
+  .result-item.image-item {
+    padding: 8px 20px;
+    overflow: hidden;
   }
 
   .result-item.active {
     background: #2a2a2a;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .list-thumbnail {
+    width: 100%;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 12px;
+    display: block;
   }
 
   .item-name {
@@ -154,6 +176,13 @@
     justify-content: center;
     padding: 24px;
     overflow: auto;
+  }
+
+  .image-preview {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
   }
 
   .color-hero {
