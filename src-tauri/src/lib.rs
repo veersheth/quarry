@@ -28,6 +28,7 @@ use tauri::Manager;
 use types::{ActionData, SearchResult};
 use usage_tracker::{boost_results_by_usage, UsageHistory};
 
+use base64::{engine::general_purpose, Engine};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::process::Command;
@@ -146,7 +147,6 @@ fn search(query: &str, app: tauri::AppHandle) -> Option<SearchResult> {
 // ---------------------------------------------------------
 #[tauri::command]
 fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
-    // ACTION_REGISTRY is now a plain DashMap-backed struct — no .lock() needed.
     let action_data = ACTION_REGISTRY
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
@@ -155,6 +155,9 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
         ActionData::LaunchApp { executable, args } => launch_app(&executable, &args),
         ActionData::OpenUrl { url } => open_url(&url, &app),
         ActionData::CopyToClipboard { text } => copy_to_clipboard(&text, &app),
+        ActionData::CopyImageToClipboard { base64_png, width, height } => {
+            copy_image_to_clipboard(&base64_png, width, height)
+        }
         ActionData::RunFunction {
             function_name,
             params,
@@ -163,7 +166,6 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
         ActionData::None => Ok(()),
     };
 
-    // record_usage needs a write lock — this is rare (only on selection).
     if result.is_ok() {
         if let Ok(mut history) = USAGE_HISTORY.write() {
             history.record_usage(&query, &action_id, &action_id);
@@ -214,6 +216,38 @@ fn copy_to_clipboard(text: &str, app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+
+fn copy_image_to_clipboard(base64_png: &str, width: u32, height: u32) -> Result<(), String> {
+    // strip the data uri prefix if present
+    let b64 = base64_png
+        .strip_prefix("data:image/png;base64,")
+        .unwrap_or(base64_png);
+
+    let png_bytes = general_purpose::STANDARD
+        .decode(b64)
+        .map_err(|e| format!("Failed to decode image base64: {}", e))?;
+
+    // Decode PNG → raw RGBA bytes for arboard
+    let img = image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to decode PNG: {}", e))?
+        .into_rgba8();
+
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("Clipboard unavailable: {}", e))?;
+
+    let img_data = arboard::ImageData {
+        width: width as usize,
+        height: height as usize,
+        bytes: img.into_raw().into(),
+    };
+
+    clipboard
+        .set_image(img_data)
+        .map_err(|e| format!("Failed to set clipboard image: {}", e))?;
+
+    Ok(())
+}
+
 fn run_shell_command(command: &str) -> Result<(), String> {
     use std::os::unix::process::CommandExt;
     Command::new("sh")
@@ -242,15 +276,13 @@ fn run_custom_function(
             if params.len() != 2 {
                 return Err("add_bookmark requires name and url".to_string());
             }
-            BookmarksSearcher::add_bookmark(params[0].clone(), params[1].clone())
-                .map(|_| ())
+            BookmarksSearcher::add_bookmark(params[0].clone(), params[1].clone()).map(|_| ())
         }
         "remove_bookmark" => {
             if params.is_empty() {
                 return Err("remove_bookmark requires a name".to_string());
             }
-            BookmarksSearcher::remove_bookmark(&params[0])
-                .map(|_| ())
+            BookmarksSearcher::remove_bookmark(&params[0]).map(|_| ())
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
@@ -283,11 +315,9 @@ pub fn run() {
             toggle_window(app);
         }))
         .setup(|app| {
-            // START IPC SERVER
             let app_handle = app.handle().clone();
             ipc_server::start_ipc_server(app_handle);
 
-            // Setup tray menu
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&toggle, &quit])?;
@@ -306,7 +336,6 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // setup window event handlers + camera permission on linux
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
@@ -316,9 +345,6 @@ pub fn run() {
                     }
                 });
 
-                // grant camera (and microphone) permission requests from webkitgtk on linux.
-                // without this, getusermedia silently fails - webkit never surfaces a
-                // permission dialog to the user in an embedded context.
                 #[cfg(target_os = "linux")]
                 webview.with_webview(|wv| {
                     use webkit2gtk::WebViewExt;
@@ -331,7 +357,6 @@ pub fn run() {
                 })?;
             }
 
-            // handle cli args (for backwards compatibility with single_instance)
             match app.cli().matches() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {

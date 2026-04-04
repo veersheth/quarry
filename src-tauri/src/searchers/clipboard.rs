@@ -1,4 +1,5 @@
 use super::SearchProvider;
+use crate::clipboard_manager::ClipboardContent;
 use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
 use crate::CLIPBOARD_MANAGER;
 use tauri::AppHandle;
@@ -11,12 +12,13 @@ impl SearchProvider for ClipboardSearcher {
 
         if query == "clear" {
             return SearchResult {
-                results: vec![
-                    ResultItem::new("Clear clipboard history?", ActionData::RunFunction {
+                results: vec![ResultItem::new(
+                    "Clear clipboard history?",
+                    ActionData::RunFunction {
                         function_name: "clear_clipboard".into(),
                         params: vec![],
-                    }),
-                ],
+                    },
+                )],
                 result_type: ResultType::List,
             };
         }
@@ -26,14 +28,38 @@ impl SearchProvider for ClipboardSearcher {
         let results = history
             .iter()
             .filter(|entry| {
-                query.is_empty() || entry.content.to_lowercase().contains(&query)
+                if query.is_empty() {
+                    return true;
+                }
+                // images match on their display label or the literal word "image"
+                entry
+                    .display_text()
+                    .to_lowercase()
+                    .contains(&query)
             })
-            .map(|entry| {
-                ResultItem::new(
-                    entry.content.clone(),
-                    ActionData::CopyToClipboard { text: entry.content.clone() },
+            .map(|entry| match &entry.content {
+                ClipboardContent::Text { value } => ResultItem::new(
+                    value.clone(),
+                    ActionData::CopyToClipboard { text: value.clone() },
                 )
-                .description(entry.timestamp.to_string())
+                .description(format_timestamp(entry.timestamp)),
+
+                ClipboardContent::Image {
+                    thumbnail,
+                    full,
+                    width,
+                    height,
+                    ..
+                } => ResultItem::new(
+                    format!("Image {}×{}", width, height),
+                    ActionData::CopyImageToClipboard {
+                        base64_png: full.clone(),
+                        width: *width,
+                        height: *height,
+                    },
+                )
+                .description(format_timestamp(entry.timestamp))
+                .thumbnail(thumbnail.clone()),
             })
             .collect();
 
@@ -41,5 +67,23 @@ impl SearchProvider for ClipboardSearcher {
             results,
             result_type: ResultType::Clipboard,
         }
+    }
+}
+
+fn format_timestamp(ts: u64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let age = now.saturating_sub(ts);
+
+    if age < 60 {
+        "just now".to_string()
+    } else if age < 3600 {
+        format!("{} min ago", age / 60)
+    } else if age < 86400 {
+        format!("{} hr ago", age / 3600)
+    } else {
+        format!("{} days ago", age / 86400)
     }
 }
