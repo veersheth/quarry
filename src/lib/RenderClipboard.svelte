@@ -15,8 +15,8 @@
   $: activeItem = listitems[$activeIndex];
   $: activeColor = activeItem?.thumbnail ? null : getValidColor(activeItem?.name);
 
-  function handleClick(item: ResultItem) {
-    runItemAction(item);
+  function handleClick(item: typeof listitems[0]) {
+    runItemAction(item as unknown as ResultItem);
   }
 
   function truncate(str: string | undefined, maxLength: number): string {
@@ -27,8 +27,13 @@
   function formatTimestamp(timestamp?: string | number): string {
     if (!timestamp) return "";
     const ts = typeof timestamp === "string" ? Number(timestamp) : timestamp;
-    const date = new Date(ts * 1000);
-    return `Copied ${date.toLocaleString()}`;
+    if (isNaN(ts)) return String(timestamp);
+    const now = Date.now() / 1000;
+    const age = now - ts;
+    if (age < 60) return "just now";
+    if (age < 3600) return `${Math.floor(age / 60)} min ago`;
+    if (age < 86400) return `${Math.floor(age / 3600)} hr ago`;
+    return `${Math.floor(age / 86400)} days ago`;
   }
 
   function getValidColor(str: string | undefined): string | null {
@@ -42,9 +47,16 @@
     if (nakedHsl.test(trimmed)) return `hsl(${trimmed.replace('°', '')})`;
     return null;
   }
+
+  function itemType(item: typeof listitems[0]): "image" | "color" | "text" {
+    if (item.thumbnail) return "image";
+    if (getValidColor(item.name)) return "color";
+    return "text";
+  }
 </script>
 
 <div class="clipboard">
+  <!-- LEFT: list -->
   <div class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -52,24 +64,26 @@
       <div
         class="result-item"
         class:active={index === $activeIndex}
-        class:image-item={!!item.thumbnail}
         on:mouseenter={() => activeIndex.set(index)}
         on:click={() => handleClick(item)}
       >
-        {#if item.thumbnail}
-          <img class="list-thumbnail" src={item.thumbnail} alt={item.name} />
-        {:else}
-          <span class="item-name">{truncate(item.name, 26)}</span>
-          <div class="swatch-container">
-            {#if getValidColor(item.name)}
-              <div class="mini-swatch" style:background-color={getValidColor(item.name)}></div>
-            {/if}
-          </div>
-        {/if}
+        <!-- NAME + SUBTITLE -->
+        <div class="item-body">
+          <span class="item-name">{truncate(item.name, 22)}</span>
+        </div>
+        <div class="type-icon">
+          {#if itemType(item) === "image"}
+            <img class="icon-thumb" src={item.thumbnail} alt="" />
+          {:else if itemType(item) === "color"}
+            <div class="icon-swatch" style:background-color={getValidColor(item.name)}></div>
+          {/if}
+        </div>
+
       </div>
     {/each}
   </div>
 
+  <!-- RIGHT: preview -->
   <div class="info-panel">
     {#if activeItem}
       <div class="preview-area">
@@ -83,13 +97,14 @@
             <code class="color-value">{activeItem.name}</code>
           </div>
         {:else}
-          <div class="text-preview">
-            {activeItem.name}
-          </div>
+          <div class="text-preview">{activeItem.name}</div>
         {/if}
       </div>
 
       <div class="metadata">
+        <span class="type-badge type-{itemType(activeItem)}">
+          {itemType(activeItem)}
+        </span>
         <span class="timestamp">{formatTimestamp(activeItem.description)}</span>
       </div>
     {/if}
@@ -103,70 +118,94 @@
     color: #eee;
   }
 
+  /* ── LEFT ── */
   .result-list {
-    flex: 0 0 218px;
+    flex: 0 0 224px;
     border-right: 1px solid #333;
     overflow-y: auto;
-    padding: 8px;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .result-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 14px 14px;
-    margin-bottom: 4px;
-    border-radius: 12px;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
     cursor: pointer;
-    border: 2px solid rgba(255, 255, 255, 0);
-  }
-
-  .result-item.image-item {
-    padding: 8px 20px;
-    overflow: hidden;
+    border: 2px solid transparent;
   }
 
   .result-item.active {
     background: #2a2a2a;
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-color: rgba(255,255,255,0.08);
   }
 
-  .list-thumbnail {
-    width: 100%;
-    height: 72px;
-    object-fit: cover;
-    border-radius: 12px;
-    display: block;
-  }
-
-  .item-name {
-    flex: 1;
-    font-size: 0.9rem;
-    white-space: nowrap;
+  .type-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 10px;
-  }
-
-  .swatch-container {
-    width: 18px;
-    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
   }
 
-  .mini-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 12px;
+  .icon-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
+  .icon-swatch {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+  }
+
+  .icon-text {
+    width: 100%;
+    height: 100%;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+  }
+
+  /* text block */
+  .item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .item-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-sub {
+    font-size: 0.72rem;
+    color: #666;
+    white-space: nowrap;
+  }
+
+  /* ── RIGHT ── */
   .info-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
   }
 
   .preview-area {
@@ -175,7 +214,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    overflow: auto;
+    overflow: hidden;
   }
 
   .image-preview {
@@ -196,10 +235,10 @@
     width: 200px;
     height: 200px;
     border-radius: 111px;
-    background-image: 
-      linear-gradient(45deg, #222 25%, transparent 25%), 
-      linear-gradient(-45deg, #222 25%, transparent 25%), 
-      linear-gradient(45deg, transparent 75%, #222 75%), 
+    background-image:
+      linear-gradient(45deg, #222 25%, transparent 25%),
+      linear-gradient(-45deg, #222 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #222 75%),
       linear-gradient(-45deg, transparent 75%, #222 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
@@ -233,14 +272,30 @@
     font-size: 0.95rem;
   }
 
+  /* ── FOOTER ── */
   .metadata {
-    padding: 12px 20px;
-    border-top: 1px solid #333;
-    text-align: right;
+    padding: 10px 16px;
+    border-top: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
+  .type-badge {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    text-transform: capitalize;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .type-badge.type-text   { background: #2a2a2a; color: #888;   border: 1px solid #3a3a3a; }
+  .type-badge.type-image  { background: #1a2a1a; color: #6a9;   border: 1px solid #2a3a2a; }
+  .type-badge.type-color  { background: #2a1a2a; color: #a6a;   border: 1px solid #3a2a3a; }
+
   .timestamp {
+    margin-left: auto;
+    font-size: 0.9rem;
     opacity: 0.4;
-    font-size: 14px;
   }
 </style>
