@@ -54,7 +54,7 @@
   async function refresh() {
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
-    searchInput?.focus();
+    searchInput?.select();
   }
 
   onMount(async () => {
