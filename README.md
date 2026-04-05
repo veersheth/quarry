@@ -1,5 +1,7 @@
 # Quarry
 
+https://github.com/user-attachments/assets/319fb4f8-f318-4be8-b7c6-34d786c7e80b
+
 - Globalized app/shortcut launcher
 - Currently developed focused on a Hyprland / NixOS setup, but it _should_ work on most distributions (not tested)
 - Currently aiming to fix _my_ gripes with already existing app launchers
@@ -32,25 +34,6 @@ $ pnpm run tauri dev
 - Custom bookmarks implementation
 - Web search
 - Dictionary
-
-
-<div align="center">
-  <img src="./for-readme/app.png" width="50%" />
-  <img src="./for-readme/bookmarks.png" width="50%" />
-  <img src="./for-readme/camera.png" width="50%" />
-</div>
-
-<div align="center">
-  <img src="./for-readme/clipboard.png" width="50%" />
-  <img src="./for-readme/colorpicker.png" width="50%" />
-  <img src="./for-readme/dictionary.png" width="50%" />
-</div>
-
-<div align="center">
-  <img src="./for-readme/emoji.png" width="50%" />
-  <img src="./for-readme/math.png" width="50%" />
-  <img src="./for-readme/web.png" width="30%" />
-</div>
 
 # Configuration
 
