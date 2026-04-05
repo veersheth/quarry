@@ -27,6 +27,7 @@
   interface Theme {
     background_color:    string;
     background_opacity:  number;
+    font_size: number;
     font_color:          string;
     border_radius:       number;
     border_color:        string;
@@ -40,6 +41,7 @@
     const root = document.documentElement.style;
     root.setProperty("--q-bg-color",           t.background_color);
     root.setProperty("--q-bg-opacity",         String(t.background_opacity));
+    root.setProperty("--q-font-size",           `${t.font_size}px`);
     root.setProperty("--q-font-color",         t.font_color);
     root.setProperty("--q-border-radius",      `${t.border_radius}px`);
     root.setProperty("--q-border-color",       t.border_color);
@@ -153,6 +155,7 @@
   .container * {
     z-index: 0;
     color: var(--q-font-color, #ffffff);
+    font-size: var(--q-font-size);
     font-family:
       Inter,
       "Segoe UI",

@@ -27,6 +27,7 @@ impl Default for Config {
 pub struct ThemeConfig {
     pub background_color:    String,
     pub background_opacity:   f32,
+    pub font_size:   u32,
     pub font_color:           String,
     pub border_radius:        u32,
     pub border_color:         String,
@@ -41,6 +42,7 @@ impl Default for ThemeConfig {
         Self {
             background_color:    "rgba(10, 10, 10, 1)".into(),
             background_opacity:  1.0,
+            font_size:  14,
             font_color:          "rgba(255, 255, 255, 1)".into(),
             border_radius:       14,
             border_color:        "rgba(255,255,255,0.35)".into(),
@@ -152,6 +154,7 @@ const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry
 [theme]
 background_color    = "rgba(10, 10, 10, 1)"
 background_opacity  = 1.0
+font_size           = 14
 font_color          = "rgba(255, 255, 255, 1)"
 border_radius       = 14
 border_color        = "rgba(255,255,255,0.35)"
