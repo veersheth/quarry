@@ -1,5 +1,6 @@
 mod action_registry;
 mod clipboard_manager;
+mod config;
 mod ipc_server;
 mod searchers;
 mod types;
@@ -49,59 +50,71 @@ use tauri_plugin_cli::CliExt;
 static SEARCH_SEQ: AtomicU64 = AtomicU64::new(0);
 
 lazy_static! {
+    pub static ref CONFIG: config::Config = {
+        config::Config::write_default_if_missing();
+        config::Config::load()
+    };
+
     static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
+
     static ref CLIPBOARD_MANAGER: ClipboardManager = {
         let data_dir = dirs::data_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap())
             .join("tauri");
-
         std::fs::create_dir_all(&data_dir).ok();
         let clipboard_path = data_dir.join("clipboard_history.json");
-
         ClipboardManager::with_storage(clipboard_path)
     };
-}
 
-// ---------------------------------------------------------
-// REGEX SEARCH DISPATCH TABLE
-// ---------------------------------------------------------
-lazy_static! {
-    static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        (Regex::new(r"^cam$").unwrap(), Box::new(CameraSearcher)),
+    static ref TRIGGERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = {
+        let t = &CONFIG.triggers;
 
-        (Regex::new(r"^bk (.*)$").unwrap(), Box::new(BookmarksSearcher)),
+        macro_rules! re {
+            ($pattern:expr, $name:literal) => {
+                match Regex::new($pattern) {
+                    Ok(r) => Some(r),
+                    Err(e) => {
+                        eprintln!(
+                            "quarry: invalid trigger regex for '{}' ({})... skipping",
+                            $name, e
+                        );
+                        None
+                    }
+                }
+            };
+        }
 
-        (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
+        macro_rules! push {
+            ($v:expr, $pattern:expr, $name:literal, $searcher:expr) => {
+                if let Some(r) = re!($pattern, $name) {
+                    $v.push((r, Box::new($searcher) as Box<dyn SearchProvider + Send + Sync>));
+                }
+            };
+        }
 
-        (Regex::new(r"^cp\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
+        let mut v: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = Vec::new();
 
-        (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
+        push!(v, &t.camera,       "camera",       CameraSearcher);
+        push!(v, &t.bookmarks,    "bookmarks",    BookmarksSearcher);
+        push!(v, &t.files,        "files",        FileSearcher);
+        push!(v, &t.clipboard,    "clipboard",    ClipboardSearcher);
+        push!(v, &t.emojis,       "emojis",       EmojiSearcher);
+        push!(v, &t.google,       "google",       GoogleSearcher);
+        push!(v, &t.youtube,      "youtube",      YouTubeSearcher);
+        push!(v, &t.nix,          "nix",          NixSearcher);
+        push!(v, &t.github,       "github",       GitHubSearcher);
+        push!(v, &t.shell,        "shell",        ShellSearcher);
+        push!(v, &t.lorem,        "lorem",        LoremSearcher);
+        push!(v, &t.math,         "math",         MathSearcher);
+        push!(v, &t.dictionary,   "dictionary",   DictionarySearcher);
+        push!(v, &t.system,       "system",       SystemSearcher);
+        push!(v, &t.color_picker, "color_picker", ColorPicker);
+        push!(v, &t.apps,         "apps",         AppSearcher);
+        push!(v, &t.url,          "url",          URLSearcher);
 
-        (Regex::new(r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$").unwrap(), Box::new(URLSearcher)),
-
-        (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-
-        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
-
-        (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-
-        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
-
-        (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-
-        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
-
-        (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-
-        (Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
-
-        (Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
-
-        (Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
-
-        (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
-    ];
+        v
+    };
 }
 
 // ---------------------------------------------------------
@@ -111,13 +124,14 @@ lazy_static! {
 async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
 
-    let query_clone = query.clone(); 
+    let query_clone = query.clone();
 
     let result = tauri::async_runtime::spawn_blocking(move || {
         let mut result = None;
 
-        for (regex, searcher) in PREFIX_SEARCHERS.iter() {
+        for (regex, searcher) in TRIGGERS.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
+                // Pass the first capture group as the query, or "" if none.
                 let rest = caps.get(1).map_or("", |m| m.as_str());
                 result = Some(searcher.search(rest, &app));
                 break;
@@ -142,7 +156,7 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 
     if let Ok(history) = USAGE_HISTORY.read() {
         search_result.results =
-            boost_results_by_usage(search_result.results, &query, &history); 
+            boost_results_by_usage(search_result.results, &query, &history);
     }
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
@@ -168,10 +182,9 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
         ActionData::CopyImageToClipboard { base64_png, width, height } => {
             copy_image_to_clipboard(&base64_png, width, height)
         }
-        ActionData::RunFunction {
-            function_name,
-            params,
-        } => run_custom_function(&function_name, &params, &app),
+        ActionData::RunFunction { function_name, params } => {
+            run_custom_function(&function_name, &params, &app)
+        }
         ActionData::ShellCommand { command } => run_shell_command(&command),
         ActionData::None => Ok(()),
     };
@@ -226,9 +239,7 @@ fn copy_to_clipboard(text: &str, app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-
 fn copy_image_to_clipboard(base64_png: &str, width: u32, height: u32) -> Result<(), String> {
-    // strip the data uri prefix if present
     let b64 = base64_png
         .strip_prefix("data:image/png;base64,")
         .unwrap_or(base64_png);
@@ -237,7 +248,6 @@ fn copy_image_to_clipboard(base64_png: &str, width: u32, height: u32) -> Result<
         .decode(b64)
         .map_err(|e| format!("Failed to decode image base64: {}", e))?;
 
-    // Decode PNG → raw RGBA bytes for arboard
     let img = image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png)
         .map_err(|e| format!("Failed to decode PNG: {}", e))?
         .into_rgba8();
@@ -315,6 +325,9 @@ fn toggle_window(app_handle: &tauri::AppHandle) {
 // ---------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = &*CONFIG;
+    let _ = &*TRIGGERS;
+
     CLIPBOARD_MANAGER.start_monitoring();
 
     tauri::Builder::default()
@@ -329,20 +342,16 @@ pub fn run() {
             ipc_server::start_ipc_server(app_handle);
 
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &quit])?;
+            let quit   = MenuItem::with_id(app, "quit",   "Quit",          true, None::<&str>)?;
+            let menu   = Menu::with_items(app, &[&toggle, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "toggle" => {
-                        toggle_window(app);
-                    }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
+                    "toggle" => toggle_window(app),
+                    "quit"   => app.exit(0),
+                    _        => {}
                 })
                 .build(app)?;
 
@@ -370,9 +379,7 @@ pub fn run() {
             match app.cli().matches() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {
-                        if sub.name == "toggle" {
-                            // trigger single_instance plugin
-                        }
+                        if sub.name == "toggle" {}
                     }
                 }
                 Err(_) => {}
