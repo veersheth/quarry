@@ -134,14 +134,14 @@
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
-    border-radius: 10px;
+    border-radius: var(--q-item-border-radius);
     cursor: pointer;
     border: 2px solid transparent;
   }
 
   .result-item.active {
-    background: #2a2a2a;
-    border-color: rgba(255,255,255,0.08);
+    background: var(--q-active-bg-color);
+    border-color: var(--q-active-border-color);
   }
 
   .type-icon {

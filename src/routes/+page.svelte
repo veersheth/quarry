@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { invoke } from "@tauri-apps/api/core";
   import RenderList from "$lib/RenderList.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
   import {
@@ -16,18 +17,53 @@
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
   import RenderCamera from "$lib/RenderCamera.svelte";
-    import RenderMarkdown from "$lib/RenderMarkdown.svelte";
+  import RenderMarkdown from "$lib/RenderMarkdown.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
   let searchTimeout: ReturnType<typeof setTimeout>;
 
-  onMount(() => {
+  interface Theme {
+    background_color:    string;
+    background_opacity:  number;
+    font_size: number;
+    font_color:          string;
+    border_radius:       number;
+    border_color:        string;
+    border_thickness:    number;
+    item_border_radius:  number;
+    active_bg_color:     string;
+    active_border_color: string;
+  }
+
+  function applyTheme(t: Theme) {
+    const root = document.documentElement.style;
+    root.setProperty("--q-bg-color",           t.background_color);
+    root.setProperty("--q-bg-opacity",         String(t.background_opacity));
+    root.setProperty("--q-font-size",           `${t.font_size}px`);
+    root.setProperty("--q-font-color",         t.font_color);
+    root.setProperty("--q-border-radius",      `${t.border_radius}px`);
+    root.setProperty("--q-border-color",       t.border_color);
+    root.setProperty("--q-border-thickness",   `${t.border_thickness}px`);
+    root.setProperty("--q-item-border-radius", `${t.item_border_radius}px`);
+    root.setProperty("--q-active-bg-color",          t.active_bg_color);
+    root.setProperty("--q-active-border-color",      t.active_border_color);
+  }
+
+  async function refresh() {
+    const theme = await invoke<Theme>("get_theme");
+    applyTheme(theme);
+    searchInput?.select();
+  }
+
+  onMount(async () => {
     appWindow = getCurrentWindow();
+    await refresh(); // apply theme
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
-      if (focused && searchInput) searchInput.select();
+      if (focused) refresh();
     });
+
     return () => {
       unlisten.then((fn) => fn());
     };
@@ -108,16 +144,19 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: rgba(15, 15, 15, 1);
-    border: 1px solid rgba(255,255,255,0.35);
+    background-color: var(--q-bg-color, rgba(15, 15, 15, 1));
+    opacity: var(--q-bg-opacity, 1);
+    border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
     overflow: hidden;
-    border-radius: 14px;
+    border-radius: var(--q-border-radius, 14px);
+    color: var(--q-font-color, #ffffff);
   }
 
   .container * {
     z-index: 0;
-    color: #fffffff8;
-    font-family: 
+    color: var(--q-font-color, #ffffff);
+    font-size: var(--q-font-size);
+    font-family:
       Inter,
       "Segoe UI",
       "Adwaita Sans",
@@ -145,7 +184,6 @@
     height: 56px;
     flex-shrink: 0;
     transition: opacity 0.15s ease;
-
   }
 
   .search.loading {
@@ -171,10 +209,5 @@
   .results-content.dimmed {
     opacity: 0.5;
     pointer-events: none;
-  }
-
-  .hint {
-    font-size: 11px;
-    color: rgba(156, 197, 204, 0.35);
   }
 </style>

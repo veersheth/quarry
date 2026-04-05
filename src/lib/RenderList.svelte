@@ -59,9 +59,9 @@
     display: flex;
     align-items: center;
     width: auto;
-    padding: 12px 18px;
+    padding: 12px 10px;
     margin: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--q-item-border-radius);
     background: none;
     text-align: left;
     color: rgba(255, 255, 255, 0.7);
@@ -70,9 +70,8 @@
   }
 
   .result-item.active {
-    background-color: rgba(60, 60, 60, 0.4);
-    // background-color: rgba(255, 0 , 0, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--q-active-bg-color);
+    border: 2px solid var(--q-active-border-color);
   }
 
   .result-item.active .item-icon {
@@ -82,7 +81,7 @@
   img.item-icon {
     width: 20px;
     height: 20px;
-    margin-right: 0.7rem;
+    margin-right: 14px;
     flex-shrink: 0;
     object-fit: contain;
     object-position: center;

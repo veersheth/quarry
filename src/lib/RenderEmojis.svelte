@@ -46,9 +46,8 @@
     align-items: center;
     justify-content: center;
     padding: 28px 16px;
-    border-radius: 12px;
+    border-radius: var(--q-item-border-radius);
     border: 1px solid rgba(60, 60, 60, 0.7);
-    background-color: rgba(30, 30, 30, 0.5);
     cursor: pointer;
     text-align: center;
     transition:
@@ -57,9 +56,9 @@
   }
 
   .grid-item.active {
-    background-color: rgba(60, 60, 60, 0.7);
+    background-color: var(--q-active-bg-color);
     box-shadow: 0 0 20px 4px rgba(50, 50, 50, 1);
-    border: 1px solid rgba(140, 140, 140, 0.9);
+    border: 1px solid var(--q-active-border-color);
   }
 
   span.emoji {

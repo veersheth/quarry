@@ -1,5 +1,6 @@
 mod action_registry;
 mod clipboard_manager;
+mod config;
 mod ipc_server;
 mod searchers;
 mod types;
@@ -13,18 +14,16 @@ use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::system::SystemSearcher;
+use crate::searchers::web_searchers::{URLSearcher, WebSearcher};
 use searchers::apps::AppSearcher;
 use searchers::dictionary::DictionarySearcher;
 use searchers::emojis::EmojiSearcher;
 use searchers::math::MathSearcher;
-use searchers::web_searchers::{
-    GitHubSearcher, GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher,
-};
 use searchers::SearchProvider;
 
 use action_registry::ActionRegistry;
 use clipboard_manager::ClipboardManager;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use types::{ActionData, SearchResult};
 use usage_tracker::{boost_results_by_usage, UsageHistory};
 
@@ -49,59 +48,77 @@ use tauri_plugin_cli::CliExt;
 static SEARCH_SEQ: AtomicU64 = AtomicU64::new(0);
 
 lazy_static! {
+    pub static ref CONFIG: config::Config = {
+        config::Config::write_default_if_missing();
+        config::Config::load()
+    };
+
     static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
+
     static ref CLIPBOARD_MANAGER: ClipboardManager = {
         let data_dir = dirs::data_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap())
             .join("tauri");
-
         std::fs::create_dir_all(&data_dir).ok();
         let clipboard_path = data_dir.join("clipboard_history.json");
-
         ClipboardManager::with_storage(clipboard_path)
     };
 }
 
 // ---------------------------------------------------------
-// REGEX SEARCH DISPATCH TABLE
+// TRIGGER BUILDER
 // ---------------------------------------------------------
-lazy_static! {
-    static ref PREFIX_SEARCHERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = vec![
-        (Regex::new(r"^cam$").unwrap(), Box::new(CameraSearcher)),
+fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
+    let cfg = config::Config::load();
+    let t = &cfg.triggers;
 
-        (Regex::new(r"^bk (.*)$").unwrap(), Box::new(BookmarksSearcher)),
+    macro_rules! push {
+        ($v:expr, $pattern:expr, $name:literal, $searcher:expr) => {
+            match Regex::new($pattern) {
+                Ok(r) => $v.push((r, Box::new($searcher) as Box<dyn SearchProvider + Send + Sync>)),
+                Err(e) => eprintln!(
+                    "quarry: invalid trigger regex for '{}' ({}) — skipping",
+                    $name, e
+                ),
+            }
+        };
+    }
 
-        (Regex::new(r"^f\s+(.*)$").unwrap(), Box::new(FileSearcher)),
+    let mut v: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = Vec::new();
 
-        (Regex::new(r"^cp\s+(.*)$").unwrap(), Box::new(ClipboardSearcher)),
+    push!(v, &t.camera,       "camera",       CameraSearcher);
+    push!(v, &t.bookmarks,    "bookmarks",    BookmarksSearcher);
+    push!(v, &t.files,        "files",        FileSearcher);
+    push!(v, &t.clipboard,    "clipboard",    ClipboardSearcher);
+    push!(v, &t.emojis,       "emojis",       EmojiSearcher);
+    push!(v, &t.shell,        "shell",        ShellSearcher);
+    push!(v, &t.lorem,        "lorem",        LoremSearcher);
+    push!(v, &t.math,         "math",         MathSearcher);
+    push!(v, &t.dictionary,   "dictionary",   DictionarySearcher);
+    push!(v, &t.system,       "system",       SystemSearcher);
+    push!(v, &t.color_picker, "color_picker", ColorPicker);
+    push!(v, &t.apps,         "apps",         AppSearcher);
+    push!(v, &t.url,          "url",          URLSearcher);
 
-        (Regex::new(r"^em\s+(.*)$").unwrap(), Box::new(EmojiSearcher)),
+    for ws in &cfg.web_searches {
+        match Regex::new(&ws.trigger) {
+            Ok(r) => v.push((
+                r,
+                Box::new(WebSearcher {
+                    name:         ws.name.clone(),
+                    url_template: ws.url.clone(),
+                    icon:         ws.icon.clone(),
+                }),
+            )),
+            Err(e) => eprintln!(
+                "quarry: invalid trigger regex for web search '{}' ({}) — skipping",
+                ws.name, e
+            ),
+        }
+    }
 
-        (Regex::new(r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$").unwrap(), Box::new(URLSearcher)),
-
-        (Regex::new(r"^g\s+(.*)$").unwrap(), Box::new(GoogleSearcher)),
-
-        (Regex::new(r"^yt\s+(.*)$").unwrap(), Box::new(YouTubeSearcher)),
-
-        (Regex::new(r"^nxp\s+(.*)$").unwrap(), Box::new(NixSearcher)),
-
-        (Regex::new(r"^gh\s+(.*)$").unwrap(), Box::new(GitHubSearcher)),
-
-        (Regex::new(r"^!\s+(.*)$").unwrap(), Box::new(ShellSearcher)),
-
-        (Regex::new(r"^lorem\s+(.*)$").unwrap(), Box::new(LoremSearcher)),
-
-        (Regex::new(r"^=\s+(.*)$").unwrap(), Box::new(MathSearcher)),
-
-        (Regex::new(r"^def\s+(.*)$").unwrap(), Box::new(DictionarySearcher)),
-
-        (Regex::new(r"^sys\s+(.*)$").unwrap(), Box::new(SystemSearcher)),
-
-        (Regex::new(r"^color$").unwrap(), Box::new(ColorPicker)),
-
-        (Regex::new(r"^app\s+(.*)$").unwrap(), Box::new(AppSearcher)),
-    ];
+    v
 }
 
 // ---------------------------------------------------------
@@ -111,12 +128,13 @@ lazy_static! {
 async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
 
-    let query_clone = query.clone(); 
+    let query_clone = query.clone();
 
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let triggers = build_triggers();
         let mut result = None;
 
-        for (regex, searcher) in PREFIX_SEARCHERS.iter() {
+        for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
                 let rest = caps.get(1).map_or("", |m| m.as_str());
                 result = Some(searcher.search(rest, &app));
@@ -142,7 +160,7 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 
     if let Ok(history) = USAGE_HISTORY.read() {
         search_result.results =
-            boost_results_by_usage(search_result.results, &query, &history); 
+            boost_results_by_usage(search_result.results, &query, &history);
     }
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
@@ -150,6 +168,14 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     }
 
     Some(search_result)
+}
+
+// ---------------------------------------------------------
+// THEME COMMAND
+// ---------------------------------------------------------
+#[tauri::command]
+fn get_theme() -> config::ThemeConfig {
+    config::Config::load().theme
 }
 
 // ---------------------------------------------------------
@@ -168,10 +194,9 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
         ActionData::CopyImageToClipboard { base64_png, width, height } => {
             copy_image_to_clipboard(&base64_png, width, height)
         }
-        ActionData::RunFunction {
-            function_name,
-            params,
-        } => run_custom_function(&function_name, &params, &app),
+        ActionData::RunFunction { function_name, params } => {
+            run_custom_function(&function_name, &params, &app)
+        }
         ActionData::ShellCommand { command } => run_shell_command(&command),
         ActionData::None => Ok(()),
     };
@@ -226,9 +251,7 @@ fn copy_to_clipboard(text: &str, app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-
 fn copy_image_to_clipboard(base64_png: &str, width: u32, height: u32) -> Result<(), String> {
-    // strip the data uri prefix if present
     let b64 = base64_png
         .strip_prefix("data:image/png;base64,")
         .unwrap_or(base64_png);
@@ -237,7 +260,6 @@ fn copy_image_to_clipboard(base64_png: &str, width: u32, height: u32) -> Result<
         .decode(b64)
         .map_err(|e| format!("Failed to decode image base64: {}", e))?;
 
-    // Decode PNG → raw RGBA bytes for arboard
     let img = image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png)
         .map_err(|e| format!("Failed to decode PNG: {}", e))?
         .into_rgba8();
@@ -315,6 +337,8 @@ fn toggle_window(app_handle: &tauri::AppHandle) {
 // ---------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = &*CONFIG;
+
     CLIPBOARD_MANAGER.start_monitoring();
 
     tauri::Builder::default()
@@ -329,29 +353,31 @@ pub fn run() {
             ipc_server::start_ipc_server(app_handle);
 
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &quit])?;
+            let quit   = MenuItem::with_id(app, "quit",   "Quit",          true, None::<&str>)?;
+            let menu   = Menu::with_items(app, &[&toggle, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "toggle" => {
-                        toggle_window(app);
-                    }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
+                    "toggle" => toggle_window(app),
+                    "quit"   => app.exit(0),
+                    _        => {}
                 })
                 .build(app)?;
 
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = window.hide();
+                    match event {
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            api.prevent_close();
+                            let _ = window.hide();
+                        }
+                        tauri::WindowEvent::Focused(true) => {
+                            let _ = window.emit("window-focused", ());
+                        }
+                        _ => {}
                     }
                 });
 
@@ -370,9 +396,7 @@ pub fn run() {
             match app.cli().matches() {
                 Ok(matches) => {
                     if let Some(sub) = matches.subcommand {
-                        if sub.name == "toggle" {
-                            // trigger single_instance plugin
-                        }
+                        if sub.name == "toggle" {}
                     }
                 }
                 Err(_) => {}
@@ -383,7 +407,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             search,
             execute,
-            clear_clipboard_history
+            clear_clipboard_history,
+            get_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
