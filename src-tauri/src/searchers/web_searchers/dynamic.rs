@@ -14,7 +14,7 @@ impl SearchProvider for WebSearcher {
         let url = self.url_template.replace("{}", &urlencoding::encode(q));
 
         let mut item = ResultItem::new(
-            format!("{} → '{}'", self.name, q),
+            format!("Search {}: '{}'", self.name, q),
             ActionData::OpenUrl { url },
         )
         .description("Open in browser");
