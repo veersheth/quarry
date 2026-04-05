@@ -23,28 +23,72 @@ $ pnpm run tauri dev
     - Either use the tray icon menu
     - Or run the `quarry-toggle` binary in `src-tauri/target/debug/quarry-toggle`, I have this mapped to `Alt-Space`
 
-# Current capabilities
+# Capabilities
+- Search apps, emojis, files 
+- Colorpicker
+- Clipboard manager (text + images)
+- Calculator
+- Camera preview
+- Custom bookmarks implementation
+- Web search
+- Dictionary
 
-- App search (prefix `app` or type normally)
-![](for-readme/ss-apps.png)
 
-- Emoji search  (prefix `em`)
-![](for-readme/ss-emojis.png)
+<div align="center">
+  <img src="./for-readme/app.png" width="50%" />
+  <img src="./for-readme/bookmarks.png" width="50%" />
+  <img src="./for-readme/camera.png" width="50%" />
+</div>
 
-- File search (prefix `f`)
-![](for-readme/ss-files.png)
+<div align="center">
+  <img src="./for-readme/clipboard.png" width="50%" />
+  <img src="./for-readme/colorpicker.png" width="50%" />
+  <img src="./for-readme/dictionary.png" width="50%" />
+</div>
 
-- Math (prefix `=` or type normally)
-![](for-readme/ss-math.png)
+<div align="center">
+  <img src="./for-readme/emoji.png" width="50%" />
+  <img src="./for-readme/math.png" width="50%" />
+  <img src="./for-readme/web.png" width="30%" />
+</div>
 
-- Web search (prefix `http`, `g`, `yt`, `nxp`, `gh`)
-![](for-readme/ss-web.png)
+# Configuration
 
-- Dictionary (prefix `def`)
-![](for-readme/ss-dictionary.png)
+- Edit the `.config/quarry/config.toml` file 
 
-- Clipboard (prefix `cp`, to clear run `cp !clear`)
-![](for-readme/ss-clipboard.png)
+```toml
+[theme]
+background_color    = "rgba(10, 10, 10, 1)"
+background_opacity  = 1.0
+font_size           = 14
+font_color          = "rgba(255, 255, 255, 1)"
+border_radius       = 14
+border_color        = "rgba(255,255,255,0.35)"
+border_thickness    = 1
+item_border_radius  = 12
+active_bg_color     = "rgba(40, 40, 40, 1)"
+active_border_color = "rgba(255,255,255,0.1)"
 
-- Color Picker (`color`)
-![](for-readme/ss-colorpicker.png)
+[triggers]
+# Each value is a full regex. The first capture group is passed as the
+# query to the searcher. No capture group = empty string passed.
+# Invalid regex: that trigger is skipped with a warning at startup.
+camera       = '^cam$'
+bookmarks    = '^bk\s+(.*)$'
+files        = '^f\s+(.*)$'
+clipboard    = '^cp\s+(.*)$'
+emojis       = '^em\s+(.*)$'
+google       = '^g\s+(.*)$'
+youtube      = '^yt\s+(.*)$'
+nix          = '^nxp\s+(.*)$'
+github       = '^gh\s+(.*)$'
+shell        = '^!\s+(.*)$'
+lorem        = '^lorem\s+(.*)$'
+math         = '^=\s*(.*)$'
+dictionary   = '^def\s+(.*)$'
+system       = '^sys\s+(.*)$'
+color_picker = '^color$'
+apps         = '^app\s+(.*)$'
+url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
+```
+
