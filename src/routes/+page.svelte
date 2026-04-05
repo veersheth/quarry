@@ -45,14 +45,13 @@
     root.setProperty("--q-border-color",       t.border_color);
     root.setProperty("--q-border-thickness",   `${t.border_thickness}px`);
     root.setProperty("--q-item-border-radius", `${t.item_border_radius}px`);
-    root.setProperty("--q-active-bg",          t.active_bg_color);
-    root.setProperty("--q-active-border",      t.active_border_color);
+    root.setProperty("--q-active-bg-color",          t.active_bg_color);
+    root.setProperty("--q-active-border-color",      t.active_border_color);
   }
 
   async function refresh() {
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
-    query.set("");
     searchInput?.focus();
   }
 
