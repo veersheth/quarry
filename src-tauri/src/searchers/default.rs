@@ -14,7 +14,7 @@ use crate::searchers::{
     math::MathSearcher,
     shell::ShellSearcher,
     system::SystemSearcher,
-    web_searchers::{GoogleSearcher, YouTubeSearcher},
+    web_searchers::WebSearcher,
     SearchProvider,
 };
 use crate::types::{ResultItem, ResultType, SearchResult};
@@ -68,10 +68,7 @@ impl SearchProvider for DefaultSearcher {
             ),
         );
 
-        // score and merge the parallel results into a single sorted list.
-        // group_priority breaks ties so apps > files > bookmarks when scores are equal.
         let mut scored: Vec<(ResultItem, i64, u8)> = Vec::new();
-
         for item in app_results {
             let score = Self::score_item(&item, q);
             scored.push((item, score, 0));
@@ -112,20 +109,30 @@ impl SearchProvider for DefaultSearcher {
             let mut sys = SystemSearcher.search(q, app).results;
             sys.truncate(3);
             combined.extend(sys);
-
-            let mut g = GoogleSearcher.search(q, app).results;
-            g.truncate(1);
-            combined.extend(g);
-
-            let mut yt = YouTubeSearcher.search(q, app).results;
-            yt.truncate(1);
-            combined.extend(yt);
         }
 
         if q.len() >= 3 {
             let mut sh = ShellSearcher.search(q, app).results;
             sh.truncate(2);
             combined.extend(sh);
+        }
+
+        if q.len() >= 2 {
+            let cfg = crate::config::Config::load();
+            let max = cfg.default_search.max_web_results;
+
+            for name in &cfg.default_search.web_searches {
+                if let Some(ws) = cfg.web_searches.iter().find(|w| &w.name == name) {
+                    let searcher = WebSearcher {
+                        name:         ws.name.clone(),
+                        url_template: ws.url.clone(),
+                        icon:         ws.icon.clone(),
+                    };
+                    let mut results = searcher.search(q, app).results;
+                    results.truncate(max);
+                    combined.extend(results);
+                }
+            }
         }
 
         SearchResult {

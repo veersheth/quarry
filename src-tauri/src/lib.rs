@@ -14,13 +14,11 @@ use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::shell::ShellSearcher;
 use crate::searchers::system::SystemSearcher;
+use crate::searchers::web_searchers::{URLSearcher, WebSearcher};
 use searchers::apps::AppSearcher;
 use searchers::dictionary::DictionarySearcher;
 use searchers::emojis::EmojiSearcher;
 use searchers::math::MathSearcher;
-use searchers::web_searchers::{
-    GitHubSearcher, GoogleSearcher, NixSearcher, URLSearcher, YouTubeSearcher,
-};
 use searchers::SearchProvider;
 
 use action_registry::ActionRegistry;
@@ -94,10 +92,6 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     push!(v, &t.files,        "files",        FileSearcher);
     push!(v, &t.clipboard,    "clipboard",    ClipboardSearcher);
     push!(v, &t.emojis,       "emojis",       EmojiSearcher);
-    push!(v, &t.google,       "google",       GoogleSearcher);
-    push!(v, &t.youtube,      "youtube",      YouTubeSearcher);
-    push!(v, &t.nix,          "nix",          NixSearcher);
-    push!(v, &t.github,       "github",       GitHubSearcher);
     push!(v, &t.shell,        "shell",        ShellSearcher);
     push!(v, &t.lorem,        "lorem",        LoremSearcher);
     push!(v, &t.math,         "math",         MathSearcher);
@@ -106,6 +100,23 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     push!(v, &t.color_picker, "color_picker", ColorPicker);
     push!(v, &t.apps,         "apps",         AppSearcher);
     push!(v, &t.url,          "url",          URLSearcher);
+
+    for ws in &cfg.web_searches {
+        match Regex::new(&ws.trigger) {
+            Ok(r) => v.push((
+                r,
+                Box::new(WebSearcher {
+                    name:         ws.name.clone(),
+                    url_template: ws.url.clone(),
+                    icon:         ws.icon.clone(),
+                }),
+            )),
+            Err(e) => eprintln!(
+                "quarry: invalid trigger regex for web search '{}' ({}) — skipping",
+                ws.name, e
+            ),
+        }
+    }
 
     v
 }
@@ -161,7 +172,6 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 
 // ---------------------------------------------------------
 // THEME COMMAND
-// Re-reads config.toml fresh so changes take effect on next focus.
 // ---------------------------------------------------------
 #[tauri::command]
 fn get_theme() -> config::ThemeConfig {

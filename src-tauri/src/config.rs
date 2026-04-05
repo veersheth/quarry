@@ -5,15 +5,84 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub triggers: TriggerConfig,
-    pub theme:    ThemeConfig,
+    pub triggers:      TriggerConfig,
+    pub theme:         ThemeConfig,
+    pub web_searches:  Vec<WebSearchConfig>,
+    pub default_search: DefaultSearchConfig,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            triggers: TriggerConfig::default(),
-            theme:    ThemeConfig::default(),
+            triggers:      TriggerConfig::default(),
+            theme:         ThemeConfig::default(),
+            web_searches:  default_web_searches(),
+            default_search: DefaultSearchConfig::default(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Web searches
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSearchConfig {
+    pub name:    String,
+    pub trigger: String,
+    pub url:     String,
+    #[serde(default)]
+    pub icon:    Option<String>,
+}
+
+fn default_web_searches() -> Vec<WebSearchConfig> {
+    vec![
+        WebSearchConfig {
+            name:    "Google".into(),
+            trigger: r"^g\s+(.*)$".into(),
+            url:     "https://www.google.com/search?q={}".into(),
+            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png".into()),
+        },
+        WebSearchConfig {
+            name:    "YouTube".into(),
+            trigger: r"^yt\s+(.*)$".into(),
+            url:     "https://www.youtube.com/results?search_query={}".into(),
+            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png".into()),
+        },
+        WebSearchConfig {
+            name:    "GitHub".into(),
+            trigger: r"^gh\s+(.*)$".into(),
+            url:     "https://github.com/search?q={}".into(),
+            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png".into()),
+        },
+        WebSearchConfig {
+            name:    "Nix Packages".into(),
+            trigger: r"^nxp\s+(.*)$".into(),
+            url:     "https://search.nixos.org/packages?query={}".into(),
+            icon:    None,
+        },
+    ]
+}
+
+// ---------------------------------------------------------------------------
+// Default search pinning
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DefaultSearchConfig {
+    /// Names of [[web_searches]] entries to inject into the default view.
+    /// Must match the `name` field exactly.
+    pub web_searches:    Vec<String>,
+    /// How many results each pinned web search contributes.
+    pub max_web_results: usize,
+}
+
+impl Default for DefaultSearchConfig {
+    fn default() -> Self {
+        Self {
+            web_searches:    vec!["Google".into(), "YouTube".into()],
+            max_web_results: 1,
         }
     }
 }
@@ -26,15 +95,15 @@ impl Default for Config {
 #[serde(default)]
 pub struct ThemeConfig {
     pub background_color:    String,
-    pub background_opacity:   f32,
-    pub font_size:   u32,
-    pub font_color:           String,
-    pub border_radius:        u32,
-    pub border_color:         String,
-    pub border_thickness:     u32,
-    pub item_border_radius:   u32,
-    pub active_bg_color:      String,
-    pub active_border_color:  String,
+    pub background_opacity:  f32,
+    pub font_size:           u32,
+    pub font_color:          String,
+    pub border_radius:       u32,
+    pub border_color:        String,
+    pub border_thickness:    u32,
+    pub item_border_radius:  u32,
+    pub active_bg_color:     String,
+    pub active_border_color: String,
 }
 
 impl Default for ThemeConfig {
@@ -42,7 +111,7 @@ impl Default for ThemeConfig {
         Self {
             background_color:    "rgba(10, 10, 10, 1)".into(),
             background_opacity:  1.0,
-            font_size:  14,
+            font_size:           14,
             font_color:          "rgba(255, 255, 255, 1)".into(),
             border_radius:       14,
             border_color:        "rgba(255,255,255,0.35)".into(),
@@ -66,10 +135,6 @@ pub struct TriggerConfig {
     pub files:        String,
     pub clipboard:    String,
     pub emojis:       String,
-    pub google:       String,
-    pub youtube:      String,
-    pub nix:          String,
-    pub github:       String,
     pub shell:        String,
     pub lorem:        String,
     pub math:         String,
@@ -88,10 +153,6 @@ impl Default for TriggerConfig {
             files:        r"^f\s+(.*)$".into(),
             clipboard:    r"^cp\s+(.*)$".into(),
             emojis:       r"^em\s+(.*)$".into(),
-            google:       r"^g\s+(.*)$".into(),
-            youtube:      r"^yt\s+(.*)$".into(),
-            nix:          r"^nxp\s+(.*)$".into(),
-            github:       r"^gh\s+(.*)$".into(),
             shell:        r"^!\s+(.*)$".into(),
             lorem:        r"^lorem\s+(.*)$".into(),
             math:         r"^=\s*(.*)$".into(),
@@ -164,18 +225,11 @@ active_bg_color     = "rgba(40, 40, 40, 1)"
 active_border_color = "rgba(255,255,255,0.1)"
 
 [triggers]
-# Each value is a full regex. The first capture group is passed as the
-# query to the searcher. No capture group = empty string passed.
-# Invalid regex: that trigger is skipped with a warning at startup.
 camera       = '^cam$'
 bookmarks    = '^bk\s+(.*)$'
 files        = '^f\s+(.*)$'
 clipboard    = '^cp\s+(.*)$'
 emojis       = '^em\s+(.*)$'
-google       = '^g\s+(.*)$'
-youtube      = '^yt\s+(.*)$'
-nix          = '^nxp\s+(.*)$'
-github       = '^gh\s+(.*)$'
 shell        = '^!\s+(.*)$'
 lorem        = '^lorem\s+(.*)$'
 math         = '^=\s*(.*)$'
@@ -184,4 +238,31 @@ system       = '^sys\s+(.*)$'
 color_picker = '^color$'
 apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
+
+[default_search]
+web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]
+max_web_results = 1
+
+[[web_searches]]
+name    = "Google"
+trigger = '^g\s+(.*)$'
+url     = "https://www.google.com/search?q={}"
+icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
+
+[[web_searches]]
+name    = "YouTube"
+trigger = '^yt\s+(.*)$'
+url     = "https://www.youtube.com/results?search_query={}"
+icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png"
+
+[[web_searches]]
+name    = "GitHub"
+trigger = '^gh\s+(.*)$'
+url     = "https://github.com/search?q={}"
+icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png"
+
+[[web_searches]]
+name    = "Nix Packages"
+trigger = '^nxp\s+(.*)$'
+url     = "https://search.nixos.org/packages?query={}"
 "#;
