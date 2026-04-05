@@ -5,16 +5,56 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub triggers:  TriggerConfig,
+    pub triggers: TriggerConfig,
+    pub theme:    ThemeConfig,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            triggers:  TriggerConfig::default(),
+            triggers: TriggerConfig::default(),
+            theme:    ThemeConfig::default(),
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ThemeConfig {
+    pub background_color:    String,
+    pub background_opacity:   f32,
+    pub font_color:           String,
+    pub border_radius:        u32,
+    pub border_color:         String,
+    pub border_thickness:     u32,
+    pub item_border_radius:   u32,
+    pub active_bg_color:      String,
+    pub active_border_color:  String,
+}
+
+impl Default for ThemeConfig {
+    fn default() -> Self {
+        Self {
+            background_color:    "rgba(10, 10, 10, 1)".into(),
+            background_opacity:  1.0,
+            font_color:          "rgba(255, 255, 255, 1)".into(),
+            border_radius:       14,
+            border_color:        "rgba(255,255,255,0.35)".into(),
+            border_thickness:    1,
+            item_border_radius:  12,
+            active_bg_color:     "rgba(40, 40, 40, 1)".into(),
+            active_border_color: "rgba(255,255,255,0.1)".into(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Triggers
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -62,6 +102,10 @@ impl Default for TriggerConfig {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Loading / writing
+// ---------------------------------------------------------------------------
+
 impl Config {
     pub fn config_path() -> PathBuf {
         dirs::home_dir()
@@ -102,14 +146,19 @@ impl Config {
     }
 }
 
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry/config.toml
+# Every key is optional. Remove or comment out any line to keep the default.
+
+[theme]
+background_color    = "rgba(10, 10, 10, 1)"
+background_opacity  = 1.0
+font_color          = "rgba(255, 255, 255, 1)"
+border_radius       = 14
+border_color        = "rgba(255,255,255,0.35)"
+border_thickness    = 1
+item_border_radius  = 12
+active_bg_color     = "rgba(40, 40, 40, 1)"
+active_border_color = "rgba(255,255,255,0.1)"
 
 [triggers]
 # Each value is a full regex. The first capture group is passed as the

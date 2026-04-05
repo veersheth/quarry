@@ -25,7 +25,7 @@ use searchers::SearchProvider;
 
 use action_registry::ActionRegistry;
 use clipboard_manager::ClipboardManager;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use types::{ActionData, SearchResult};
 use usage_tracker::{boost_results_by_usage, UsageHistory};
 
@@ -66,55 +66,48 @@ lazy_static! {
         let clipboard_path = data_dir.join("clipboard_history.json");
         ClipboardManager::with_storage(clipboard_path)
     };
+}
 
-    static ref TRIGGERS: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = {
-        let t = &CONFIG.triggers;
+// ---------------------------------------------------------
+// TRIGGER BUILDER
+// ---------------------------------------------------------
+fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
+    let cfg = config::Config::load();
+    let t = &cfg.triggers;
 
-        macro_rules! re {
-            ($pattern:expr, $name:literal) => {
-                match Regex::new($pattern) {
-                    Ok(r) => Some(r),
-                    Err(e) => {
-                        eprintln!(
-                            "quarry: invalid trigger regex for '{}' ({})... skipping",
-                            $name, e
-                        );
-                        None
-                    }
-                }
-            };
-        }
+    macro_rules! push {
+        ($v:expr, $pattern:expr, $name:literal, $searcher:expr) => {
+            match Regex::new($pattern) {
+                Ok(r) => $v.push((r, Box::new($searcher) as Box<dyn SearchProvider + Send + Sync>)),
+                Err(e) => eprintln!(
+                    "quarry: invalid trigger regex for '{}' ({}) — skipping",
+                    $name, e
+                ),
+            }
+        };
+    }
 
-        macro_rules! push {
-            ($v:expr, $pattern:expr, $name:literal, $searcher:expr) => {
-                if let Some(r) = re!($pattern, $name) {
-                    $v.push((r, Box::new($searcher) as Box<dyn SearchProvider + Send + Sync>));
-                }
-            };
-        }
+    let mut v: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = Vec::new();
 
-        let mut v: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = Vec::new();
+    push!(v, &t.camera,       "camera",       CameraSearcher);
+    push!(v, &t.bookmarks,    "bookmarks",    BookmarksSearcher);
+    push!(v, &t.files,        "files",        FileSearcher);
+    push!(v, &t.clipboard,    "clipboard",    ClipboardSearcher);
+    push!(v, &t.emojis,       "emojis",       EmojiSearcher);
+    push!(v, &t.google,       "google",       GoogleSearcher);
+    push!(v, &t.youtube,      "youtube",      YouTubeSearcher);
+    push!(v, &t.nix,          "nix",          NixSearcher);
+    push!(v, &t.github,       "github",       GitHubSearcher);
+    push!(v, &t.shell,        "shell",        ShellSearcher);
+    push!(v, &t.lorem,        "lorem",        LoremSearcher);
+    push!(v, &t.math,         "math",         MathSearcher);
+    push!(v, &t.dictionary,   "dictionary",   DictionarySearcher);
+    push!(v, &t.system,       "system",       SystemSearcher);
+    push!(v, &t.color_picker, "color_picker", ColorPicker);
+    push!(v, &t.apps,         "apps",         AppSearcher);
+    push!(v, &t.url,          "url",          URLSearcher);
 
-        push!(v, &t.camera,       "camera",       CameraSearcher);
-        push!(v, &t.bookmarks,    "bookmarks",    BookmarksSearcher);
-        push!(v, &t.files,        "files",        FileSearcher);
-        push!(v, &t.clipboard,    "clipboard",    ClipboardSearcher);
-        push!(v, &t.emojis,       "emojis",       EmojiSearcher);
-        push!(v, &t.google,       "google",       GoogleSearcher);
-        push!(v, &t.youtube,      "youtube",      YouTubeSearcher);
-        push!(v, &t.nix,          "nix",          NixSearcher);
-        push!(v, &t.github,       "github",       GitHubSearcher);
-        push!(v, &t.shell,        "shell",        ShellSearcher);
-        push!(v, &t.lorem,        "lorem",        LoremSearcher);
-        push!(v, &t.math,         "math",         MathSearcher);
-        push!(v, &t.dictionary,   "dictionary",   DictionarySearcher);
-        push!(v, &t.system,       "system",       SystemSearcher);
-        push!(v, &t.color_picker, "color_picker", ColorPicker);
-        push!(v, &t.apps,         "apps",         AppSearcher);
-        push!(v, &t.url,          "url",          URLSearcher);
-
-        v
-    };
+    v
 }
 
 // ---------------------------------------------------------
@@ -127,11 +120,11 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     let query_clone = query.clone();
 
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let triggers = build_triggers();
         let mut result = None;
 
-        for (regex, searcher) in TRIGGERS.iter() {
+        for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
-                // Pass the first capture group as the query, or "" if none.
                 let rest = caps.get(1).map_or("", |m| m.as_str());
                 result = Some(searcher.search(rest, &app));
                 break;
@@ -164,6 +157,15 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     }
 
     Some(search_result)
+}
+
+// ---------------------------------------------------------
+// THEME COMMAND
+// Re-reads config.toml fresh so changes take effect on next focus.
+// ---------------------------------------------------------
+#[tauri::command]
+fn get_theme() -> config::ThemeConfig {
+    config::Config::load().theme
 }
 
 // ---------------------------------------------------------
@@ -326,7 +328,6 @@ fn toggle_window(app_handle: &tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = &*CONFIG;
-    let _ = &*TRIGGERS;
 
     CLIPBOARD_MANAGER.start_monitoring();
 
@@ -358,9 +359,15 @@ pub fn run() {
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = window.hide();
+                    match event {
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            api.prevent_close();
+                            let _ = window.hide();
+                        }
+                        tauri::WindowEvent::Focused(true) => {
+                            let _ = window.emit("window-focused", ());
+                        }
+                        _ => {}
                     }
                 });
 
@@ -390,7 +397,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             search,
             execute,
-            clear_clipboard_history
+            clear_clipboard_history,
+            get_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
