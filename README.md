@@ -53,18 +53,11 @@ active_bg_color     = "rgba(40, 40, 40, 1)"
 active_border_color = "rgba(255,255,255,0.1)"
 
 [triggers]
-# Each value is a full regex. The first capture group is passed as the
-# query to the searcher. No capture group = empty string passed.
-# Invalid regex: that trigger is skipped with a warning at startup.
 camera       = '^cam$'
 bookmarks    = '^bk\s+(.*)$'
 files        = '^f\s+(.*)$'
 clipboard    = '^cp\s+(.*)$'
 emojis       = '^em\s+(.*)$'
-google       = '^g\s+(.*)$'
-youtube      = '^yt\s+(.*)$'
-nix          = '^nxp\s+(.*)$'
-github       = '^gh\s+(.*)$'
 shell        = '^!\s+(.*)$'
 lorem        = '^lorem\s+(.*)$'
 math         = '^=\s*(.*)$'
@@ -73,5 +66,32 @@ system       = '^sys\s+(.*)$'
 color_picker = '^color$'
 apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
+
+[default_search]
+web_searches    = ["Google", "YouTube"]
+max_web_results = 1
+
+[[web_searches]]
+name    = "Google"
+trigger = '^g\s+(.*)$'
+url     = "https://www.google.com/search?q={}"
+icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
+
+[[web_searches]]
+name    = "YouTube"
+trigger = '^yt\s+(.*)$'
+url     = "https://www.youtube.com/results?search_query={}"
+icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png"
+
+[[web_searches]]
+name    = "GitHub"
+trigger = '^gh\s+(.*)$'
+url     = "https://github.com/search?q={}"
+icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png"
+
+[[web_searches]]
+name    = "Nix Packages"
+trigger = '^nxp\s+(.*)$'
+url     = "https://search.nixos.org/packages?query={}"
 ```
 
