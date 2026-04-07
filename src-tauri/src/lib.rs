@@ -6,6 +6,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::currency::CurrencySearcher;
 use crate::searchers::camera::CameraSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::files::FileSearcher;
@@ -100,6 +101,7 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     push!(v, &t.color_picker, "color_picker", ColorPicker);
     push!(v, &t.apps,         "apps",         AppSearcher);
     push!(v, &t.url,          "url",          URLSearcher);
+    push!(v, &t.currency, "currency", CurrencySearcher);
 
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {

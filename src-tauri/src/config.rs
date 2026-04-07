@@ -143,6 +143,7 @@ pub struct TriggerConfig {
     pub color_picker: String,
     pub apps:         String,
     pub url:          String,
+    pub currency: String,
 }
 
 impl Default for TriggerConfig {
@@ -161,6 +162,7 @@ impl Default for TriggerConfig {
             color_picker: r"^color$".into(),
             apps:         r"^app\s+(.*)$".into(),
             url:          r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$".into(),
+            currency: r"^fx\s+(.*)$".into(),
         }
     }
 }
