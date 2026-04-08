@@ -13,6 +13,7 @@ pub mod colorpicker;
 pub mod files;
 pub mod bookmarks;
 pub mod camera;
+pub mod note;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;

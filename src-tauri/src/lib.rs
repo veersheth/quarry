@@ -8,6 +8,7 @@ mod usage_tracker;
 
 use crate::searchers::currency::CurrencySearcher;
 use crate::searchers::camera::CameraSearcher;
+use crate::searchers::note::NoteSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
@@ -102,6 +103,7 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     push!(v, &t.apps,         "apps",         AppSearcher);
     push!(v, &t.url,          "url",          URLSearcher);
     push!(v, &t.currency, "currency", CurrencySearcher);
+    push!(v, &t.note,     "note",     NoteSearcher);
 
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {
@@ -178,6 +180,30 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 #[tauri::command]
 fn get_theme() -> config::ThemeConfig {
     config::Config::load().theme
+}
+
+// ---------------------------------------------------------
+// NOTE COMMANDS
+// ---------------------------------------------------------
+fn get_note_path() -> std::path::PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("quarry")
+        .join("scratch.txt")
+}
+
+#[tauri::command]
+fn read_note() -> String {
+    std::fs::read_to_string(get_note_path()).unwrap_or_default()
+}
+
+#[tauri::command]
+fn write_note(content: String) -> Result<(), String> {
+    let path = get_note_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------
@@ -299,9 +325,17 @@ fn run_shell_command(command: &str) -> Result<(), String> {
 fn run_custom_function(
     function_name: &str,
     params: &[String],
-    _app: &tauri::AppHandle,
+    app: &tauri::AppHandle,
 ) -> Result<(), String> {
     match function_name {
+        "open_note" => {
+            if let Some(window) = app.get_webview_window("note") {
+                let window = window.as_ref().window();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            Ok(())
+        }
         "clear_clipboard" => {
             let _ = clear_clipboard_history();
             Ok(())
@@ -368,6 +402,28 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            let note_webview = tauri::WebviewWindowBuilder::new(
+                app,
+                "note",
+                tauri::WebviewUrl::App("note".into()),
+            )
+            .title("quarry note")
+            .inner_size(500.0, 400.0)
+            .decorations(false)
+            .resizable(true)
+            .always_on_top(true)
+            .visible(false)
+            .skip_taskbar(true)
+            .build()?;
+
+            let note_window = note_webview.as_ref().window().clone();
+            note_webview.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = note_window.hide();
+                }
+            });
+
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
@@ -411,6 +467,8 @@ pub fn run() {
             execute,
             clear_clipboard_history,
             get_theme,
+            read_note,
+            write_note,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

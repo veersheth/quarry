@@ -29,9 +29,10 @@ fn main() {
         "show" => r#"{"Show":null}"#,
         "hide" => r#"{"Hide":null}"#,
         "ping" => r#"{"Ping":null}"#,
+        "note" => r#"{"ToggleNote":null}"#,
         _ => {
             eprintln!("Unknown command: {}", command);
-            eprintln!("Available commands: toggle, show, hide, ping");
+            eprintln!("Available commands: toggle, show, hide, ping, note");
             std::process::exit(1);
         }
     };
