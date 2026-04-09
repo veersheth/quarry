@@ -53,9 +53,6 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <main class="container">
-  <div class="titlebar" data-tauri-drag-region>
-    <span class="title">QUARRY NOTEPAD</span>
-  </div>
   <!-- svelte-ignore a11y_autofocus -->
   <textarea
     bind:this={textarea}
@@ -65,6 +62,9 @@
     spellcheck="false"
     autofocus
   ></textarea>
+  <div class="titlebar" data-tauri-drag-region>
+    <span class="title">QUARRY NOTEPAD</span>
+  </div>
 </main>
 
 <style>
