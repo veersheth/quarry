@@ -162,13 +162,13 @@
       "Adwaita Sans",
       "Noto Color Emoji",
       sans-serif;
+    padding: 0;
   }
 
   .panel {
     display: flex;
     flex-direction: column;
     flex: 1;
-    max-height: 95vh;
     min-height: 0;
   }
 
