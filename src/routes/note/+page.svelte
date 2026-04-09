@@ -4,6 +4,7 @@
   import { invoke } from "@tauri-apps/api/core";
 
   let textarea: HTMLTextAreaElement;
+  let content = "";
   let saveTimeout: ReturnType<typeof setTimeout>;
   let appWindow: ReturnType<typeof getCurrentWindow>;
 
@@ -23,7 +24,6 @@
     root.setProperty("--q-bg-opacity", String(t.background_opacity));
     root.setProperty("--q-font-size", `${t.font_size}px`);
     root.setProperty("--q-font-color", t.font_color);
-    root.setProperty("--q-border-radius", `${t.border_radius}px`);
     root.setProperty("--q-border-color", t.border_color);
     root.setProperty("--q-border-thickness", `${t.border_thickness}px`);
   }
@@ -31,8 +31,8 @@
   function handleInput() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-      invoke("write_note", { content: textarea.value });
-    }, 500);
+      invoke("write_note", { content });
+    }, 400);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -45,20 +45,23 @@
     appWindow = getCurrentWindow();
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
-    textarea.value = await invoke<string>("read_note");
-    textarea.focus();
+    content = await invoke<string>("read_note");
+    textarea?.focus();
   });
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 <main class="container">
-  <div class="drag-region" data-tauri-drag-region></div>
+  <div class="titlebar" data-tauri-drag-region>
+    <span class="title">QUARRY NOTEPAD</span>
+  </div>
   <!-- svelte-ignore a11y_autofocus -->
   <textarea
     bind:this={textarea}
+    bind:value={content}
     on:input={handleInput}
-    placeholder="..."
+    placeholder="Note note, note"
     spellcheck="false"
     autofocus
   ></textarea>
@@ -70,21 +73,35 @@
     padding: 0;
     height: 100%;
     overflow: hidden;
+    background: transparent;
   }
 
   .container {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: rgba(60, 60, 60, 1);
+    background-color: #1a1a1f;
     overflow: hidden;
     box-sizing: border-box;
   }
 
-  .drag-region {
-    height: 24px;
+  .titlebar {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 14px;
     flex-shrink: 0;
-    cursor: grab;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+    user-select: none;
+  }
+
+  .title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.2);
+    user-select: none;
   }
 
   textarea {
@@ -95,15 +112,32 @@
     border: none;
     outline: none;
     resize: none;
-    padding: 4px 16px 16px 16px;
-    color: var(--q-font-color, #ffffff);
-    font-size: var(--q-font-size, 14px);
+    padding: 14px 16px 16px 16px;
+    color: var(--q-font-color, rgba(255, 255, 255, 0.88));
+    font-size: var(--q-font-size, 13px);
     font-family: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Code", monospace;
-    line-height: 1.6;
-    caret-color: var(--q-font-color, #ffffff);
+    line-height: 1.7;
+    caret-color: #7c9ef8;
   }
 
   textarea::placeholder {
-    color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.12);
+  }
+
+  textarea::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  textarea::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  textarea::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 </style>
+
