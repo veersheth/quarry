@@ -105,17 +105,16 @@ impl SearchProvider for DefaultSearcher {
         emojis.truncate(6);
         combined.extend(emojis);
 
-        if MATH_RE.is_match(q) {
+        // if MATH_RE.is_match(q) {
             let mut res = MathSearcher.search(q, app).results;
             res.truncate(2);
             combined.extend(res);
-        }
+        // }
 
         // Bare currency query: "100 INR USD", "100 inr to usd", "gbp eur", etc.
         if CURRENCY_RE.is_match(q) {
             let mut res = CurrencySearcher.search(q, app).results;
             res.truncate(1);
-            // Prepend so it surfaces at the top of results
             let tail = combined;
             combined = res;
             combined.extend(tail);
