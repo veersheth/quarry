@@ -5,7 +5,6 @@
 
   let textarea: HTMLTextAreaElement;
   let saveTimeout: ReturnType<typeof setTimeout>;
-  let appWindow: ReturnType<typeof getCurrentWindow>;
 
   interface Theme {
     background_color: string;
@@ -66,13 +65,59 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
-      appWindow.hide();
+      e.preventDefault();
+      if (textarea.selectionStart !== textarea.selectionEnd) {
+        textarea.selectionStart = textarea.selectionEnd = textarea.selectionStart;
+      } else {
+        getCurrentWindow().hide();
+      }
       return;
+    }
+
+    if (e.ctrlKey) {
+      if (e.key === "w") { handleCtrlW(e); return; }
+      if (e.key === "u") { handleCtrlU(e); return; }
+      if (e.key === "k") { handleCtrlK(e); return; }
     }
 
     if (e.key === "Enter")   { handleEnter(e);        return; }
     if (e.key === "Tab")     { handleTab(e);           return; }
     if (e.key === "Backspace") { handleBackspace(e);   return; }
+  }
+
+  function handleCtrlW(e: KeyboardEvent) {
+    e.preventDefault();
+    const el = textarea;
+    const pos = el.selectionStart;
+    const val = el.value;
+    if (pos === 0) return;
+
+    let start = pos;
+    // skip whitespace before cursor
+    while (start > 0 && /\s/.test(val[start - 1])) start--;
+    // skip the word characters
+    while (start > 0 && !/\s/.test(val[start - 1])) start--;
+
+    applyEdit(val.substring(0, start) + val.substring(pos), start);
+  }
+
+  function handleCtrlU(e: KeyboardEvent) {
+    e.preventDefault();
+    const el = textarea;
+    const pos = el.selectionStart;
+    const val = el.value;
+    const lineStart = val.lastIndexOf("\n", pos - 1) + 1;
+    applyEdit(val.substring(0, lineStart) + val.substring(pos), lineStart);
+  }
+
+  function handleCtrlK(e: KeyboardEvent) {
+    e.preventDefault();
+    const el = textarea;
+    const pos = el.selectionStart;
+    const val = el.value;
+    const lineEnd = val.indexOf("\n", pos);
+    const end = lineEnd === -1 ? val.length : lineEnd;
+    applyEdit(val.substring(0, pos) + val.substring(end), pos);
   }
 
   function handleEnter(e: KeyboardEvent) {
@@ -86,9 +131,7 @@
     e.preventDefault();
 
     if (info.content.trim() === "") {
-      // Empty bullet → outdent one level, or exit list entirely
       if (info.indent.length >= INDENT.length) {
-        // Outdent: remove one indent level, keep bullet
         const newIndent = info.indent.slice(INDENT.length);
         const newLine = `${newIndent}${info.bullet} `;
 
@@ -163,7 +206,6 @@
 
   // lifecycle
   onMount(async () => {
-    appWindow = getCurrentWindow();
     const theme = await invoke<Theme>("get_theme");
 
     applyTheme(theme);
@@ -208,6 +250,7 @@
     background-color: #1a1a1f;
     overflow: hidden;
     box-sizing: border-box;
+    box-shadow: none;
   }
 
   .titlebar {

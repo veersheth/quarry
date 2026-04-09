@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "note",
+  "description": "Capability for the note window",
+  "windows": [
+    "note"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-hide"
+  ]
+}
