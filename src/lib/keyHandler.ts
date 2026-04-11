@@ -26,23 +26,30 @@ export function handleKeydown(
     const input = event.target as HTMLInputElement;
     const current = get(query);
     const cursorPos = input.selectionStart ?? 0;
-
     if (cursorPos === 0) return;
 
     const before = current.slice(0, cursorPos);
     const after = current.slice(cursorPos);
 
     let pos = before.length;
+
+    // Skip trailing whitespace
     while (pos > 0 && /\s/.test(before[pos - 1])) {
       pos--;
     }
-    while (pos > 0 && !/\s/.test(before[pos - 1])) {
-      pos--;
+
+    if (pos > 0) {
+      const charClass = /\w/.test(before[pos - 1]) ? "word" : "punct";
+
+      if (charClass === "word") {
+        while (pos > 0 && /\w/.test(before[pos - 1])) pos--;
+      } else {
+        while (pos > 0 && /[^\w\s]/.test(before[pos - 1])) pos--;
+      }
     }
 
     const newValue = before.slice(0, pos) + after;
     query.set(newValue);
-
     requestAnimationFrame(() => {
       input.selectionStart = input.selectionEnd = pos;
     });
