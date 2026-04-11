@@ -55,7 +55,7 @@ lazy_static! {
         config::Config::load()
     };
 
-    static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
+    pub static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
 
     static ref CLIPBOARD_MANAGER: ClipboardManager = {
@@ -210,7 +210,7 @@ fn write_note(content: String) -> Result<(), String> {
 // EXECUTE COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
+fn execute(action_id: String, query: String, name: Option<String>, app: tauri::AppHandle) -> Result<(), String> {
     let action_data = ACTION_REGISTRY
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
@@ -231,7 +231,8 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
 
     if result.is_ok() {
         if let Ok(mut history) = USAGE_HISTORY.write() {
-            history.record_usage(&query, &action_id, &action_id);
+            let display_name = name.as_deref().unwrap_or(&action_id);
+            history.record_usage(&query, &action_id, display_name);
         }
     }
 

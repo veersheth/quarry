@@ -105,15 +105,49 @@ impl SearchProvider for CurrencySearcher {
         let q = query.trim();
 
         if q.is_empty() {
+            let recent = crate::usage_tracker::get_recent_entries("", 50);
+            // Filter to currency results (their names match "X Y = Z W" pattern)
+            let history_items: Vec<ResultItem> = recent
+                .into_iter()
+                .filter(|e| {
+                    // Currency result names look like "100 USD = 91.23 EUR"
+                    e.name.contains('=') && e.name.split_whitespace().count() >= 4
+                })
+                .take(6)
+                .map(|e| {
+                    // The stored text is the result; re-copy the converted amount on action
+                    // Extract the converted value (token after '=')
+                    let copied_value = e.name
+                        .split('=')
+                        .nth(1)
+                        .and_then(|s| s.split_whitespace().next())
+                        .unwrap_or("")
+                        .to_string();
+                    ResultItem::new(
+                        e.name.clone(),
+                        ActionData::CopyToClipboard { text: copied_value },
+                    )
+                    .description(format!("recent: used {} time{}", e.count, if e.count == 1 { "" } else { "s" }))
+                    .icon("icons/math.png")
+                })
+                .collect();
+
+            if history_items.is_empty() {
+                return SearchResult {
+                    results: vec![ResultItem::new(
+                        "Currency converter",
+                        ActionData::None,
+                    )
+                    .description(
+                        "# Currency Converter\n\nExamples:\n- `100 USD to EUR`\n- `50 GBP JPY`\n- `USD EUR`",
+                    )],
+                    result_type: ResultType::Markdown,
+                };
+            }
+
             return SearchResult {
-                results: vec![ResultItem::new(
-                    "Currency converter",
-                    ActionData::None,
-                )
-                .description(
-                    "# Currency Converter\n\nExamples:\n- `100 USD to EUR`\n- `50 GBP JPY`\n- `USD EUR`",
-                )],
-                result_type: ResultType::Markdown,
+                results: history_items,
+                result_type: ResultType::List,
             };
         }
 

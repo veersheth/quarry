@@ -251,6 +251,7 @@
     overflow: hidden;
     box-sizing: border-box;
     box-shadow: none;
+    font-family: "JetBrainsMono Nerd Font", monospace;
   }
 
   .titlebar {
@@ -259,8 +260,8 @@
     height: 36px;
     padding: 0 14px;
     flex-shrink: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.13);
+    background: rgba(255, 255, 255, 0.03);
     user-select: none;
     cursor: grab;
   }
@@ -281,12 +282,11 @@
     border: none;
     outline: none;
     resize: none;
-    padding: 14px 16px 16px 16px;
-    color: var(--q-font-color, rgba(255, 255, 255, 0.88));
+    padding: 20px;
+    color: var(--q-font-color, rgba(226, 219, 197, 0.88));
     font-size: var(--q-font-size, 13px);
-    font-family: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Code", monospace;
     line-height: 1.7;
-    caret-color: #7c9ef8;
+    caret-color: rgba(251, 255, 0, 1);
   }
 
   textarea::placeholder { color: rgba(255, 255, 255, 0.12); }
