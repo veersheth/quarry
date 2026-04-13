@@ -25,13 +25,14 @@ use searchers::SearchProvider;
 
 use action_registry::ActionRegistry;
 use clipboard_manager::ClipboardManager;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, command};
 use types::{ActionData, SearchResult};
 use usage_tracker::{boost_results_by_usage, UsageHistory};
 
 use base64::{engine::general_purpose, Engine};
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::process::Command;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
@@ -246,6 +247,34 @@ fn execute(action_id: String, query: String, name: Option<String>, app: tauri::A
 fn clear_clipboard_history() -> Result<(), String> {
     CLIPBOARD_MANAGER.clear_history();
     Ok(())
+}
+
+// ---------------------------------------------------------
+// CAPTURE COMMAND
+// ---------------------------------------------------------
+#[tauri::command]
+async fn save_capture(png_base64: String) -> Result<String, String> {
+    let pictures = dirs::picture_dir()
+        .ok_or("Could not find Pictures directory")?;
+
+    let dir = pictures.join("quarry");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_secs();
+
+    let filename = format!("{}-quarry-cam.png", ts);
+    let path = dir.join(&filename);
+
+    let bytes = general_purpose::STANDARD
+        .decode(&png_base64)
+        .map_err(|e| e.to_string())?;
+
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+
+    Ok(path.to_string_lossy().into_owned())
 }
 
 // ---------------------------------------------------------
@@ -470,6 +499,7 @@ pub fn run() {
             get_theme,
             read_note,
             write_note,
+            save_capture,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
