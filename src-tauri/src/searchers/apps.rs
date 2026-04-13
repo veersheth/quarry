@@ -96,11 +96,46 @@ impl SearchProvider for AppSearcher {
             })
             .collect();
 
-        let results = if query.is_empty() {
-            candidates
-        } else {
-            self.fuzzy_filter(candidates, query)
-        };
+        if query.is_empty() {
+            let recent = crate::usage_tracker::get_recent_entries("", 30);
+            if !recent.is_empty() {
+                let mut name_map: std::collections::HashMap<String, ResultItem> = candidates
+                    .into_iter()
+                    .map(|item| (item.name.to_lowercase(), item))
+                    .collect();
+
+                let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+                let mut results: Vec<ResultItem> = recent
+                    .iter()
+                    .filter_map(|e| {
+                        let key = e.name.to_lowercase();
+                        if seen.contains(&key) {
+                            return None;
+                        }
+                        if let Some(item) = name_map.remove(&key) {
+                            seen.insert(key);
+                            Some(item)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                results.extend(name_map.into_values());
+
+                return SearchResult {
+                    results,
+                    result_type: ResultType::List,
+                };
+            }
+
+            return SearchResult {
+                results: candidates,
+                result_type: ResultType::List,
+            };
+        }
+
+        let results = self.fuzzy_filter(candidates, query);
 
         SearchResult {
             results,

@@ -6,7 +6,9 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::currency::CurrencySearcher;
 use crate::searchers::camera::CameraSearcher;
+use crate::searchers::note::NoteSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::files::FileSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
@@ -23,13 +25,14 @@ use searchers::SearchProvider;
 
 use action_registry::ActionRegistry;
 use clipboard_manager::ClipboardManager;
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, command};
 use types::{ActionData, SearchResult};
 use usage_tracker::{boost_results_by_usage, UsageHistory};
 
 use base64::{engine::general_purpose, Engine};
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::process::Command;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
@@ -53,7 +56,7 @@ lazy_static! {
         config::Config::load()
     };
 
-    static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
+    pub static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
 
     static ref CLIPBOARD_MANAGER: ClipboardManager = {
@@ -100,6 +103,8 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     push!(v, &t.color_picker, "color_picker", ColorPicker);
     push!(v, &t.apps,         "apps",         AppSearcher);
     push!(v, &t.url,          "url",          URLSearcher);
+    push!(v, &t.currency, "currency", CurrencySearcher);
+    push!(v, &t.note,     "note",     NoteSearcher);
 
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {
@@ -179,10 +184,34 @@ fn get_theme() -> config::ThemeConfig {
 }
 
 // ---------------------------------------------------------
+// NOTE COMMANDS
+// ---------------------------------------------------------
+fn get_note_path() -> std::path::PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("quarry")
+        .join("scratch.txt")
+}
+
+#[tauri::command]
+fn read_note() -> String {
+    std::fs::read_to_string(get_note_path()).unwrap_or_default()
+}
+
+#[tauri::command]
+fn write_note(content: String) -> Result<(), String> {
+    let path = get_note_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------
 // EXECUTE COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<(), String> {
+fn execute(action_id: String, query: String, name: Option<String>, app: tauri::AppHandle) -> Result<(), String> {
     let action_data = ACTION_REGISTRY
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
@@ -203,7 +232,8 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
 
     if result.is_ok() {
         if let Ok(mut history) = USAGE_HISTORY.write() {
-            history.record_usage(&query, &action_id, &action_id);
+            let display_name = name.as_deref().unwrap_or(&action_id);
+            history.record_usage(&query, &action_id, display_name);
         }
     }
 
@@ -217,6 +247,34 @@ fn execute(action_id: String, query: String, app: tauri::AppHandle) -> Result<()
 fn clear_clipboard_history() -> Result<(), String> {
     CLIPBOARD_MANAGER.clear_history();
     Ok(())
+}
+
+// ---------------------------------------------------------
+// CAPTURE COMMAND
+// ---------------------------------------------------------
+#[tauri::command]
+async fn save_capture(png_base64: String) -> Result<String, String> {
+    let pictures = dirs::picture_dir()
+        .ok_or("Could not find Pictures directory")?;
+
+    let dir = pictures.join("quarry");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_secs();
+
+    let filename = format!("{}-quarry-cam.png", ts);
+    let path = dir.join(&filename);
+
+    let bytes = general_purpose::STANDARD
+        .decode(&png_base64)
+        .map_err(|e| e.to_string())?;
+
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+
+    Ok(path.to_string_lossy().into_owned())
 }
 
 // ---------------------------------------------------------
@@ -297,9 +355,17 @@ fn run_shell_command(command: &str) -> Result<(), String> {
 fn run_custom_function(
     function_name: &str,
     params: &[String],
-    _app: &tauri::AppHandle,
+    app: &tauri::AppHandle,
 ) -> Result<(), String> {
     match function_name {
+        "open_note" => {
+            if let Some(window) = app.get_webview_window("note") {
+                let window = window.as_ref().window();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            Ok(())
+        }
         "clear_clipboard" => {
             let _ = clear_clipboard_history();
             Ok(())
@@ -366,6 +432,28 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            let note_webview = tauri::WebviewWindowBuilder::new(
+                app,
+                "note",
+                tauri::WebviewUrl::App("note".into()),
+            )
+            .title("quarry note")
+            .inner_size(500.0, 400.0)
+            .decorations(false)
+            .resizable(true)
+            .always_on_top(true)
+            .visible(false)
+            .skip_taskbar(true)
+            .build()?;
+
+            let note_window = note_webview.as_ref().window().clone();
+            note_webview.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = note_window.hide();
+                }
+            });
+
             if let Some(webview) = app.get_webview_window("main") {
                 let window = webview.as_ref().window().clone();
                 webview.on_window_event(move |event| {
@@ -409,6 +497,9 @@ pub fn run() {
             execute,
             clear_clipboard_history,
             get_theme,
+            read_note,
+            write_note,
+            save_capture,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

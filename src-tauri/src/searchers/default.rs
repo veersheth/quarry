@@ -8,6 +8,7 @@ use rayon;
 
 use crate::searchers::{
     apps::AppSearcher,
+    currency::CurrencySearcher,
     emojis::EmojiSearcher,
     files::FileSearcher,
     bookmarks::BookmarksSearcher,
@@ -21,6 +22,11 @@ use crate::types::{ResultItem, ResultType, SearchResult};
 
 static MATH_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap()
+});
+
+// Matches: "100 USD EUR", "100 USD to EUR", "USD EUR", "USD to EUR"
+static CURRENCY_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^(\d[\d,.]*)?\s*([a-z]{3})\s+(?:to\s+)?([a-z]{3})$").unwrap()
 });
 
 static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(SkimMatcherV2::default);
@@ -99,10 +105,19 @@ impl SearchProvider for DefaultSearcher {
         emojis.truncate(6);
         combined.extend(emojis);
 
-        if MATH_RE.is_match(q) {
+        // if MATH_RE.is_match(q) {
             let mut res = MathSearcher.search(q, app).results;
             res.truncate(2);
             combined.extend(res);
+        // }
+
+        // Bare currency query: "100 INR USD", "100 inr to usd", "gbp eur", etc.
+        if CURRENCY_RE.is_match(q) {
+            let mut res = CurrencySearcher.search(q, app).results;
+            res.truncate(1);
+            let tail = combined;
+            combined = res;
+            combined.extend(tail);
         }
 
         if q.len() >= 2 {

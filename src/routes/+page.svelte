@@ -139,17 +139,17 @@
   .container {
     display: flex;
     flex: 1;
-    height: calc(100vh - 20px);
+    height: calc(100vh - 2px);
     flex-direction: column;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     background-color: var(--q-bg-color, rgba(15, 15, 15, 1));
     opacity: var(--q-bg-opacity, 1);
-    border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
     overflow: hidden;
-    border-radius: var(--q-border-radius, 14px);
     color: var(--q-font-color, #ffffff);
+    <!-- border-radius: var(--q-border-radius, 14px); -->
+    <!-- border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35)); -->
   }
 
   .container * {
@@ -162,13 +162,13 @@
       "Adwaita Sans",
       "Noto Color Emoji",
       sans-serif;
+    padding: 0;
   }
 
   .panel {
     display: flex;
     flex-direction: column;
     flex: 1;
-    max-height: 95vh;
     min-height: 0;
   }
 

@@ -178,3 +178,14 @@ pub fn boost_results_by_usage(
 
     results
 }
+
+/// Read recent usage entries for a given searcher namespace (prefix on action_ids).
+/// Searchers call this to populate their history view without needing direct access
+/// to the USAGE_HISTORY global.
+pub fn get_recent_entries(query: &str, limit: usize) -> Vec<UsageEntry> {
+    if let Ok(history) = crate::USAGE_HISTORY.read() {
+        history.get_recent_for_query(query, limit)
+    } else {
+        vec![]
+    }
+}
