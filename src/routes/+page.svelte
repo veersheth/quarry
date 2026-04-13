@@ -18,6 +18,7 @@
   import RenderMath from "$lib/RenderMath.svelte";
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
+    import RenderAiChat from "$lib/RenderAiChat.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -127,6 +128,8 @@
           <RenderMath listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Camera"}
           <RenderCamera />
+        {:else if $resultType === "Ai"}
+          <RenderAiChat />
         {:else}
           Oops
         {/if}
