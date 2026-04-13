@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod currency;
 pub mod default;
 pub mod apps;

@@ -6,6 +6,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::ai::AiSearcher;
 use crate::searchers::currency::CurrencySearcher;
 use crate::searchers::camera::CameraSearcher;
 use crate::searchers::note::NoteSearcher;
@@ -90,6 +91,7 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
 
     let mut v: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = Vec::new();
 
+    push!(v, &t.ai,           "ai",           AiSearcher);
     push!(v, &t.camera,       "camera",       CameraSearcher);
     push!(v, &t.bookmarks,    "bookmarks",    BookmarksSearcher);
     push!(v, &t.files,        "files",        FileSearcher);
@@ -103,8 +105,8 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     push!(v, &t.color_picker, "color_picker", ColorPicker);
     push!(v, &t.apps,         "apps",         AppSearcher);
     push!(v, &t.url,          "url",          URLSearcher);
-    push!(v, &t.currency, "currency", CurrencySearcher);
-    push!(v, &t.note,     "note",     NoteSearcher);
+    push!(v, &t.currency,     "currency",     CurrencySearcher);
+    push!(v, &t.note,         "note",         NoteSearcher);
 
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {
@@ -205,6 +207,19 @@ fn write_note(content: String) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------
+// AI COMMANDS
+// ---------------------------------------------------------
+#[tauri::command]
+fn get_groq_api_key() -> String {
+    config::Config::load().groq_api_key
+}
+
+#[tauri::command]
+fn save_groq_api_key(key: String) -> Result<(), String> {
+    config::Config::save_groq_api_key(&key)
 }
 
 // ---------------------------------------------------------
@@ -366,6 +381,10 @@ fn run_custom_function(
             }
             Ok(())
         }
+        "open_ai_chat" => {
+            let query = params.first().cloned().unwrap_or_default();
+            open_or_create_ai_window(app, &query)
+        }
         "clear_clipboard" => {
             let _ = clear_clipboard_history();
             Ok(())
@@ -384,6 +403,53 @@ fn run_custom_function(
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
+}
+
+fn open_or_create_ai_window(app: &tauri::AppHandle, query: &str) -> Result<(), String> {
+    let encoded_query = urlencoding::encode(query).to_string();
+    let url = format!("ai?q={}", encoded_query);
+
+    if let Some(window) = app.get_webview_window("ai") {
+        let window_ref = window.as_ref().window();
+        // Push the new query into the already-open window via JS
+        if !query.is_empty() {
+            let js = format!(
+                "window.__quarryNewQuery && window.__quarryNewQuery({})",
+                serde_json::to_string(query).unwrap_or_default()
+            );
+            let _ = window.eval(&js);
+        }
+        let _ = window_ref.show();
+        let _ = window_ref.set_focus();
+        return Ok(());
+    }
+
+    // Window doesn't exist yet — create it
+    let ai_webview = tauri::WebviewWindowBuilder::new(
+        app,
+        "ai",
+        tauri::WebviewUrl::App(url.into()),
+    )
+    .title("quarry ai")
+    .inner_size(680.0, 520.0)
+    .decorations(false)
+    .resizable(true)
+    .always_on_top(true)
+    .visible(true)
+    .skip_taskbar(true)
+    .build()
+    .map_err(|e| format!("Failed to open AI window: {}", e))?;
+
+    // Hide on close rather than destroy, so next open is instant
+    let ai_window = ai_webview.as_ref().window().clone();
+    ai_webview.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = ai_window.hide();
+        }
+    });
+
+    Ok(())
 }
 
 fn toggle_window(app_handle: &tauri::AppHandle) {
@@ -500,6 +566,8 @@ pub fn run() {
             read_note,
             write_note,
             save_capture,
+            get_groq_api_key,
+            save_groq_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

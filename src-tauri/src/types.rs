@@ -52,6 +52,7 @@ pub enum ResultType {
     Media,
     Math,
     Camera,
+    Ai,
 }
 
 #[derive(Debug, Serialize, Clone)]
