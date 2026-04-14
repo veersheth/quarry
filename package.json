@@ -18,6 +18,7 @@
     "@tauri-apps/plugin-clipboard-manager": "~2",
     "@tauri-apps/plugin-opener": "^2",
     "fuse.js": "^7.1.0",
+    "ink-mde": "^0.34.0",
     "marked": "^17.0.5",
     "rehype-sanitize": "^6.0.0",
     "rehype-stringify": "^10.0.1",
