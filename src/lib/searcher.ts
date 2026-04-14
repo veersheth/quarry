@@ -1,17 +1,26 @@
+// lib/searcher.ts
 import { invoke } from "@tauri-apps/api/core";
 import type { SearchResult } from "../stores/search";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { addToast } from "../stores/toasts";
 
 export async function execute(action_id: string, name: string, currentQuery: string) {
-  console.log(action_id);
   try {
-    await invoke("execute", { 
+    const result = await invoke<string>("execute", {
       actionId: action_id,
       name,
-      query: currentQuery 
+      query: currentQuery,
     });
-    await getCurrentWindow().hide();
-  } catch (e) {
+
+    if (result === "copied") {
+      addToast("Copied to clipboard");
+    } else if (result === "error") {
+      addToast("Something went wrong", "error");
+    } else {
+      await getCurrentWindow().hide();
+    }
+  } catch (e: any) {
+    addToast(e?.message ?? "Something went wrong", "error");
     console.error("Execute error:", e);
   }
 }

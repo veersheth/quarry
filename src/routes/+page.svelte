@@ -1,7 +1,9 @@
+<!-- +page.svelte -->
 <script lang="ts">
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
+  import { fly } from "svelte/transition";
   import RenderList from "$lib/RenderList.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
   import {
@@ -12,13 +14,14 @@
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
+  import { toasts } from "../stores/toasts";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
   import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
-    import RenderAiChat from "$lib/RenderAiChat.svelte";
+  import RenderAiChat from "$lib/RenderAiChat.svelte";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -28,7 +31,7 @@
   interface Theme {
     background_color:    string;
     background_opacity:  number;
-    font_size: number;
+    font_size:           number;
     font_color:          string;
     border_radius:       number;
     border_color:        string;
@@ -42,14 +45,14 @@
     const root = document.documentElement.style;
     root.setProperty("--q-bg-color",           t.background_color);
     root.setProperty("--q-bg-opacity",         String(t.background_opacity));
-    root.setProperty("--q-font-size",           `${t.font_size}px`);
+    root.setProperty("--q-font-size",          `${t.font_size}px`);
     root.setProperty("--q-font-color",         t.font_color);
     root.setProperty("--q-border-radius",      `${t.border_radius}px`);
     root.setProperty("--q-border-color",       t.border_color);
     root.setProperty("--q-border-thickness",   `${t.border_thickness}px`);
     root.setProperty("--q-item-border-radius", `${t.item_border_radius}px`);
-    root.setProperty("--q-active-bg-color",          t.active_bg_color);
-    root.setProperty("--q-active-border-color",      t.active_border_color);
+    root.setProperty("--q-active-bg-color",    t.active_bg_color);
+    root.setProperty("--q-active-border-color",t.active_border_color);
   }
 
   async function refresh() {
@@ -60,11 +63,10 @@
 
   onMount(async () => {
     appWindow = getCurrentWindow();
-    await refresh(); // apply theme
+    await refresh();
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) refresh();
     });
-
     return () => {
       unlisten.then((fn) => fn());
     };
@@ -136,6 +138,20 @@
       </div>
     </div>
   </div>
+
+  <!-- Toasts -->
+  <div class="toast-container">
+    {#each $toasts as toast (toast.id)}
+      <div
+        class="toast {toast.type}"
+        in:fly={{ y: 6, duration: 180, opacity: 0 }}
+        out:fly={{ y: 6, duration: 140, opacity: 0 }}
+      >
+        <span class="toast-dot {toast.type}" />
+        {toast.message}
+      </div>
+    {/each}
+  </div>
 </main>
 
 <style>
@@ -151,8 +167,7 @@
     opacity: var(--q-bg-opacity, 1);
     overflow: hidden;
     color: var(--q-font-color, #ffffff);
-    <!-- border-radius: var(--q-border-radius, 14px); -->
-    <!-- border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35)); -->
+    position: relative;
   }
 
   .container * {
@@ -212,5 +227,55 @@
   .results-content.dimmed {
     opacity: 0.5;
     pointer-events: none;
+  }
+
+  /* Toasts */
+  .toast-container {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-family: "JetBrainsMono Nerd Font", "Cascadia Mono", "JetBrains Mono", monospace;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    z-index: 1000;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(18, 18, 20, 0.96);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5),
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .toast-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .toast-dot.success { background: #4ade80; }
+  .toast-dot.error   { background: #f87171; }
+  .toast-dot.info    { background: #60a5fa; }
+
+  .toast.error {
+    border-color: rgba(248, 113, 113, 0.2);
+  }
+
+  .toast.info {
+    border-color: rgba(96, 165, 250, 0.2);
   }
 </style>

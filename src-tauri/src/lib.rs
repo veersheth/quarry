@@ -226,10 +226,16 @@ fn save_groq_api_key(key: String) -> Result<(), String> {
 // EXECUTE COMMAND
 // ---------------------------------------------------------
 #[tauri::command]
-fn execute(action_id: String, query: String, name: Option<String>, app: tauri::AppHandle) -> Result<(), String> {
+fn execute(action_id: String, query: String, name: Option<String>, app: tauri::AppHandle) -> Result<String, String> {
     let action_data = ACTION_REGISTRY
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
+
+    // Determine tag before consuming action_data
+    let tag = match &action_data {
+        ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
+        _ => "launched",
+    };
 
     let result = match action_data {
         ActionData::LaunchApp { executable, args } => launch_app(&executable, &args),
@@ -252,7 +258,7 @@ fn execute(action_id: String, query: String, name: Option<String>, app: tauri::A
         }
     }
 
-    result
+    result.map(|_| tag.to_string())
 }
 
 // ---------------------------------------------------------

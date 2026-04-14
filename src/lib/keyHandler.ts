@@ -31,7 +31,6 @@ export function handleKeydown(
       const q = get(query).replace(/^ai\s+/i, "").trim();
       if (q) aiSubmitQuery.set(q);
     }
-    return;
   }
 
   if (event.key === "w" && event.ctrlKey) {

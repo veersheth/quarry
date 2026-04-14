@@ -19,8 +19,15 @@
     "@tauri-apps/plugin-opener": "^2",
     "fuse.js": "^7.1.0",
     "marked": "^17.0.5",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
+    "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "snarkdown": "^2.0.0",
-    "svelte-icons": "^2.1.0"
+    "svelte-icons": "^2.1.0",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

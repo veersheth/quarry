@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+    import { addToast } from "../stores/toasts";
 
   let videoEl: HTMLVideoElement;
   let stream: MediaStream | null = null;
@@ -46,6 +47,7 @@
       const base64 = dataUrl.split(",")[1];
 
       const savedPath = await invoke<string>("save_capture", { pngBase64: base64 });
+      addToast("Captured");
       console.log("Saved to", savedPath);
     } catch (e) {
       console.error("Failed to save capture:", e);
