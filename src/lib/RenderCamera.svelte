@@ -47,7 +47,7 @@
       const base64 = dataUrl.split(",")[1];
 
       const savedPath = await invoke<string>("save_capture", { pngBase64: base64 });
-      addToast("Captured");
+      addToast(`Captured to ${savedPath}`);
       console.log("Saved to", savedPath);
     } catch (e) {
       console.error("Failed to save capture:", e);

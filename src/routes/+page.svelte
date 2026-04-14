@@ -1,9 +1,9 @@
-<!-- +page.svelte -->
 <script lang="ts">
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
   import { fly } from "svelte/transition";
+  import { backOut } from "svelte/easing";
   import RenderList from "$lib/RenderList.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
   import {
@@ -29,30 +29,30 @@
   let searchTimeout: ReturnType<typeof setTimeout>;
 
   interface Theme {
-    background_color:    string;
-    background_opacity:  number;
-    font_size:           number;
-    font_color:          string;
-    border_radius:       number;
-    border_color:        string;
-    border_thickness:    number;
-    item_border_radius:  number;
-    active_bg_color:     string;
+    background_color: string;
+    background_opacity: number;
+    font_size: number;
+    font_color: string;
+    border_radius: number;
+    border_color: string;
+    border_thickness: number;
+    item_border_radius: number;
+    active_bg_color: string;
     active_border_color: string;
   }
 
   function applyTheme(t: Theme) {
     const root = document.documentElement.style;
-    root.setProperty("--q-bg-color",           t.background_color);
-    root.setProperty("--q-bg-opacity",         String(t.background_opacity));
-    root.setProperty("--q-font-size",          `${t.font_size}px`);
-    root.setProperty("--q-font-color",         t.font_color);
-    root.setProperty("--q-border-radius",      `${t.border_radius}px`);
-    root.setProperty("--q-border-color",       t.border_color);
-    root.setProperty("--q-border-thickness",   `${t.border_thickness}px`);
+    root.setProperty("--q-bg-color", t.background_color);
+    root.setProperty("--q-bg-opacity", String(t.background_opacity));
+    root.setProperty("--q-font-size", `${t.font_size}px`);
+    root.setProperty("--q-font-color", t.font_color);
+    root.setProperty("--q-border-radius", `${t.border_radius}px`);
+    root.setProperty("--q-border-color", t.border_color);
+    root.setProperty("--q-border-thickness", `${t.border_thickness}px`);
     root.setProperty("--q-item-border-radius", `${t.item_border_radius}px`);
-    root.setProperty("--q-active-bg-color",    t.active_bg_color);
-    root.setProperty("--q-active-border-color",t.active_border_color);
+    root.setProperty("--q-active-bg-color", t.active_bg_color);
+    root.setProperty("--q-active-border-color", t.active_border_color);
   }
 
   async function refresh() {
@@ -144,9 +144,10 @@
     {#each $toasts as toast (toast.id)}
       <div
         class="toast {toast.type}"
-        in:fly={{ y: 6, duration: 180, opacity: 0 }}
-        out:fly={{ y: 6, duration: 140, opacity: 0 }}
+        in:fly={{ y: 16, duration: 350, opacity: 0, easing: backOut }}
+        out:fly={{ y: 8, duration: 140, opacity: 0 }}
       >
+        <!-- svelte-ignore element_invalid_self_closing_tag -->
         <span class="toast-dot {toast.type}" />
         {toast.message}
       </div>
@@ -247,16 +248,17 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 20px;
+    padding: 20px 30px 25px;
     border-radius: 999px;
     font-size: 0.95rem;
-    font-family: "JetBrainsMono Nerd Font", "Cascadia Mono", "JetBrains Mono", monospace;
     letter-spacing: 0.01em;
     white-space: nowrap;
     z-index: 1000;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(18, 18, 20, 0.96);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5),
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(18, 18, 20, 0.90);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);  
     color: rgba(255, 255, 255, 0.75);
   }
 

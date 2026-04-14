@@ -208,7 +208,7 @@ Otherwise be brief and to the point, no need for unnecessary banter. Avoid long 
     position: relative;
     margin: 20px;
     padding: 1px;
-    border-radius: 21px;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.05);
     transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -217,7 +217,7 @@ Otherwise be brief and to the point, no need for unnecessary banter. Avoid long 
     content: "";
     position: absolute;
     inset: -1px;
-    border-radius: 21px;
+    border-radius: 20px;
     padding: 2px;
     background: conic-gradient(
       from var(--ai-deg),
@@ -255,7 +255,7 @@ Otherwise be brief and to the point, no need for unnecessary banter. Avoid long 
   }
 
   .inner {
-    border-radius: 20px;
+    border-radius: 12px;
     padding: 16px 18px;
     max-height: 400px;
     overflow-y: auto;
