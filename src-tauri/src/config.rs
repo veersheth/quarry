@@ -147,6 +147,7 @@ pub struct TriggerConfig {
     pub currency:     String,
     pub note:         String,
     pub ai:           String,
+    pub time:         String,
 }
 
 impl Default for TriggerConfig {
@@ -168,6 +169,7 @@ impl Default for TriggerConfig {
             currency:     r"^fx\s+(.*)$".into(),
             note:         r"^note$".into(),
             ai:           r"^ai\s+(.*)$".into(),
+            time:         r"^time\s+(.*)$".into(),
         }
     }
 }
@@ -281,6 +283,7 @@ color_picker = '^color$'
 apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
 ai           = '^ai\s+(.*)$'
+time         = '^time in\s(.*)$'
 
 [default_search]
 web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]

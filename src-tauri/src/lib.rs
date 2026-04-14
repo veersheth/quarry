@@ -6,6 +6,7 @@ mod searchers;
 mod types;
 mod usage_tracker;
 
+use crate::searchers::time::TimeSearcher;
 use crate::searchers::ai::AiSearcher;
 use crate::searchers::currency::CurrencySearcher;
 use crate::searchers::camera::CameraSearcher;
@@ -91,6 +92,7 @@ fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
 
     let mut v: Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> = Vec::new();
 
+    push!(v, &t.time,         "time",         TimeSearcher);
     push!(v, &t.ai,           "ai",           AiSearcher);
     push!(v, &t.camera,       "camera",       CameraSearcher);
     push!(v, &t.bookmarks,    "bookmarks",    BookmarksSearcher);
@@ -231,7 +233,6 @@ fn execute(action_id: String, query: String, name: Option<String>, app: tauri::A
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
-    // Determine tag before consuming action_data
     let tag = match &action_data {
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         _ => "launched",
