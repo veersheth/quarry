@@ -19,4 +19,8 @@ impl ActionRegistry {
     pub fn get_action(&self, id: &str) -> Option<ActionData> {
         self.actions.get(id).map(|v| v.clone())
     }
+
+    pub fn clear(&self) {
+        self.actions.clear();
+    }
 }

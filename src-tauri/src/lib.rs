@@ -74,8 +74,7 @@ lazy_static! {
 // ---------------------------------------------------------
 // TRIGGER BUILDER
 // ---------------------------------------------------------
-fn build_triggers() -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
-    let cfg = config::Config::load();
+fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)> {
     let t = &cfg.triggers;
 
     macro_rules! push {
@@ -139,8 +138,9 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 
     let query_clone = query.clone();
 
+    let cfg = CONFIG.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let triggers = build_triggers();
+        let triggers = build_triggers(&cfg);
         let mut result = None;
 
         for (regex, searcher) in triggers.iter() {
@@ -161,6 +161,7 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 
     let mut search_result = result;
 
+    ACTION_REGISTRY.clear();
     for (i, item) in search_result.results.iter_mut().enumerate() {
         let id = format!("action_{}_{}", my_seq, i);
         ACTION_REGISTRY.register(id.clone(), item.action.clone());
@@ -184,7 +185,7 @@ async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
 // ---------------------------------------------------------
 #[tauri::command]
 fn get_theme() -> config::ThemeConfig {
-    config::Config::load().theme
+    CONFIG.theme.clone()
 }
 
 // ---------------------------------------------------------
@@ -216,7 +217,7 @@ fn write_note(content: String) -> Result<(), String> {
 // ---------------------------------------------------------
 #[tauri::command]
 fn get_groq_api_key() -> String {
-    config::Config::load().groq_api_key
+    CONFIG.groq_api_key.clone()
 }
 
 #[tauri::command]
@@ -459,18 +460,6 @@ fn open_or_create_ai_window(app: &tauri::AppHandle, query: &str) -> Result<(), S
     Ok(())
 }
 
-fn toggle_window(app_handle: &tauri::AppHandle) {
-    if let Some(window) = app_handle.get_webview_window("main") {
-        let window = window.as_ref().window();
-        if window.is_visible().unwrap_or(false) {
-            let _ = window.hide();
-        } else {
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
-    }
-}
-
 // ---------------------------------------------------------
 // TAURI ENTRYPOINT
 // ---------------------------------------------------------
@@ -485,7 +474,7 @@ pub fn run() {
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            toggle_window(app);
+            ipc_server::toggle_window(app);
         }))
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -499,7 +488,7 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "toggle" => toggle_window(app),
+                    "toggle" => ipc_server::toggle_window(app),
                     "quit"   => app.exit(0),
                     _        => {}
                 })
@@ -552,15 +541,6 @@ pub fn run() {
                         true
                     });
                 })?;
-            }
-
-            match app.cli().matches() {
-                Ok(matches) => {
-                    if let Some(sub) = matches.subcommand {
-                        if sub.name == "toggle" {}
-                    }
-                }
-                Err(_) => {}
             }
 
             Ok(())

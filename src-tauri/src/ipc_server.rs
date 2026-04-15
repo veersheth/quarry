@@ -132,7 +132,7 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
     }
 }
 
-fn toggle_window(app_handle: &tauri::AppHandle) {
+pub(crate) fn toggle_window(app_handle: &tauri::AppHandle) {
     if let Some(window) = app_handle.get_webview_window("main") {
         let window = window.as_ref().window();
         if window.is_visible().unwrap_or(false) {
