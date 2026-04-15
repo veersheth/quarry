@@ -8,6 +8,8 @@
   let editorEl: HTMLDivElement;
   let saveTimeout: ReturnType<typeof setTimeout>;
   let editor: ReturnType<typeof ink> | null = null;
+  let vimMode = false;
+  let docContent = "";
 
   interface Theme {
     background_color: string;
@@ -36,8 +38,43 @@
     }, 400);
   }
 
+  function createEditor(doc: string) {
+    editor?.destroy();
+    // Clear any leftover CodeMirror DOM so ink starts fresh
+    editorEl.innerHTML = "";
+    editor = ink(editorEl, {
+      doc,
+      hooks: {
+        beforeUpdate(value: string) {
+          docContent = value;
+          scheduleSave(value);
+        },
+      },
+      interface: {
+        appearance: "dark",
+        attribution: false,
+        autocomplete: false,
+        images: true,
+        lists: true,
+        readonly: false,
+        spellcheck: false,
+        toolbar: false,
+      },
+      vim: vimMode,
+    });
+    editorEl.querySelector<HTMLElement>(".cm-content")?.focus();
+  }
+
+  function toggleVim() {
+    vimMode = !vimMode;
+    localStorage.setItem("quarry-vim-mode", String(vimMode));
+    createEditor(docContent);
+  }
+
   function handleGlobalKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
+    // In vim mode let CodeMirror own Escape (insert→normal transition).
+    // Hide the window only when vim mode is off.
+    if (e.key === "Escape" && !vimMode) {
       e.preventDefault();
       getCurrentWindow().hide();
     }
@@ -62,7 +99,6 @@
     const imageTypes = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
     for (const file of Array.from(files)) {
       if (!imageTypes.includes(file.type)) continue;
-      // In Tauri, dropped files have a real path accessible via the webview
       const path = (file as any).path as string | undefined;
       const url = path ? convertFileSrc(path) : URL.createObjectURL(file);
       insertMarkdownAtCursor(`![${file.name}](${url})\n`);
@@ -74,34 +110,16 @@
   }
 
   onMount(async () => {
+    vimMode = localStorage.getItem("quarry-vim-mode") === "true";
+
     const [theme, saved] = await Promise.all([
       invoke<Theme>("get_theme"),
       invoke<string>("read_note"),
     ]);
 
     applyTheme(theme);
-
-    editor = ink(editorEl, {
-      doc: saved,
-      hooks: {
-        beforeUpdate(doc: string) {
-          scheduleSave(doc);
-        },
-      },
-      interface: {
-        appearance: "dark",
-        attribution: false,
-        autocomplete: false,
-        images: true,
-        lists: true,
-        readonly: false,
-        spellcheck: false,
-        toolbar: false,
-      },
-      vim: false,
-    });
-
-    editorEl.querySelector<HTMLElement>(".cm-content")?.focus();
+    docContent = saved;
+    createEditor(saved);
   });
 
   onDestroy(() => {
@@ -112,10 +130,13 @@
 
 <svelte:window on:keydown={handleGlobalKeydown} />
 
-<main class="container" on:drop={handleDrop} on:dragover={handleDragOver}>
+<main class="container" class:vim-mode={vimMode} on:drop={handleDrop} on:dragover={handleDragOver}>
   <div class="editor-wrap" bind:this={editorEl}></div>
   <div class="titlebar" data-tauri-drag-region>
     <span class="title">QUARRY NOTEPAD</span>
+    <button class="vim-toggle" class:active={vimMode} on:click={toggleVim} title="Toggle Vim mode">
+      VIM
+    </button>
   </div>
 </main>
 
@@ -133,6 +154,7 @@
     flex-direction: column;
     height: 100vh;
     background-color: #1a1a1f;
+    color: white;
     overflow: hidden;
     box-sizing: border-box;
     font-family: "JetBrainsMono Nerd Font", monospace;
@@ -162,6 +184,13 @@
       "Noto Color Emoji",
       sans-serif;
     font-size: var(--q-font-size, 16px);
+  }
+
+  /* Monospace everything when vim mode is active */
+  :global(.vim-mode .editor-wrap .cm-editor),
+  :global(.vim-mode .editor-wrap .cm-content),
+  :global(.vim-mode .editor-wrap .cm-line) {
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", monospace !important;
   }
 
   :global(.editor-wrap .cm-scroller) {
@@ -202,5 +231,32 @@
     letter-spacing: 0.08em;
     color: rgba(255, 255, 255, 0.2);
     user-select: none;
+    flex: 1;
+  }
+
+  .vim-toggle {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.2);
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .vim-toggle:hover {
+    color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .vim-toggle.active {
+    color: #7ec8a4;
+    border-color: #7ec8a4;
+    background: rgba(126, 200, 164, 0.08);
   }
 </style>

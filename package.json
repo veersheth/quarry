@@ -13,6 +13,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@replit/codemirror-vim": "^6.3.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-cli": "~2",
     "@tauri-apps/plugin-clipboard-manager": "~2",
