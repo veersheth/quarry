@@ -152,12 +152,13 @@ pub fn execute(
         _ => "launched",
     };
 
+    let stable_id = action_data.stable_id();
     let result = executor::execute_action(action_data, &app);
 
     if result.is_ok() {
         if let Ok(mut history) = USAGE_HISTORY.write() {
             let display_name = name.as_deref().unwrap_or(&action_id);
-            history.record_usage(&query, &action_id, display_name);
+            history.record_usage(&query, &stable_id, display_name);
         }
     }
 

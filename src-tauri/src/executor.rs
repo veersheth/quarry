@@ -5,7 +5,6 @@ use tauri::Manager;
 
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::types::ActionData;
-use crate::windows;
 
 pub fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Result<(), String> {
     match action {
@@ -108,10 +107,6 @@ fn run_custom_function(
                 let _ = window.set_focus();
             }
             Ok(())
-        }
-        "open_ai_chat" => {
-            let query = params.first().cloned().unwrap_or_default();
-            windows::open_or_create_ai_window(app, &query)
         }
         "clear_clipboard" => {
             crate::CLIPBOARD_MANAGER.clear_history();

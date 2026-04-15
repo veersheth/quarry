@@ -121,7 +121,9 @@ impl SearchProvider for AppSearcher {
                     })
                     .collect();
 
-                results.extend(name_map.into_values());
+                let mut remaining: Vec<ResultItem> = name_map.into_values().collect();
+                remaining.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+                results.extend(remaining);
 
                 return SearchResult {
                     results,

@@ -161,15 +161,14 @@ pub fn boost_results_by_usage(
     query: &str,
     history: &UsageHistory,
 ) -> Vec<crate::types::ResultItem> {
-    // Create a map of action_id -> boost score
+    // Score by stable action identity, keyed by ephemeral action_id for the sort lookup.
     let mut scores: HashMap<String, f32> = HashMap::new();
-    
     for result in &results {
-        let score = history.get_boost_score(query, &result.action_id, &result.name);
+        let stable = result.action.stable_id();
+        let score = history.get_boost_score(query, &stable, &result.name);
         scores.insert(result.action_id.clone(), score);
     }
 
-    // Sort results by boost score (higher = more relevant based on history)
     results.sort_by(|a, b| {
         let score_a = scores.get(&a.action_id).unwrap_or(&0.0);
         let score_b = scores.get(&b.action_id).unwrap_or(&0.0);
