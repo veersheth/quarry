@@ -1,6 +1,6 @@
 use tauri::AppHandle;
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashSet;
@@ -18,11 +18,8 @@ use crate::searchers::{
     web_searchers::WebSearcher,
     SearchProvider,
 };
-use crate::types::{ResultItem, ResultType, SearchResult};
 
-static MATH_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^([0-9+\-*/^().\s]+)$").unwrap()
-});
+use crate::types::{ResultItem, ResultType, SearchResult};
 
 // Matches: "100 USD EUR", "100 USD to EUR", "USD EUR", "USD to EUR"
 static CURRENCY_RE: Lazy<Regex> = Lazy::new(|| {
@@ -66,36 +63,41 @@ impl SearchProvider for DefaultSearcher {
         let app_handle = app.clone();
         let q_owned = q.to_string();
 
-        let (app_results, (file_results, bookmark_results)) = rayon::join(
-            || AppSearcher.search(&q_owned, &app_handle).results,
+        let ((app_results, sys_results), (file_results, bookmark_results)) = rayon::join(
+            || rayon::join(
+                || AppSearcher.search(&q_owned, &app_handle).results,
+                || SystemSearcher.search(&q_owned, &app_handle).results,
+            ),
             || rayon::join(
                 || FileSearcher.search(&q_owned, &app_handle).results,
                 || BookmarksSearcher.search(&q_owned, &app_handle).results,
             ),
         );
 
-        let mut scored: Vec<(ResultItem, i64, u8)> = Vec::new();
+        let mut scored: Vec<(ResultItem, i64)> = Vec::new();
         for item in app_results {
             let score = Self::score_item(&item, q);
-            scored.push((item, score, 0));
+            if score > 0 { scored.push((item, score)); }
+        }
+        for item in sys_results {
+            let score = Self::score_item(&item, q);
+            if score > 0 { scored.push((item, score)); }
         }
         for item in file_results {
             let score = Self::score_item(&item, q);
-            scored.push((item, score, 1));
+            if score > 0 { scored.push((item, score)); }
         }
         for item in bookmark_results {
             let score = Self::score_item(&item, q);
-            scored.push((item, score, 2));
+            if score > 0 { scored.push((item, score)); }
         }
 
-        scored.sort_unstable_by(|a, b| {
-            b.1.cmp(&a.1).then(a.2.cmp(&b.2))
-        });
+        scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
 
         let mut seen_names: HashSet<String> = HashSet::new();
         let mut combined: Vec<ResultItem> = scored
             .into_iter()
-            .filter_map(|(item, _, _)| {
+            .filter_map(|(item, _)| {
                 let key = item.name.to_lowercase();
                 if seen_names.insert(key) { Some(item) } else { None }
             })
@@ -105,11 +107,9 @@ impl SearchProvider for DefaultSearcher {
         emojis.truncate(6);
         combined.extend(emojis);
 
-        // if MATH_RE.is_match(q) {
-            let mut res = MathSearcher.search(q, app).results;
-            res.truncate(2);
-            combined.extend(res);
-        // }
+        let mut res = MathSearcher.search(q, app).results;
+        res.truncate(2);
+        combined.extend(res);
 
         // Bare currency query: "100 INR USD", "100 inr to usd", "gbp eur", etc.
         if CURRENCY_RE.is_match(q) {
@@ -120,12 +120,6 @@ impl SearchProvider for DefaultSearcher {
             combined.extend(tail);
         }
 
-        if q.len() >= 2 {
-            let mut sys = SystemSearcher.search(q, app).results;
-            sys.truncate(3);
-            combined.extend(sys);
-        }
-
         if q.len() >= 3 {
             let mut sh = ShellSearcher.search(q, app).results;
             sh.truncate(2);
@@ -133,7 +127,7 @@ impl SearchProvider for DefaultSearcher {
         }
 
         if q.len() >= 2 {
-            let cfg = crate::config::Config::load();
+            let cfg = &*crate::CONFIG;
             let max = cfg.default_search.max_web_results;
 
             for name in &cfg.default_search.web_searches {

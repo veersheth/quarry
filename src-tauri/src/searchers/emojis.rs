@@ -10,9 +10,11 @@ impl SearchProvider for EmojiSearcher {
 
         let results = emojis::iter()
             .filter(|emoji| {
-                emoji.name().to_lowercase().contains(&q)
+                q.is_empty()
+                    || emoji.name().to_lowercase().contains(&q)
                     || emoji.shortcode().map_or(false, |s| s.contains(&q))
             })
+            .take(50)
             .map(|emoji| {
                 ResultItem::new(
                     emoji.as_str(),

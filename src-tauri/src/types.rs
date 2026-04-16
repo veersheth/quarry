@@ -52,6 +52,7 @@ pub enum ResultType {
     Media,
     Math,
     Camera,
+    Ai,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -70,4 +71,29 @@ pub enum ActionData {
     CopyImageToClipboard { base64_png: String, width: u32, height: u32 },
     RunFunction { function_name: String, params: Vec<String> },
     ShellCommand { command: String },
+}
+
+impl ActionData {
+    /// A stable identifier derived from action content, not search sequence numbers.
+    /// Used for usage history so repeated use of the same action accumulates correctly.
+    pub fn stable_id(&self) -> String {
+        match self {
+            ActionData::LaunchApp { executable, .. } => format!("app:{}", executable),
+            ActionData::OpenUrl { url } => format!("url:{}", url),
+            ActionData::CopyToClipboard { text } => format!("copy:{:x}", djb2(text)),
+            ActionData::CopyImageToClipboard { width, height, .. } => {
+                format!("copy-img:{}x{}", width, height)
+            }
+            ActionData::RunFunction { function_name, params } => {
+                format!("fn:{}:{}", function_name, params.join(","))
+            }
+            ActionData::ShellCommand { command } => format!("shell:{}", command),
+            ActionData::None => "none".to_string(),
+        }
+    }
+}
+
+fn djb2(s: &str) -> u64 {
+    s.bytes()
+        .fold(5381u64, |h, b| h.wrapping_mul(33).wrapping_add(b as u64))
 }

@@ -7,7 +7,7 @@ export type ResultItem = {
   icon?: string;
 };
 
-export type ResultType = "List" | "Grid";
+export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai";
 
 export type SearchResult = {
   results: ResultItem[];
@@ -18,4 +18,4 @@ export const query = writable("");
 export const resultItems = writable<ResultItem[]>([]);
 export const resultType = writable<ResultType>("List");
 export const activeIndex = writable(0);
-
+export const aiSubmitQuery = writable<string>("");

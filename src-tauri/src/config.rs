@@ -9,6 +9,9 @@ pub struct Config {
     pub theme:         ThemeConfig,
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
+    /// Groq API key for AI chat. Leave empty to be prompted on first use.
+    #[serde(default)]
+    pub groq_api_key:  String,
 }
 
 impl Default for Config {
@@ -18,6 +21,7 @@ impl Default for Config {
             theme:         ThemeConfig::default(),
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
+            groq_api_key:  String::new(),
         }
     }
 }
@@ -71,10 +75,7 @@ fn default_web_searches() -> Vec<WebSearchConfig> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DefaultSearchConfig {
-    /// Names of [[web_searches]] entries to inject into the default view.
-    /// Must match the `name` field exactly.
     pub web_searches:    Vec<String>,
-    /// How many results each pinned web search contributes.
     pub max_web_results: usize,
 }
 
@@ -145,6 +146,8 @@ pub struct TriggerConfig {
     pub url:          String,
     pub currency:     String,
     pub note:         String,
+    pub ai:           String,
+    pub time:         String,
 }
 
 impl Default for TriggerConfig {
@@ -163,8 +166,10 @@ impl Default for TriggerConfig {
             color_picker: r"^color$".into(),
             apps:         r"^app\s+(.*)$".into(),
             url:          r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$".into(),
-            currency: r"^fx\s+(.*)$".into(),
-            note:     r"^note$".into(),
+            currency:     r"^fx\s+(.*)$".into(),
+            note:         r"^note$".into(),
+            ai:           r"^ai\s+(.*)$".into(),
+            time:         r"^time\s+(.*)$".into(),
         }
     }
 }
@@ -211,10 +216,45 @@ impl Config {
         }
         fs::write(&path, DEFAULT_CONFIG_TOML).ok();
     }
+
+    /// Write just the groq_api_key into the config file, preserving all other content.
+    pub fn save_groq_api_key(key: &str) -> Result<(), String> {
+        let path = Self::config_path();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        let existing = fs::read_to_string(&path).unwrap_or_default();
+
+        // If key already exists in file, replace it; otherwise append it.
+        let new_content = if existing.contains("groq_api_key") {
+            let mut lines: Vec<String> = existing.lines().map(String::from).collect();
+            for line in &mut lines {
+                if line.trim_start().starts_with("groq_api_key") {
+                    *line = format!("groq_api_key = \"{}\"", key);
+                }
+            }
+            lines.join("\n")
+        } else {
+            // Append at top level (not inside any section)
+            // Insert before the first [section] header so it's a top-level key
+            let insert_line = format!("groq_api_key = \"{}\"\n", key);
+            if let Some(pos) = existing.find("\n[") {
+                let (before, after) = existing.split_at(pos + 1);
+                format!("{}{}{}", before, insert_line, after)
+            } else {
+                format!("{}\n{}", existing.trim_end(), insert_line)
+            }
+        };
+
+        fs::write(&path, new_content).map_err(|e| e.to_string())
+    }
 }
 
 const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry/config.toml
 # Every key is optional. Remove or comment out any line to keep the default.
+
+# groq_api_key = ""   # Add your Groq API key here to enable AI chat (ai <query>)
 
 [theme]
 background_color    = "rgba(10, 10, 10, 1)"
@@ -242,6 +282,8 @@ system       = '^sys\s+(.*)$'
 color_picker = '^color$'
 apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
+ai           = '^ai\s+(.*)$'
+time         = '^time in\s(.*)$'
 
 [default_search]
 web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]
