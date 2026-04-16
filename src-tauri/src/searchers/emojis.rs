@@ -4,6 +4,18 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct EmojiSearcher;
 
+impl EmojiSearcher {
+    /// Formats the unicode scalar values to a string like "U+1F600"
+    fn format_unicode(emoji: &emojis::Emoji) -> String {
+        emoji
+            .as_str()
+            .chars()
+            .map(|c| format!("U+{:X}", c as u32))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
 impl SearchProvider for EmojiSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim().to_lowercase();
@@ -16,11 +28,33 @@ impl SearchProvider for EmojiSearcher {
             })
             .take(50)
             .map(|emoji| {
-                ResultItem::new(
-                    emoji.as_str(),
-                    vec![Action::new("Copy", ActionData::CopyToClipboard { text: emoji.as_str().to_string() })],
-                )
-                .description(emoji.name())
+                let emoji_str = emoji.as_str().to_string();
+                let name = emoji.name().to_string();
+                
+                let mut actions = vec![
+                    Action::new(
+                        "Copy Emoji", 
+                        ActionData::CopyToClipboard { text: emoji_str.clone() }
+                    ),
+                    Action::new(
+                        "Copy Name", 
+                        ActionData::CopyToClipboard { text: name.clone() }
+                    ),
+                    Action::new(
+                        "Copy Unicode Hex", 
+                        ActionData::CopyToClipboard { text: Self::format_unicode(emoji) }
+                    ),
+                ];
+
+                if let Some(shortcode) = emoji.shortcode() {
+                    actions.push(Action::new(
+                        "Copy Shortcode",
+                        ActionData::CopyToClipboard { text: format!(":{}:", shortcode) }
+                    ));
+                }
+
+                ResultItem::new(emoji_str, actions)
+                    .description(name)
             })
             .collect();
 
