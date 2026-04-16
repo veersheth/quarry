@@ -32,7 +32,7 @@ export async function search(query: string): Promise<SearchResult | null> {
   } catch (e) {
     console.error("Search failed:", e);
     return {
-      results: [{ name: "error", action_ids: [] }],
+      results: [{ name: "error", actions: [] }],
       result_type: "List",
     };
   }
