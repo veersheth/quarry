@@ -125,7 +125,7 @@ impl SearchProvider for CurrencySearcher {
                         .to_string();
                     ResultItem::new(
                         e.name.clone(),
-                        ActionData::CopyToClipboard { text: copied_value },
+                        vec![ActionData::CopyToClipboard { text: copied_value }],
                     )
                     .description(format!("recent: used {} time{}", e.count, if e.count == 1 { "" } else { "s" }))
                     .icon("icons/math.png")
@@ -136,7 +136,7 @@ impl SearchProvider for CurrencySearcher {
                 return SearchResult {
                     results: vec![ResultItem::new(
                         "Currency converter",
-                        ActionData::None,
+                        vec![ActionData::None],
                     )
                     .description(
                         "# Currency Converter\n\nExamples:\n- `100 USD to EUR`\n- `50 GBP JPY`\n- `USD EUR`",
@@ -161,7 +161,7 @@ impl SearchProvider for CurrencySearcher {
                     lines.sort();
                     let markdown = format!("# Supported Currencies\n\n{}", lines.join("\n"));
                     SearchResult {
-                        results: vec![ResultItem::new("Supported currencies", ActionData::None)
+                        results: vec![ResultItem::new("Supported currencies", vec![ActionData::None])
                             .description(markdown)],
                         result_type: ResultType::Markdown,
                     }
@@ -176,7 +176,7 @@ impl SearchProvider for CurrencySearcher {
                 return SearchResult {
                     results: vec![ResultItem::new(
                         "Invalid query",
-                        ActionData::None,
+                        vec![ActionData::None],
                     )
                     .description(
                         "# Currency Converter\n\nTry:\n- `100 USD to EUR`\n- `GBP JPY`\n- `fx list` for all currencies",
@@ -215,9 +215,9 @@ impl SearchProvider for CurrencySearcher {
                 SearchResult {
                     results: vec![ResultItem::new(
                         result_text.clone(),
-                        ActionData::CopyToClipboard {
+                        vec![ActionData::CopyToClipboard {
                             text: fmt_amount(converted),
-                        },
+                        }],
                     )
                     .description(markdown)
                     .icon("icons/math.png")],
@@ -241,7 +241,7 @@ impl SearchProvider for CurrencySearcher {
 
 fn error_result(msg: &str) -> SearchResult {
     SearchResult {
-        results: vec![ResultItem::new("Currency error", ActionData::None)
+        results: vec![ResultItem::new("Currency error", vec![ActionData::None])
             .description(format!("# Error\n\n{}", msg))],
         result_type: ResultType::Markdown,
     }

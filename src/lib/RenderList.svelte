@@ -9,7 +9,7 @@
 
   export let listitems: {
     name: string;
-    action_id: string;
+    action_ids: string[];
     description?: string;
     icon?: string;
   }[] = [];
@@ -28,13 +28,11 @@
       on:click={() => handleClick(item)}
     >
       {#if item.icon}
+      {console.log(item.icon)}
         <img
           class="item-icon"
           src={item.icon}
           alt=""
-          on:error={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
         />
       {/if}
       <div class="item-text">
@@ -97,7 +95,7 @@
   }
 
   .item-name {
-    <!-- font-size: 15px; -->
+    font-size: 1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -107,7 +105,7 @@
 
   .item-desc {
     opacity: 0.4;
-    font-size: 13px;
+    font-size: 0.8rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

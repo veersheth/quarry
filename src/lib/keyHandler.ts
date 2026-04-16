@@ -88,5 +88,5 @@ export function handleKeydown(
 }
 
 export function runItemAction(item: ResultItem) {
-  execute(item.action_id, item.name, get(query));
+  execute(item.action_ids[0], item.name, get(query));
 }

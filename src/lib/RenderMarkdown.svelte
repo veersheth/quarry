@@ -4,7 +4,7 @@
 
   export let listitems: {
     name: string;
-    action_id: string;
+    action_ids: string[];
     description?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);

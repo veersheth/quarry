@@ -52,7 +52,7 @@ impl SearchProvider for DictionarySearcher {
                 results: vec![
                     ResultItem::new(
                         format!("Failed to fetch '{}'", word),
-                        ActionData::None,
+                        vec![ActionData::None],
                     )
                     .description("# Error\n\nCheck your internet connection."),
                 ],
@@ -66,7 +66,7 @@ impl SearchProvider for DictionarySearcher {
                 results: vec![
                     ResultItem::new(
                         format!("No definition found for '{}'", word),
-                        ActionData::None,
+                        vec![ActionData::None],
                     )
                     .description(format!("# Not Found\n\n'{}' was not found in the dictionary.", word)),
                 ],
@@ -96,7 +96,7 @@ impl SearchProvider for DictionarySearcher {
             results.push(
                 ResultItem::new(
                     format!("{} {}", first.word, phonetic_text),
-                    ActionData::CopyToClipboard { text: first.word.clone() },
+                    vec![ActionData::CopyToClipboard { text: first.word.clone() }],
                 )
                 .description(markdown),
             );

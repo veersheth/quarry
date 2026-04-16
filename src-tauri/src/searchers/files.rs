@@ -136,9 +136,9 @@ impl FileSearcher {
             .unwrap_or(&path_str)
             .to_string();
         let icon = Self::icon_for(&path);
-        ResultItem::new(name, ActionData::OpenUrl {
+        ResultItem::new(name, vec![ActionData::OpenUrl {
             url: format!("file://{}", path_str),
-        })
+        }])
         .description(path_str)
         .icon(icon)
     }

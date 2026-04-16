@@ -84,7 +84,7 @@ impl SearchProvider for AppSearcher {
 
                 let mut item = ResultItem::new(
                     cached_app.name.clone(),
-                    ActionData::LaunchApp { executable, args },
+                    vec![ActionData::LaunchApp { executable, args }],
                 );
                 if let Some(desc) = &cached_app.description {
                     item = item.description(desc.clone());

@@ -25,14 +25,14 @@ export async function execute(action_id: string, name: string, currentQuery: str
   }
 }
 
-export async function search(query: string): Promise<SearchResult> {
+export async function search(query: string): Promise<SearchResult | null> {
   try {
-    const result: SearchResult = await invoke("search", { query });
+    const result = await invoke<SearchResult | null>("search", { query });
     return result;
   } catch (e) {
     console.error("Search failed:", e);
     return {
-      results: [{ name: "error", action_id: "notify-send 'Error'" }],
+      results: [{ name: "error", action_ids: [] }],
       result_type: "List",
     };
   }

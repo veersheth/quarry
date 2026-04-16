@@ -24,7 +24,7 @@ impl SearchProvider for LoremSearcher {
         let results = vec![
             ResultItem::new(
                 format!("{} words of lorem ipsum", n),
-                ActionData::CopyToClipboard { text: output },
+                vec![ActionData::CopyToClipboard { text: output }],
             )
             .description("Copy generated lorem ipsum")
         ];

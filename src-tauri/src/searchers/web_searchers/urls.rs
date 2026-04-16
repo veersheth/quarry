@@ -31,7 +31,7 @@ fn term_from_name(name: &str) -> &str {
 }
 
 fn make_item(label: String, url: String, description: impl Into<String>) -> ResultItem {
-    ResultItem::new(label, ActionData::OpenUrl { url })
+    ResultItem::new(label, vec![ActionData::OpenUrl { url }])
         .description(description)
         .icon("")
 }

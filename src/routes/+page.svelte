@@ -17,7 +17,6 @@
   import { toasts } from "../stores/toasts";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
-  import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
@@ -78,6 +77,7 @@
     searchTimeout = setTimeout(() => {
       search($query)
         .then((res) => {
+          if (res === null) return;
           resultItems.set(res.results);
           resultType.set(res.result_type);
           activeIndex.set(0);
@@ -116,8 +116,6 @@
           <RenderList listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Grid"}
           <RenderEmojis listitems={$resultItems} {activeIndex} />
-        {:else if $resultType === "WebSearch"}
-          <RenderWebSearch listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Markdown"}
           <RenderMarkdown listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}

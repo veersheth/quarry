@@ -9,7 +9,7 @@
 
   export let listitems: {
     name: string;
-    action_id: string;
+    action_ids: string[];
     description?: string;
     icon?: string;
   }[] = [];

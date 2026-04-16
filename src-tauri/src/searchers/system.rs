@@ -76,9 +76,9 @@ impl SearchProvider for SystemSearcher {
         let candidates: Vec<ResultItem> = SYSTEM_ACTIONS
             .iter()
             .map(|action| {
-                ResultItem::new(action.name, ActionData::ShellCommand {
+                ResultItem::new(action.name, vec![ActionData::ShellCommand {
                     command: action.command.to_string(),
-                })
+                }])
                 .description(action.description)
                 .icon(action.icon)
             })

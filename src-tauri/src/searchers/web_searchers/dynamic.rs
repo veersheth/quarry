@@ -22,7 +22,7 @@ impl WebSearcher {
 
     fn make_item(&self, name: String, term: &str, description: impl Into<String>) -> ResultItem {
         let url = self.url_template.replace("{}", &urlencoding::encode(term));
-        let mut item = ResultItem::new(name, ActionData::OpenUrl { url })
+        let mut item = ResultItem::new(name, vec![ActionData::OpenUrl { url }])
             .description(description);
         if let Some(icon) = &self.icon {
             item = item.icon(icon.clone());
@@ -40,7 +40,7 @@ impl SearchProvider for WebSearcher {
         let primary = if q.is_empty() {
             let mut item = ResultItem::new(
                 format!("Search {} …", self.name),
-                ActionData::None,
+                vec![ActionData::None],
             )
             .description(format!("Type to search {}", self.name));
             if let Some(icon) = &self.icon {

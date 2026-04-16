@@ -78,7 +78,7 @@ fn commify_str(s: &str) -> String {
 // ============================================================
 
 fn make_result(name: String, copy: String) -> ResultItem {
-    ResultItem::new(name, ActionData::CopyToClipboard { text: copy })
+    ResultItem::new(name, vec![ActionData::CopyToClipboard { text: copy }])
         .description("Copy to clipboard")
         .icon("icons/math.png")
 }

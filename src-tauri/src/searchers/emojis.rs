@@ -18,7 +18,7 @@ impl SearchProvider for EmojiSearcher {
             .map(|emoji| {
                 ResultItem::new(
                     emoji.as_str(),
-                    ActionData::CopyToClipboard { text: emoji.as_str().to_string() },
+                    vec![ActionData::CopyToClipboard { text: emoji.as_str().to_string() }],
                 )
                 .description(emoji.name())
             })

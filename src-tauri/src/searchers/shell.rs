@@ -14,7 +14,7 @@ impl SearchProvider for ShellSearcher {
             vec![
                 ResultItem::new(
                     format!("Run: {}", cmd),
-                    ActionData::ShellCommand { command: cmd.to_string() },
+                    vec![ActionData::ShellCommand { command: cmd.to_string() }],
                 )
                 .description("Execute shell command"),
             ]

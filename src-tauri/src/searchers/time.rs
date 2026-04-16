@@ -273,9 +273,7 @@ fn format_date(tz: Tz) -> String {
 fn tz_result(m: &TzMatch) -> ResultItem {
     ResultItem::new(
         format!("{} - {}", m.label, format_time(m.tz)),
-        ActionData::CopyToClipboard {
-            text: format_time(m.tz),
-        },
+        vec![ActionData::CopyToClipboard { text: format_time(m.tz) }],
     )
     .description(format_date(m.tz))
 }

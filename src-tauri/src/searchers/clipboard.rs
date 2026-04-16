@@ -14,10 +14,10 @@ impl SearchProvider for ClipboardSearcher {
             return SearchResult {
                 results: vec![ResultItem::new(
                     "Clear clipboard history?",
-                    ActionData::RunFunction {
+                    vec![ActionData::RunFunction {
                         function_name: "clear_clipboard".into(),
                         params: vec![],
-                    },
+                    }],
                 )],
                 result_type: ResultType::List,
             };
@@ -40,7 +40,7 @@ impl SearchProvider for ClipboardSearcher {
             .map(|entry| match &entry.content {
                 ClipboardContent::Text { value } => ResultItem::new(
                     value.clone(),
-                    ActionData::CopyToClipboard { text: value.clone() },
+                    vec![ActionData::CopyToClipboard { text: value.clone() }],
                 )
                 .description(format_timestamp(entry.timestamp)),
 
@@ -52,11 +52,11 @@ impl SearchProvider for ClipboardSearcher {
                     ..
                 } => ResultItem::new(
                     format!("Image {}×{}", width, height),
-                    ActionData::CopyImageToClipboard {
+                    vec![ActionData::CopyImageToClipboard {
                         base64_png: full.clone(),
                         width: *width,
                         height: *height,
-                    },
+                    }],
                 )
                 .description(format_timestamp(entry.timestamp))
                 .thumbnail(thumbnail.clone()),
