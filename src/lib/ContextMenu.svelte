@@ -90,7 +90,7 @@
     z-index: 500;
     min-width: 200px;
     max-width: 280px;
-    background: rgba(40, 40, 42, 0.65);
+    background: rgba(40, 40, 42, 0.70);
     border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 16px;
     box-shadow:
@@ -116,7 +116,7 @@
 
   .ctx-item:hover,
   .ctx-item.active {
-    background: rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.20);
   }
 
   .ctx-label {
