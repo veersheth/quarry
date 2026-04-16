@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct EmojiSearcher;
 
@@ -18,7 +18,7 @@ impl SearchProvider for EmojiSearcher {
             .map(|emoji| {
                 ResultItem::new(
                     emoji.as_str(),
-                    vec![ActionData::CopyToClipboard { text: emoji.as_str().to_string() }],
+                    vec![Action::new("Copy", ActionData::CopyToClipboard { text: emoji.as_str().to_string() })],
                 )
                 .description(emoji.name())
             })

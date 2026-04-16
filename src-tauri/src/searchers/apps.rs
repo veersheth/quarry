@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use tauri::AppHandle;
 use std::fs;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 fn clean_exec_field(exec: &str) -> String {
     exec.split_whitespace()
@@ -84,7 +84,7 @@ impl SearchProvider for AppSearcher {
 
                 let mut item = ResultItem::new(
                     cached_app.name.clone(),
-                    vec![ActionData::LaunchApp { executable, args }],
+                    vec![Action::new("Launch", ActionData::LaunchApp { executable, args })],
                 );
                 if let Some(desc) = &cached_app.description {
                     item = item.description(desc.clone());

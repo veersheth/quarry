@@ -1,5 +1,5 @@
 use crate::searchers::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use crate::usage_tracker::get_recent_entries;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
@@ -22,7 +22,7 @@ impl WebSearcher {
 
     fn make_item(&self, name: String, term: &str, description: impl Into<String>) -> ResultItem {
         let url = self.url_template.replace("{}", &urlencoding::encode(term));
-        let mut item = ResultItem::new(name, vec![ActionData::OpenUrl { url }])
+        let mut item = ResultItem::new(name, vec![Action::new("Open", ActionData::OpenUrl { url })])
             .description(description);
         if let Some(icon) = &self.icon {
             item = item.icon(icon.clone());
@@ -40,7 +40,7 @@ impl SearchProvider for WebSearcher {
         let primary = if q.is_empty() {
             let mut item = ResultItem::new(
                 format!("Search {} …", self.name),
-                vec![ActionData::None],
+                vec![Action::new("", ActionData::None)],
             )
             .description(format!("Type to search {}", self.name));
             if let Some(icon) = &self.icon {

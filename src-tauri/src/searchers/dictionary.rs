@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use serde::Deserialize;
 
 pub struct DictionarySearcher;
@@ -52,7 +52,7 @@ impl SearchProvider for DictionarySearcher {
                 results: vec![
                     ResultItem::new(
                         format!("Failed to fetch '{}'", word),
-                        vec![ActionData::None],
+                        vec![Action::new("", ActionData::None)],
                     )
                     .description("# Error\n\nCheck your internet connection."),
                 ],
@@ -66,7 +66,7 @@ impl SearchProvider for DictionarySearcher {
                 results: vec![
                     ResultItem::new(
                         format!("No definition found for '{}'", word),
-                        vec![ActionData::None],
+                        vec![Action::new("", ActionData::None)],
                     )
                     .description(format!("# Not Found\n\n'{}' was not found in the dictionary.", word)),
                 ],
@@ -96,7 +96,7 @@ impl SearchProvider for DictionarySearcher {
             results.push(
                 ResultItem::new(
                     format!("{} {}", first.word, phonetic_text),
-                    vec![ActionData::CopyToClipboard { text: first.word.clone() }],
+                    vec![Action::new("Copy", ActionData::CopyToClipboard { text: first.word.clone() })],
                 )
                 .description(markdown),
             );

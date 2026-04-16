@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ResultItem, ResultType, SearchResult, ActionData};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct LoremSearcher;
 
@@ -24,7 +24,7 @@ impl SearchProvider for LoremSearcher {
         let results = vec![
             ResultItem::new(
                 format!("{} words of lorem ipsum", n),
-                vec![ActionData::CopyToClipboard { text: output }],
+                vec![Action::new("Copy", ActionData::CopyToClipboard { text: output })],
             )
             .description("Copy generated lorem ipsum")
         ];

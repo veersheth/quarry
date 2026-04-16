@@ -1,5 +1,5 @@
 use super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use chrono::Utc;
 use chrono_tz::Tz;
 use std::str::FromStr;
@@ -273,7 +273,7 @@ fn format_date(tz: Tz) -> String {
 fn tz_result(m: &TzMatch) -> ResultItem {
     ResultItem::new(
         format!("{} - {}", m.label, format_time(m.tz)),
-        vec![ActionData::CopyToClipboard { text: format_time(m.tz) }],
+        vec![Action::new("Copy", ActionData::CopyToClipboard { text: format_time(m.tz) })],
     )
     .description(format_date(m.tz))
 }
