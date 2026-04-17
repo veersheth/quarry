@@ -2,7 +2,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct MathSearcher;
 
@@ -78,7 +78,7 @@ fn commify_str(s: &str) -> String {
 // ============================================================
 
 fn make_result(name: String, copy: String) -> ResultItem {
-    ResultItem::new(name, ActionData::CopyToClipboard { text: copy })
+    ResultItem::new(name, vec![Action::new("Copy", ActionData::CopyToClipboard { text: copy })])
         .description("Copy to clipboard")
         .icon("icons/math.png")
 }

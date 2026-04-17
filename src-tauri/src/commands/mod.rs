@@ -120,9 +120,10 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
     ACTION_REGISTRY.clear();
     for (i, item) in search_result.results.iter_mut().enumerate() {
-        let id = format!("action_{}_{}", my_seq, i);
-        ACTION_REGISTRY.register(id.clone(), item.action.clone());
-        item.action_id = id;
+        for (j, action) in item.actions.iter_mut().enumerate() {
+            action.id = format!("action_{}_{}_{}", my_seq, i, j);
+            ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
+        }
     }
 
     if let Ok(history) = USAGE_HISTORY.read() {

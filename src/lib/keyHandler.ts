@@ -2,7 +2,7 @@ import type { Writable } from "svelte/store";
 import type { ResultItem } from "../stores/search";
 import { execute } from "./searcher";
 import { get } from "svelte/store";
-import { query, resultType, aiSubmitQuery } from "../stores/search";
+import { query, resultType, aiSubmitQuery, contextMenu, closeContextMenu } from "../stores/search";
 
 export function handleKeydown(
   event: KeyboardEvent,
@@ -12,6 +12,61 @@ export function handleKeydown(
   appWindow: any
 ) {
   const isAiMode = get(resultType) === "Ai";
+  const menu = get(contextMenu);
+
+  // --- Context menu is open: intercept navigation keys ---
+  if (menu.open && menu.item) {
+    const actionCount = menu.item.actions.length;
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeContextMenu();
+      return; // Don't hide the window
+    }
+
+    if (event.key === "n" && event.ctrlKey) {
+      event.preventDefault();
+      contextMenu.update(s => ({ ...s, activeIndex: (s.activeIndex + 1) % actionCount }));
+      return;
+    }
+
+    if (event.key === "p" && event.ctrlKey) {
+      event.preventDefault();
+      contextMenu.update(s => ({
+        ...s,
+        activeIndex: s.activeIndex === 0 ? actionCount - 1 : s.activeIndex - 1,
+      }));
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      contextMenu.update(s => ({ ...s, activeIndex: (s.activeIndex + 1) % actionCount }));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      contextMenu.update(s => ({
+        ...s,
+        activeIndex: s.activeIndex === 0 ? actionCount - 1 : s.activeIndex - 1,
+      }));
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const updatedMenu = get(contextMenu);
+      execute(updatedMenu.item!.actions[updatedMenu.activeIndex]?.id, updatedMenu.item!.name, get(query));
+      closeContextMenu();
+      return;
+    }
+
+    // Let other keys fall through (typing still works)
+    return;
+  }
+
+  // --- Normal mode ---
 
   // Don't steal focus back to search bar when AI is showing
   if (!isAiMode && searchInput && document.activeElement !== searchInput) {
@@ -25,7 +80,6 @@ export function handleKeydown(
   }
 
   if (isAiMode) {
-    // Enter submits the query to AI
     if (event.key === "Enter") {
       event.preventDefault();
       const q = get(query).replace(/^ai\s+/i, "").trim();
@@ -61,6 +115,22 @@ export function handleKeydown(
     return;
   }
 
+  // Open context menu for active item with Ctrl+K
+  if (event.key === "k" && event.ctrlKey) {
+    event.preventDefault();
+    const items = get(resultItems);
+    const idx = get(activeIndex);
+    const item = items[idx];
+    if (item && item.actions.length > 1) {
+      // Position near the centre of the window as a fallback — the svelte
+      // component will reposition to the active row via a custom event if possible.
+      contextMenu.set({ open: true, item, x: 0, y: 0, activeIndex: 0 });
+      // Dispatch a custom event so the page can reposition to the active row
+      window.dispatchEvent(new CustomEvent("open-context-menu-at-active"));
+    }
+    return;
+  }
+
   const items = get(resultItems);
   if (!items || items.length === 0) return;
 
@@ -88,5 +158,5 @@ export function handleKeydown(
 }
 
 export function runItemAction(item: ResultItem) {
-  execute(item.action_id, item.name, get(query));
+  execute(item.actions[0]?.id, item.name, get(query));
 }

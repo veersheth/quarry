@@ -6,18 +6,21 @@
   import { backOut } from "svelte/easing";
   import RenderList from "$lib/RenderList.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
+  import ContextMenu from "$lib/ContextMenu.svelte";
   import {
     query,
     resultItems,
     resultType,
     activeIndex,
+    contextMenu,
+    openContextMenu,
+    closeContextMenu,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
   import { toasts } from "../stores/toasts";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
-  import RenderWebSearch from "$lib/RenderWebSearch.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
@@ -27,6 +30,28 @@
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
   let searchTimeout: ReturnType<typeof setTimeout>;
+  let resultsEl: HTMLDivElement;
+
+  function handleContextMenu(event: MouseEvent, item: import("../stores/search").ResultItem) {
+    if (item.actions.length <= 1) return;
+    event.preventDefault();
+    openContextMenu(item, event.clientX, event.clientY);
+  }
+
+  function handleOpenAtActive() {
+    const items = $resultItems;
+    const idx = $activeIndex;
+    const item = items[idx];
+    if (!item || item.actions.length <= 1) return;
+
+    const activeRow = resultsEl?.querySelector("[data-active='true']") as HTMLElement | null;
+    if (activeRow) {
+      const rect = activeRow.getBoundingClientRect();
+      openContextMenu(item, rect.left, rect.bottom + 4);
+    } else {
+      openContextMenu(item, window.innerWidth / 2, window.innerHeight / 2);
+    }
+  }
 
   interface Theme {
     background_color: string;
@@ -67,8 +92,12 @@
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) refresh();
     });
+
+    window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
+
     return () => {
       unlisten.then((fn) => fn());
+      window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
     };
   });
 
@@ -78,6 +107,7 @@
     searchTimeout = setTimeout(() => {
       search($query)
         .then((res) => {
+          if (res === null) return;
           resultItems.set(res.results);
           resultType.set(res.result_type);
           activeIndex.set(0);
@@ -110,14 +140,12 @@
       class="search"
       class:loading={isLoading}
     />
-    <div class="results" class:loading-overlay={isLoading}>
+    <div class="results" class:loading-overlay={isLoading} bind:this={resultsEl}>
       <div class="results-content" class:dimmed={isLoading}>
         {#if $resultType === "List"}
-          <RenderList listitems={$resultItems} {activeIndex} />
+          <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Grid"}
           <RenderEmojis listitems={$resultItems} {activeIndex} />
-        {:else if $resultType === "WebSearch"}
-          <RenderWebSearch listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Markdown"}
           <RenderMarkdown listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
@@ -125,7 +153,7 @@
         {:else if $resultType === "ColorPicker"}
           <RenderColorPicker />
         {:else if $resultType === "Home"}
-          <RenderList listitems={$resultItems} {activeIndex} />
+          <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Math"}
           <RenderMath listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Camera"}
@@ -138,6 +166,15 @@
       </div>
     </div>
   </div>
+
+  {#if $contextMenu.open && $contextMenu.item}
+    <ContextMenu
+      item={$contextMenu.item}
+      x={$contextMenu.x}
+      y={$contextMenu.y}
+      onClose={closeContextMenu}
+    />
+  {/if}
 
   <!-- Toasts -->
   <div class="toast-container">
@@ -258,7 +295,7 @@
     background: rgba(38, 38, 40, 0.90);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);  
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     color: rgba(255, 255, 255, 0.75);
   }
 

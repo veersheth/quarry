@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct SystemSearcher;
 
@@ -76,9 +76,9 @@ impl SearchProvider for SystemSearcher {
         let candidates: Vec<ResultItem> = SYSTEM_ACTIONS
             .iter()
             .map(|action| {
-                ResultItem::new(action.name, ActionData::ShellCommand {
+                ResultItem::new(action.name, vec![Action::new("Run", ActionData::ShellCommand {
                     command: action.command.to_string(),
-                })
+                })])
                 .description(action.description)
                 .icon(action.icon)
             })

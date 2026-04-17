@@ -1,5 +1,5 @@
 use super::super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use crate::usage_tracker::get_recent_entries;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
@@ -31,7 +31,7 @@ fn term_from_name(name: &str) -> &str {
 }
 
 fn make_item(label: String, url: String, description: impl Into<String>) -> ResultItem {
-    ResultItem::new(label, ActionData::OpenUrl { url })
+    ResultItem::new(label, vec![Action::new("Open", ActionData::OpenUrl { url })])
         .description(description)
         .icon("")
 }

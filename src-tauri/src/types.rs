@@ -1,26 +1,41 @@
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone)]
+pub struct Action {
+    pub id: String,
+    pub name: String,
+    #[serde(skip)]
+    pub data: ActionData,
+}
+
+impl Action {
+    pub fn new(name: impl Into<String>, data: ActionData) -> Self {
+        Self {
+            id: String::new(),
+            name: name.into(),
+            data,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
 pub struct ResultItem {
     pub name: String,
-    pub action_id: String,
+    pub actions: Vec<Action>,
     pub description: Option<String>,
     pub icon: Option<String>,
     /// For image clipboard entries: base64 PNG thumbnail for the UI to render
     pub thumbnail: Option<String>,
-    #[serde(skip)]
-    pub action: ActionData,
 }
 
 impl ResultItem {
-    pub fn new(name: impl Into<String>, action: ActionData) -> Self {
+    pub fn new(name: impl Into<String>, actions: Vec<Action>) -> Self {
         Self {
             name: name.into(),
-            action_id: String::new(),
+            actions,
             description: None,
             icon: None,
             thumbnail: None,
-            action,
         }
     }
 

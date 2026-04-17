@@ -1,5 +1,5 @@
 use super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
@@ -66,11 +66,6 @@ impl FileSearcher {
         entries.into_iter().map(|(p, _)| p).collect()
     }
 
-    /// Score `path` against a multi-word query.
-    ///
-    /// Every word must match somewhere; returns None if any word has no match.
-    /// Filename matches score 3× path-only matches so "readme" finds README.md
-    /// before a deeply-nested file that has "readme" in a parent folder name.
     fn score(query_words: &[&str], path: &Path) -> Option<i64> {
         let name = path
             .file_name()
@@ -83,7 +78,7 @@ impl FileSearcher {
             let name_score = MATCHER.fuzzy_match(&name, word).map(|s| s * 3);
             let path_score = MATCHER.fuzzy_match(&path_str, word);
             let word_score = match (name_score, path_score) {
-                (None, None) => return None, // all words must match
+                (None, None) => return None,
                 (a, b) => a.unwrap_or(0).max(b.unwrap_or(0)),
             };
             total += word_score;
@@ -102,7 +97,8 @@ impl FileSearcher {
                 .into_iter()
                 .filter_entry(|e| {
                     let name = e.file_name().to_str().unwrap_or("");
-                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                    !name.starts_with('.')
+                        && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
@@ -125,7 +121,11 @@ impl FileSearcher {
     }
 
     fn icon_for(path: &Path) -> &'static str {
-        if path.is_dir() { "icons/folder.png" } else { "icons/file.png" }
+        if path.is_dir() {
+            "icons/folder.png"
+        } else {
+            "icons/file.png"
+        }
     }
 
     fn path_to_result(path: PathBuf) -> ResultItem {
@@ -136,11 +136,47 @@ impl FileSearcher {
             .unwrap_or(&path_str)
             .to_string();
         let icon = Self::icon_for(&path);
-        ResultItem::new(name, ActionData::OpenUrl {
-            url: format!("file://{}", path_str),
-        })
-        .description(path_str)
-        .icon(icon)
+
+        let parent_dir = path.parent().map(|p| p.to_string_lossy().into_owned());
+
+        let mut actions = vec![
+            Action::new(
+                "Open",
+                ActionData::OpenUrl {
+                    url: format!("file://{}", path_str),
+                },
+            ),
+        ];
+
+        // Open containing directory
+        if let Some(dir) = &parent_dir {
+            actions.push(Action::new(
+                "Open Containing Folder",
+                ActionData::OpenUrl {
+                    url: format!("file://{}", dir),
+                },
+            ));
+        }
+
+        // Copy full path
+        actions.push(Action::new(
+            "Copy Path",
+            ActionData::CopyToClipboard {
+                text: path_str.clone(),
+            },
+        ));
+
+        // Copy filename
+        actions.push(Action::new(
+            "Copy Filename",
+            ActionData::CopyToClipboard {
+                text: name.clone(),
+            },
+        ));
+
+        ResultItem::new(name, actions)
+            .description(path_str)
+            .icon(icon)
     }
 }
 
@@ -148,10 +184,12 @@ impl SearchProvider for FileSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
-            return SearchResult { results: vec![], result_type: ResultType::List };
+            return SearchResult {
+                results: vec![],
+                result_type: ResultType::List,
+            };
         }
 
-        // Trailing slash → directory listing
         if trimmed.ends_with('/') {
             let path_str = trimmed.trim_end_matches('/');
             let dir = if let Some(p) = Self::resolve_explicit_path(path_str) {
@@ -171,11 +209,13 @@ impl SearchProvider for FileSearcher {
                     .map(Self::path_to_result)
                     .collect();
                 results.truncate(MAX_RESULTS);
-                return SearchResult { results, result_type: ResultType::List };
+                return SearchResult {
+                    results,
+                    result_type: ResultType::List,
+                };
             }
         }
 
-        // Absolute / home-relative path that exists
         if let Some(explicit) = Self::resolve_explicit_path(trimmed) {
             if explicit.exists() {
                 if explicit.is_dir() {
@@ -184,7 +224,10 @@ impl SearchProvider for FileSearcher {
                         .map(Self::path_to_result)
                         .collect();
                     results.truncate(MAX_RESULTS);
-                    return SearchResult { results, result_type: ResultType::List };
+                    return SearchResult {
+                        results,
+                        result_type: ResultType::List,
+                    };
                 } else {
                     return SearchResult {
                         results: vec![Self::path_to_result(explicit)],
@@ -194,7 +237,6 @@ impl SearchProvider for FileSearcher {
             }
         }
 
-        // "downloads/monke" → scope walk to that root, fuzzy on "monke"
         let (search_base_hint, fuzzy_query) = if let Some(sep) = trimmed.rfind('/') {
             let dir_part = &trimmed[..sep];
             let name_part = trimmed[sep + 1..].trim();
@@ -217,7 +259,10 @@ impl SearchProvider for FileSearcher {
 
         let query_words: Vec<&str> = fuzzy_query.split_whitespace().collect();
         if query_words.is_empty() {
-            return SearchResult { results: vec![], result_type: ResultType::List };
+            return SearchResult {
+                results: vec![],
+                result_type: ResultType::List,
+            };
         }
 
         let candidates = if let Some(base) = search_base_hint {
@@ -229,18 +274,24 @@ impl SearchProvider for FileSearcher {
                 .into_iter()
                 .filter_entry(|e| {
                     let name = e.file_name().to_str().unwrap_or("");
-                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                    !name.starts_with('.')
+                        && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
                 let path = entry.path().to_path_buf();
-                if seen.contains(&path) { continue; }
+                if seen.contains(&path) {
+                    continue;
+                }
                 if let Some(score) = Self::score(&query_words, &path) {
                     seen.insert(path.clone());
                     hits.push((path, score));
                 }
             }
-            hits.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| mtime_secs(&b.0).cmp(&mtime_secs(&a.0))));
+            hits.sort_by(|a, b| {
+                b.1.cmp(&a.1)
+                    .then_with(|| mtime_secs(&b.0).cmp(&mtime_secs(&a.0)))
+            });
             hits
         } else {
             Self::collect_candidates(&query_words)
@@ -252,7 +303,10 @@ impl SearchProvider for FileSearcher {
             .map(|(path, _)| Self::path_to_result(path))
             .collect();
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult {
+            results,
+            result_type: ResultType::List,
+        }
     }
 }
 

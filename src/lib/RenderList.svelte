@@ -9,12 +9,13 @@
 
   export let listitems: {
     name: string;
-    action_id: string;
+    actions: { id: string; name: string }[];
     description?: string;
     icon?: string;
   }[] = [];
 
   export let activeIndex: Writable<number> = writable(0);
+  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
 </script>
 
 <div class="result-list">
@@ -24,17 +25,17 @@
     <div
       class="result-item"
       class:active={index === $activeIndex}
+      data-active={index === $activeIndex}
       on:mouseenter={() => activeIndex.set(index)}
       on:click={() => handleClick(item)}
+      on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
       {#if item.icon}
+      {console.log(item.icon)}
         <img
           class="item-icon"
           src={item.icon}
           alt=""
-          on:error={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
         />
       {/if}
       <div class="item-text">
@@ -97,7 +98,7 @@
   }
 
   .item-name {
-    <!-- font-size: 15px; -->
+    font-size: 1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -107,7 +108,7 @@
 
   .item-desc {
     opacity: 0.4;
-    font-size: 13px;
+    font-size: 0.8rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

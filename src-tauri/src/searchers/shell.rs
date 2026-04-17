@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct ShellSearcher;
 
@@ -14,7 +14,7 @@ impl SearchProvider for ShellSearcher {
             vec![
                 ResultItem::new(
                     format!("Run: {}", cmd),
-                    ActionData::ShellCommand { command: cmd.to_string() },
+                    vec![Action::new("Run", ActionData::ShellCommand { command: cmd.to_string() })],
                 )
                 .description("Execute shell command"),
             ]
