@@ -80,13 +80,22 @@
     root.setProperty("--q-active-border-color", t.active_border_color);
   }
 
+  function forceRepaint() {
+    // since gnome sometimes doesn't apply scoped styles on launch. this is a fix
+    document.body.style.display = "none";
+    void document.body.offsetHeight;
+    document.body.style.display = "";
+  }
+
   async function refresh() {
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
+    requestAnimationFrame(forceRepaint);
     searchInput?.select();
   }
 
   onMount(async () => {
+    forceRepaint();
     appWindow = getCurrentWindow();
     await refresh();
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
