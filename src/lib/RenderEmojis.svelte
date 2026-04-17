@@ -14,6 +14,9 @@
   }[] = [];
 
   export let activeIndex: Writable<number> = writable(0);
+  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
+
+  type ResultItem = (typeof listitems)[number];
 </script>
 
 <div class="result-grid">
@@ -23,8 +26,10 @@
     <div
       class="grid-item"
       class:active={index === $activeIndex}
+      data-active={index === $activeIndex}
       on:mouseenter={() => activeIndex.set(index)}
       on:click={() => handleClick(item)}
+      on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
       <span class="emoji">{item.name}</span>
     </div>

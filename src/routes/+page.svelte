@@ -154,17 +154,17 @@
         {#if $resultType === "List"}
           <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Grid"}
-          <RenderEmojis listitems={$resultItems} {activeIndex} />
+          <RenderEmojis listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Markdown"}
           <RenderMarkdown listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
-          <RenderClipboard listitems={$resultItems} {activeIndex} />
+          <RenderClipboard listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "ColorPicker"}
           <RenderColorPicker />
         {:else if $resultType === "Home"}
           <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Math"}
-          <RenderMath listitems={$resultItems} {activeIndex} />
+          <RenderMath listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Camera"}
           <RenderCamera />
         {:else if $resultType === "Ai"}
@@ -301,7 +301,7 @@
     white-space: nowrap;
     z-index: 1000;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(38, 38, 40, 0.90);
+    background: rgba(40, 40, 40, 0.70);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);

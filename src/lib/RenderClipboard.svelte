@@ -11,6 +11,7 @@
     thumbnail?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
+  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
   $: activeColor = activeItem?.thumbnail ? null : getValidColor(activeItem?.name);
@@ -64,8 +65,10 @@
       <div
         class="result-item"
         class:active={index === $activeIndex}
+        data-active={index === $activeIndex}
         on:mouseenter={() => activeIndex.set(index)}
         on:click={() => handleClick(item)}
+        on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
       >
         <!-- NAME + SUBTITLE -->
         <div class="item-body">
