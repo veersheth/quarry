@@ -95,8 +95,8 @@
     border-radius: 16px;
     box-shadow:
       0 0px 10px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     padding: 8px;
     overflow: hidden;
   }
@@ -109,7 +109,6 @@
     padding: 12px 14px;
     border-radius: 13px;
     cursor: pointer;
-    transition: background 0.07s ease;
     user-select: none;
     color: var(--q-font-color, #fff);
   }
