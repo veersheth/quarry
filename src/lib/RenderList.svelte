@@ -13,7 +13,6 @@
     description?: string;
     icon?: string;
   }[] = [];
-
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
 </script>
@@ -25,13 +24,13 @@
     <div
       class="result-item"
       class:active={index === $activeIndex}
+      class:has-desc={!!item.description}
       data-active={index === $activeIndex}
       on:mouseenter={() => activeIndex.set(index)}
       on:click={() => handleClick(item)}
       on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
       {#if item.icon}
-      {console.log(item.icon)}
         <img
           class="item-icon"
           src={item.icon}
@@ -92,7 +91,7 @@
     flex: 1;
     min-width: 0;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 0.8rem;
     overflow: hidden;
   }
@@ -102,8 +101,14 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  /* Only cap name width when a description is also present */
+  .has-desc .item-name {
     flex-shrink: 0;
-    max-width: 40%;
+    max-width: 50%;
   }
 
   .item-desc {
@@ -112,6 +117,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
     min-width: 0;
   }
 </style>
