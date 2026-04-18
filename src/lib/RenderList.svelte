@@ -1,7 +1,12 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { runItemAction } from "./keyHandler";
+
+  function iconSrc(icon: string): string {
+    return icon.startsWith("/") ? convertFileSrc(icon) : icon;
+  }
 
   function handleClick(item: ResultItem) {
     runItemAction(item);
@@ -33,7 +38,7 @@
       {#if item.icon}
         <img
           class="item-icon"
-          src={item.icon}
+          src={iconSrc(item.icon)}
           alt=""
         />
       {/if}

@@ -1,8 +1,6 @@
-use base64::{engine::general_purpose, Engine};
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use once_cell::sync::Lazy;
 use tauri::AppHandle;
-use std::fs;
 
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
@@ -14,16 +12,10 @@ fn clean_exec_field(exec: &str) -> String {
         .join(" ")
 }
 
+// Returns the absolute filesystem path; the frontend converts it to an asset:// URL.
 fn resolve_icon(icon_name: &str) -> Option<String> {
     let path = freedesktop_icons::lookup(icon_name).with_size(64).find()?;
-    let bytes = fs::read(&path).ok()?;
-    let mime = if path.extension()?.to_str()? == "svg" {
-        "image/svg+xml"
-    } else {
-        "image/png"
-    };
-    let encoded = general_purpose::STANDARD.encode(&bytes);
-    Some(format!("data:{};base64,{}", mime, encoded))
+    path.to_str().map(|s| s.to_string())
 }
 
 #[derive(Clone)]
@@ -74,6 +66,11 @@ static APP_CACHE: Lazy<Vec<CachedApp>> = Lazy::new(|| {
 
     apps
 });
+
+/// Call at startup to build APP_CACHE eagerly in a background thread.
+pub fn warm() {
+    let _ = APP_CACHE.len();
+}
 
 pub struct AppSearcher;
 

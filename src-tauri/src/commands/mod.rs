@@ -1,5 +1,6 @@
 use regex::Regex;
 use base64::{engine::general_purpose, Engine};
+use once_cell::sync::Lazy;
 use std::sync::atomic::Ordering;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -26,6 +27,10 @@ use crate::searchers::web_searchers::{URLSearcher, WebSearcher};
 use crate::types::{ActionData, SearchResult};
 use crate::usage_tracker::boost_results_by_usage;
 use crate::{ACTION_REGISTRY, CLIPBOARD_MANAGER, CONFIG, SEARCH_SEQ, USAGE_HISTORY};
+
+// Triggers are built once from the static CONFIG and reused for every search.
+pub static TRIGGERS: Lazy<Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)>> =
+    Lazy::new(|| build_triggers(&CONFIG));
 
 // ---------------------------------------------------------
 // TRIGGER BUILDER
@@ -95,12 +100,10 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
     let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
     let query_clone = query.clone();
 
-    let cfg = CONFIG.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let triggers = build_triggers(&cfg);
         let mut result = None;
 
-        for (regex, searcher) in triggers.iter() {
+        for (regex, searcher) in TRIGGERS.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
                 let rest = caps.get(1).map_or("", |m| m.as_str());
                 result = Some(searcher.search(rest, &app));

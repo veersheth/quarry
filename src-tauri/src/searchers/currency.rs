@@ -1,8 +1,16 @@
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
+
+// Cache conversion results for 1 hour; key is "amount:FROM:TO"
+static CURRENCY_CACHE: Lazy<DashMap<String, (Instant, SearchResult)>> =
+    Lazy::new(DashMap::new);
+const CACHE_TTL: Duration = Duration::from_secs(3600);
 
 pub struct CurrencySearcher;
 
@@ -190,7 +198,17 @@ impl SearchProvider for CurrencySearcher {
             return error_result("Source and target currencies must differ.");
         }
 
-        match fetch_conversion(parsed.amount, &parsed.from, &parsed.to) {
+        let cache_key = format!("{:.6}:{}:{}", parsed.amount, parsed.from, parsed.to);
+
+        // Return cached result if fresh
+        if let Some(entry) = CURRENCY_CACHE.get(&cache_key) {
+            let (ts, result) = entry.value();
+            if ts.elapsed() < CACHE_TTL {
+                return result.clone();
+            }
+        }
+
+        let result = match fetch_conversion(parsed.amount, &parsed.from, &parsed.to) {
             Ok(data) => {
                 let converted = data.rates.get(&parsed.to).copied().unwrap_or(0.0);
                 let rate = converted / parsed.amount;
@@ -235,7 +253,14 @@ impl SearchProvider for CurrencySearcher {
                 };
                 error_result(&msg)
             }
+        };
+
+        // Cache successful (non-error) results
+        if result.results.first().map_or(false, |r| r.name != "Currency error") {
+            CURRENCY_CACHE.insert(cache_key, (Instant::now(), result.clone()));
         }
+
+        result
     }
 }
 

@@ -1,7 +1,12 @@
 use tauri::AppHandle;
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
 use serde::Deserialize;
+
+// Dictionary definitions don't change — cache indefinitely for the session
+static DICT_CACHE: Lazy<DashMap<String, SearchResult>> = Lazy::new(DashMap::new);
 
 pub struct DictionarySearcher;
 
@@ -42,6 +47,10 @@ impl SearchProvider for DictionarySearcher {
                 results: vec![],
                 result_type: ResultType::Markdown,
             };
+        }
+
+        if let Some(cached) = DICT_CACHE.get(word) {
+            return cached.clone();
         }
 
         let url = format!("https://api.dictionaryapi.dev/api/v2/entries/en/{}", word);
@@ -102,9 +111,12 @@ impl SearchProvider for DictionarySearcher {
             );
         }
 
-        SearchResult {
+        let result = SearchResult {
             results,
             result_type: ResultType::Markdown,
-        }
+        };
+
+        DICT_CACHE.insert(word.to_string(), result.clone());
+        result
     }
 }
