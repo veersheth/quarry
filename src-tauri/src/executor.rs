@@ -18,6 +18,8 @@ pub fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Result<(), 
             run_custom_function(&function_name, &params, app)
         }
         ActionData::ShellCommand { command } => run_shell_command(&command),
+        ActionData::RunScript { path } => run_script(&path),
+        ActionData::OpenInTerminal { path } => open_in_terminal(&path),
         ActionData::None => Ok(()),
     }
 }
@@ -91,6 +93,114 @@ fn run_shell_command(command: &str) -> Result<(), String> {
         .stderr(std::process::Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to run shell command: {}", e))?;
+    Ok(())
+}
+
+/// Run a script file in a visible terminal window so the user sees output.
+fn run_script(path: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // Use osascript to open Terminal and run the script
+        let script = format!(
+            r#"tell application "Terminal"
+                activate
+                do script "{}"
+            end tell"#,
+            path.replace('"', "\\\"")
+        );
+        Command::new("osascript")
+            .arg("-e")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("Failed to open Terminal: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let cmd_simple = format!("{path}; exec bash");
+        let cmd_wrapped = format!("sh -c '{path}; exec bash'");
+        let launched: &[(&str, &[&str])] = &[
+            ("gnome-terminal", &["--", "sh", "-c", &cmd_simple]),
+            ("kitty",          &["sh", "-c", &cmd_simple]),
+            ("alacritty",      &["-e", "sh", "-c", &cmd_simple]),
+            ("xfce4-terminal", &["-e", &cmd_wrapped]),
+            ("xterm",          &["-e", &cmd_wrapped]),
+        ];
+        let mut ok = false;
+        for (term, args) in launched {
+            if Command::new(term).args(*args).spawn().is_ok() {
+                ok = true;
+                break;
+            }
+        }
+        if !ok {
+            return Err("No supported terminal emulator found".to_string());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/c", "start", "cmd", "/k", path])
+            .spawn()
+            .map_err(|e| format!("Failed to open cmd: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Open a directory in the system terminal.
+fn open_in_terminal(path: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            r#"tell application "Terminal"
+                activate
+                do script "cd {}"
+            end tell"#,
+            path.replace('"', "\\\"")
+        );
+        Command::new("osascript")
+            .arg("-e")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("Failed to open Terminal: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let launched = [
+            ("gnome-terminal", vec!["--working-directory".to_string(), path.to_string()]),
+            ("kitty",          vec!["--directory".to_string(),         path.to_string()]),
+            ("alacritty",      vec!["--working-directory".to_string(), path.to_string()]),
+            ("xfce4-terminal", vec!["--working-directory".to_string(), path.to_string()]),
+            ("xterm",          vec!["-e".to_string(), format!("cd {path:?} && bash")]),
+        ];
+        let mut ok = false;
+        for (term, args) in &launched {
+            if Command::new(term).args(args).spawn().is_ok() {
+                ok = true;
+                break;
+            }
+        }
+        if !ok {
+            return Err("No supported terminal emulator found".to_string());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Try Windows Terminal first, fall back to cmd
+        let wt = Command::new("wt").args(["-d", path]).spawn();
+        if wt.is_err() {
+            Command::new("cmd")
+                .args(["/c", "start", "cmd"])
+                .current_dir(path)
+                .spawn()
+                .map_err(|e| format!("Failed to open cmd: {}", e))?;
+        }
+    }
+
     Ok(())
 }
 

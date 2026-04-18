@@ -82,15 +82,14 @@ pub enum ActionData {
     LaunchApp { executable: String, args: Vec<String> },
     OpenUrl { url: String },
     CopyToClipboard { text: String },
-    /// Copies a full-resolution PNG (as base64 data URI) back to the system clipboard
     CopyImageToClipboard { base64_png: String, width: u32, height: u32 },
     RunFunction { function_name: String, params: Vec<String> },
     ShellCommand { command: String },
+    RunScript { path: String },
+    OpenInTerminal { path: String },
 }
 
 impl ActionData {
-    /// A stable identifier derived from action content, not search sequence numbers.
-    /// Used for usage history so repeated use of the same action accumulates correctly.
     pub fn stable_id(&self) -> String {
         match self {
             ActionData::LaunchApp { executable, .. } => format!("app:{}", executable),
@@ -103,6 +102,33 @@ impl ActionData {
                 format!("fn:{}:{}", function_name, params.join(","))
             }
             ActionData::ShellCommand { command } => format!("shell:{}", command),
+            ActionData::RunScript { path } => {
+                #[cfg(target_os = "macos")]
+                std::process::Command::new("open")
+                    .args(["-a", "Terminal", &path])
+                    .spawn().ok();
+                #[cfg(target_os = "linux")]
+                for term in &[ "wezterm", "ghostty", "kitty", "alacritty", "xterm", "gnome-terminal"] {
+                    if std::process::Command::new(term)
+                        .arg("--").arg(&path)
+                        .spawn().is_ok() { break; }
+                }
+                "ok".to_string()
+            },
+
+            ActionData::OpenInTerminal { path } => {
+                #[cfg(target_os = "macos")]
+                std::process::Command::new("open")
+                    .args(["-a", "Terminal", &path])
+                    .spawn().ok();
+                #[cfg(target_os = "linux")]
+                for term in &[ "wezterm", "ghostty", "kitty", "alacritty", "xterm", "gnome-terminal"] {
+                    if std::process::Command::new(term)
+                        .arg("--working-directory").arg(&path)
+                        .spawn().is_ok() { break; }
+                }
+                "ok".to_string()
+            }
             ActionData::None => "none".to_string(),
         }
     }

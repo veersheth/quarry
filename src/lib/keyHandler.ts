@@ -115,17 +115,14 @@ export function handleKeydown(
     return;
   }
 
-  // Open context menu for active item with Ctrl+K
-  if (event.key === "k" && event.ctrlKey) {
+  // Open context menu for active item with alt/ctrl k
+  if (event.key === "k" && (event.altKey || event.ctrlKey)) {
     event.preventDefault();
     const items = get(resultItems);
     const idx = get(activeIndex);
     const item = items[idx];
     if (item && item.actions.length > 1) {
-      // Position near the centre of the window as a fallback — the svelte
-      // component will reposition to the active row via a custom event if possible.
       contextMenu.set({ open: true, item, x: 0, y: 0, activeIndex: 0 });
-      // Dispatch a custom event so the page can reposition to the active row
       window.dispatchEvent(new CustomEvent("open-context-menu-at-active"));
     }
     return;

@@ -17,6 +17,19 @@ const SKIP_DIRS: &[&str] = &[
     "bin", "obj", ".cache", "__MACOSX",
 ];
 
+const SCRIPT_EXTENSIONS: &[&str] = &[
+    "sh", "bash", "zsh", "fish",           
+    "py",                                  
+    "rb",                                  
+    "js", "mjs", "ts",                     
+    "pl", "pm",                            
+    "lua",                                 
+    "ps1",                                 
+    "bat", "cmd",                          
+    "r",                                   
+    "php",                                 
+];
+
 static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(SkimMatcherV2::default);
 
 pub struct FileSearcher;
@@ -139,16 +152,40 @@ impl FileSearcher {
 
         let parent_dir = path.parent().map(|p| p.to_string_lossy().into_owned());
 
-        let mut actions = vec![
-            Action::new(
-                "Open",
-                ActionData::OpenUrl {
-                    url: format!("file://{}", path_str),
-                },
-            ),
-        ];
+        let open_action = Action::new(
+            "Open",
+            ActionData::OpenUrl {
+                url: format!("file://{}", path_str),
+            },
+        );
 
-        // Open containing directory
+        let mut actions: Vec<Action> = Vec::new();
+
+        // ── Scripts: Run is the primary action, Open is secondary ──
+        if is_script(&path) {
+            actions.push(Action::new(
+                "Run",
+                ActionData:: {
+                    path: path_str.clone(),
+                },
+            ));
+            actions.push(open_action);
+        } else {
+            // Everything else: Open is primary
+            actions.push(open_action);
+        }
+
+        // Folders: Open in Terminal
+        if path.is_dir() {
+            actions.push(Action::new(
+                "Open in Terminal",
+                ActionData::OpenInTerminal {
+                    path: path_str.clone(),
+                },
+            ));
+        }
+
+        // Open containing folder
         if let Some(dir) = &parent_dir {
             actions.push(Action::new(
                 "Open Containing Folder",
@@ -178,6 +215,37 @@ impl FileSearcher {
             .description(path_str)
             .icon(icon)
     }
+}
+
+/// Returns true if the file should be treated as a runnable script.
+/// Matches by extension first, then falls back to the executable bit on Unix.
+fn is_script(path: &Path) -> bool {
+    if path.is_dir() {
+        return false;
+    }
+
+    // Check extension
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        if SCRIPT_EXTENSIONS.contains(&ext.to_lowercase().as_str()) {
+            return true;
+        }
+    }
+
+    // On Unix, also treat executable files with no extension as scripts
+    // (e.g. a compiled-away shebang script named "deploy")
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(path) {
+            let mode = meta.permissions().mode();
+            // owner, group, or other execute bit set
+            if mode & 0o111 != 0 {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 impl SearchProvider for FileSearcher {
