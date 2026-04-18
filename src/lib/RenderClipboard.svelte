@@ -11,10 +11,94 @@
     thumbnail?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
-  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
+  export let onContextMenu:
+    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
   $: activeColor = activeItem?.thumbnail ? null : getValidColor(activeItem?.name);
+  $: contentType = activeItem ? detectType(activeItem) : ("text" as ContentType);
+  $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType) : [];
+
+  type UrlMeta = {
+    favicon: string | null;
+    thumbnail: string | null;
+    title: string | null;
+  };
+
+  const urlMetaCache = new Map<string, UrlMeta | "loading" | "error">();
+  let urlMeta: Record<string, UrlMeta | "loading" | "error"> = {};
+
+  function faviconFor(hostname: string): string {
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+  }
+
+  function youtubeVideoId(url: string): string | null {
+    try {
+      const u = new URL(url);
+      if (u.hostname === "youtu.be") return u.pathname.slice(1).split("?")[0] || null;
+      if (u.hostname.includes("youtube.com")) {
+        const v = u.searchParams.get("v");
+        if (v) return v;
+        const parts = u.pathname.split("/").filter(Boolean);
+        const idx = parts.findIndex((p) => ["shorts", "embed", "v"].includes(p));
+        if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  function youtubeThumbnail(videoId: string): string {
+    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  }
+
+  async function fetchUrlMeta(url: string): Promise<void> {
+    if (urlMetaCache.has(url)) return;
+    urlMetaCache.set(url, "loading");
+    urlMeta = { ...urlMeta, [url]: "loading" };
+
+    try {
+      const u = new URL(url);
+      const hostname = u.hostname;
+      const ytId = youtubeVideoId(url);
+
+      if (ytId) {
+        const meta: UrlMeta = { favicon: faviconFor(hostname), thumbnail: youtubeThumbnail(ytId), title: null };
+        urlMetaCache.set(url, meta);
+        urlMeta = { ...urlMeta, [url]: meta };
+        return;
+      }
+
+      const meta: UrlMeta = { favicon: faviconFor(hostname), thumbnail: null, title: null };
+      urlMetaCache.set(url, meta);
+      urlMeta = { ...urlMeta, [url]: meta };
+    } catch {
+      urlMetaCache.set(url, "error");
+      urlMeta = { ...urlMeta, [url]: "error" };
+    }
+  }
+
+  $: {
+    for (const item of listitems) {
+      if (isURL(item.name) && !urlMetaCache.has(item.name)) {
+        fetchUrlMeta(item.name);
+      }
+    }
+  }
+
+  function getUrlMeta(url: string): UrlMeta | null {
+    const m = urlMeta[url];
+    if (!m || m === "loading" || m === "error") return null;
+    return m;
+  }
+
+  function getUrlFavicon(url: string): string | null {
+    return getUrlMeta(url)?.favicon ?? null;
+  }
+
+  function getUrlThumbnail(url: string): string | null {
+    return getUrlMeta(url)?.thumbnail ?? null;
+  }
 
   function handleClick(item: typeof listitems[0]) {
     runItemAction(item as unknown as ResultItem);
@@ -32,9 +116,9 @@
     const now = Date.now() / 1000;
     const age = now - ts;
     if (age < 60) return "just now";
-    if (age < 3600) return `${Math.floor(age / 60)} min ago`;
-    if (age < 86400) return `${Math.floor(age / 3600)} hr ago`;
-    return `${Math.floor(age / 86400)} days ago`;
+    if (age < 3600) return `${Math.floor(age / 60)}m ago`;
+    if (age < 86400) return `${Math.floor(age / 3600)}h ago`;
+    return `${Math.floor(age / 86400)}d ago`;
   }
 
   function getValidColor(str: string | undefined): string | null {
@@ -45,19 +129,147 @@
     const nakedRgb = /^(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*[\d.]+)?$/;
     if (nakedRgb.test(trimmed)) return `rgb(${trimmed})`;
     const nakedHsl = /^(\d{1,3})°?,\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*[\d.]+)?$/;
-    if (nakedHsl.test(trimmed)) return `hsl(${trimmed.replace('°', '')})`;
+    if (nakedHsl.test(trimmed)) return `hsl(${trimmed.replace("°", "")})`;
     return null;
   }
 
-  function itemType(item: typeof listitems[0]): "image" | "color" | "text" {
+  type ContentType =
+    | "image" | "color" | "url" | "email" | "json" | "code" | "multiline" | "text";
+
+  function detectType(item: typeof listitems[0]): ContentType {
     if (item.thumbnail) return "image";
-    if (getValidColor(item.name)) return "color";
+    const v = item.name?.trim() ?? "";
+    if (getValidColor(v)) return "color";
+    if (isURL(v)) return "url";
+    if (isEmail(v)) return "email";
+    if (isJSON(v)) return "json";
+    if (isCode(v)) return "code";
+    if (v.includes("\n")) return "multiline";
     return "text";
+  }
+
+  function isURL(v: string): boolean {
+    try {
+      const u = new URL(v);
+      return u.protocol === "http:" || u.protocol === "https:" || u.protocol === "ftp:";
+    } catch { return false; }
+  }
+
+  function isEmail(v: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  }
+
+  function isJSON(v: string): boolean {
+    if (!/^[\[{]/.test(v.trim())) return false;
+    try { JSON.parse(v); return true; } catch { return false; }
+  }
+
+  const CODE_PATTERNS = [
+    /^(import|export|from|require|const|let|var|function|class|def|fn|pub|use|#include|package|namespace)\s/m,
+    /^\s*(if|for|while|switch|match|try|catch)\s*[\(\{]/m,
+    /[;{}]\s*\n/,
+    /\/\/.*\n|\/\*[\s\S]*?\*\//,
+    /^\s{2,}|\t/m,
+  ];
+
+  function isCode(v: string): boolean {
+    if (!v.includes("\n")) return false;
+    return CODE_PATTERNS.filter((p) => p.test(v)).length >= 2;
+  }
+
+  function parseURL(v: string) {
+    try {
+      const u = new URL(v);
+      return {
+        hostname: u.hostname,
+        path: u.pathname + u.search + u.hash,
+        display: u.hostname.replace(/^www\./, ""),
+      };
+    } catch { return null; }
+  }
+
+  function prettyJSON(v: string): string {
+    try { return JSON.stringify(JSON.parse(v), null, 2); } catch { return v; }
+  }
+
+  function jsonStats(v: string): { keys: number; depth: number; type: string } {
+    try {
+      const parsed = JSON.parse(v);
+      const type = Array.isArray(parsed) ? "array" : typeof parsed;
+      const keys = type === "array" ? parsed.length : Object.keys(parsed).length;
+      function maxDepth(o: unknown, d = 0): number {
+        if (typeof o !== "object" || o === null) return d;
+        const values = Object.values(o as Record<string, unknown>);
+        if (values.length === 0) return d;
+        return Math.max(...values.map((v) => maxDepth(v, d + 1)));
+      }
+      return { keys, depth: maxDepth(parsed), type };
+    } catch { return { keys: 0, depth: 0, type: "unknown" }; }
+  }
+
+  function guessLang(v: string): string {
+    if (/^\s*(import|export|from|const|let|var|=>|function|class)\s/m.test(v)) return "js/ts";
+    if (/^\s*(def |import |from .* import|class .*:)/m.test(v)) return "python";
+    if (/^\s*(fn |pub |use |let mut|impl |struct )/m.test(v)) return "rust";
+    if (/^\s*(func |package |import ")/m.test(v)) return "go";
+    if (/#include|std::|cout|cin/.test(v)) return "c/c++";
+    if (/<\?php|echo\s/.test(v)) return "php";
+    if (/^\s*(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE)\s/im.test(v)) return "sql";
+    if (/^\s*(<[a-z][\w-]*[\s>]|<\/[a-z])/im.test(v)) return "html";
+    if (/^\s*[\w-]+\s*:\s*[\w#"'].*;?$/m.test(v)) return "css";
+    if (/^\s*[\w]+:\s*\n|^---/m.test(v)) return "yaml";
+    return "code";
+  }
+
+  function textStats(v: string) {
+    const lines = v.split("\n");
+    const words = v.trim().split(/\s+/).filter(Boolean).length;
+    return { lines: lines.length, words, chars: v.length };
+  }
+
+  function parseEmail(v: string) {
+    const [local, domain] = v.split("@");
+    return { local, domain };
+  }
+
+  function getFooterMeta(item: typeof listitems[0], type: ContentType): string[] {
+    const v = item.name ?? "";
+    switch (type) {
+      case "code": {
+        const s = textStats(v);
+        return [guessLang(v), `${s.lines} lines`];
+      }
+      case "json": {
+        const s = jsonStats(v);
+        return [s.type, `${s.keys} ${s.type === "array" ? "items" : "keys"}`, `depth ${s.depth}`, `${v.length} chars`];
+      }
+      case "multiline":
+      case "text": {
+        const s = textStats(v);
+        const parts = [`${s.words} words`, `${s.chars} chars`];
+        if (s.lines > 1) parts.unshift(`${s.lines} lines`);
+        return parts;
+      }
+      case "url": {
+        const parsed = parseURL(v);
+        const ytId = youtubeVideoId(v);
+        const parts = parsed ? [parsed.display].filter(Boolean) : [];
+        if (ytId) parts.push("youtube");
+        return parts;
+      }
+      case "email": {
+        const p = parseEmail(v);
+        return [p.local, p.domain];
+      }
+      case "color":
+        return [v];
+      default:
+        return [];
+    }
   }
 </script>
 
 <div class="clipboard">
-  <!-- LEFT: list -->
   <div class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -70,44 +282,137 @@
         on:click={() => handleClick(item)}
         on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
       >
-        <!-- NAME + SUBTITLE -->
+        <div class="type-icon">
+          {#if item.thumbnail}
+            <img class="icon-thumb" src={item.thumbnail} alt="" />
+          {:else if getValidColor(item.name)}
+            <div class="icon-swatch" style:background-color={getValidColor(item.name)}></div>
+          {:else if isURL(item.name)}
+            {@const favicon = getUrlFavicon(item.name)}
+            {#if favicon}
+              <img
+                class="icon-favicon"
+                src={favicon}
+                alt=""
+                on:error={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.style.display = "none";
+                  (img.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "flex");
+                }}
+              />
+              <div class="icon-pill icon-url" style="display:none">url</div>
+            {:else}
+              <div class="icon-pill icon-url">url</div>
+            {/if}
+          {:else if isEmail(item.name)}
+            <div class="icon-pill icon-email">@</div>
+          {:else if isJSON(item.name)}
+            <div class="icon-pill icon-json">{"{}"}</div>
+          {:else if isCode(item.name)}
+            <div class="icon-pill icon-code">&lt;/&gt;</div>
+          {/if}
+        </div>
         <div class="item-body">
           <span class="item-name">{truncate(item.name, 22)}</span>
-        </div>
-        <div class="type-icon">
-          {#if itemType(item) === "image"}
-            <img class="icon-thumb" src={item.thumbnail} alt="" />
-          {:else if itemType(item) === "color"}
-            <div class="icon-swatch" style:background-color={getValidColor(item.name)}></div>
-          {/if}
         </div>
 
       </div>
     {/each}
   </div>
 
-  <!-- RIGHT: preview -->
   <div class="info-panel">
     {#if activeItem}
       <div class="preview-area">
-        {#if activeItem.thumbnail}
+
+        {#if contentType === "image"}
           <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} />
-        {:else if activeColor}
+
+        {:else if contentType === "color"}
           <div class="color-hero">
             <div class="checkerboard">
               <div class="main-swatch" style:background-color={activeColor}></div>
             </div>
             <code class="color-value">{activeItem.name}</code>
           </div>
+
+        {:else if contentType === "url"}
+          {@const parsed = parseURL(activeItem.name)}
+          {@const meta = getUrlMeta(activeItem.name)}
+          {@const ytId = youtubeVideoId(activeItem.name)}
+          {#if parsed}
+            <div class="url-card">
+              <div class="inner-url-card">
+              <div class="url-header">
+                {#if meta?.favicon}
+                  <img
+                    class="url-favicon"
+                    src={meta.favicon}
+                    alt=""
+                    on:error={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                {/if}
+                <span class="url-hostname">{parsed.display}</span>
+              </div>
+
+              <div class="url-full">{activeItem.name}</div>
+
+              <!-- svelte-ignore a11y_invalid_attribute -->
+              <a class="url-open" href={activeItem.name} target="_blank" rel="noopener">
+                open in browser
+              </a>
+              </div>
+              {#if meta?.thumbnail}
+                <div class="url-thumb-wrap">
+                  <img
+                    class="url-thumb"
+                    src={meta.thumbnail}
+                    alt="thumbnail"
+                    on:error={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      if (img.parentElement) img.parentElement.style.display = "none";
+                    }}
+                  />
+                </div>
+              {/if}
+
+            </div>
+          {/if}
+
+        {:else if contentType === "email"}
+          <div class="email-card">
+            <div class="email-icon">✉</div>
+            <div class="email-address">{activeItem.name}</div>
+            <a class="url-open" href="mailto:{activeItem.name}">compose email ↗</a>
+          </div>
+
+        {:else if contentType === "json"}
+          <div class="json-container">
+            <pre class="json-preview">{prettyJSON(activeItem.name)}</pre>
+          </div>
+
+        {:else if contentType === "code"}
+          <div class="code-container">
+            <pre class="code-preview">{activeItem.name}</pre>
+          </div>
+
+        {:else if contentType === "multiline"}
+          <div class="multiline-container">
+            <div class="text-preview">{activeItem.name}</div>
+          </div>
+
         {:else}
-          <div class="text-preview">{activeItem.name}</div>
+          <div class="text-container">
+            <div class="text-preview">{activeItem.name}</div>
+          </div>
         {/if}
+
       </div>
 
       <div class="metadata">
-        <span class="type-badge type-{itemType(activeItem)}">
-          {itemType(activeItem)}
-        </span>
+        <span class="type-badge type-{contentType}">{contentType}</span>
+        {#each footerMeta as meta}
+          <span class="stat-chip">{meta}</span>
+        {/each}
         <span class="timestamp">{formatTimestamp(activeItem.description)}</span>
       </div>
     {/if}
@@ -121,7 +426,6 @@
     color: #eee;
   }
 
-  /* ── LEFT ── */
   .result-list {
     flex: 0 0 224px;
     border-right: 1px solid #333;
@@ -164,46 +468,45 @@
     object-fit: cover;
   }
 
+  /* Blue tint: shift hue toward blue, boost saturation */
+  .icon-favicon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    border-radius: 3px;
+  }
+
   .icon-swatch {
     width: 100%;
     height: 100%;
     border-radius: 50%;
   }
 
-  .icon-text {
-    width: 100%;
-    height: 100%;
-    background: #2a2a2a;
-    border: 1px solid #3a3a3a;
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #888;
+  .icon-pill {
+    font-size: 0.6rem;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    padding: 2px 5px;
+    border-radius: 5px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    font-weight: 600;
+    text-transform: uppercase;
   }
+  .icon-url   { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
+  .icon-email { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
+  .icon-json  { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
+  .icon-code  { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
 
-  /* text block */
-  .item-body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
+  .item-body { flex: 1; min-width: 0; }
 
   .item-name {
+    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 0.95rem;
   }
 
-  .item-sub {
-    font-size: 0.72rem;
-    color: #666;
-    white-space: nowrap;
-  }
-
-  /* ── RIGHT ── */
   .info-panel {
     flex: 1;
     display: flex;
@@ -218,6 +521,7 @@
     justify-content: center;
     padding: 24px;
     overflow: hidden;
+    min-height: 0;
   }
 
   .image-preview {
@@ -250,13 +554,10 @@
     border: 1px solid #333;
   }
 
-  .main-swatch {
-    width: 100%;
-    height: 100%;
-  }
+  .main-swatch { width: 100%; height: 100%; }
 
   .color-value {
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     font-size: 1.1rem;
     background: #222;
     padding: 8px 18px;
@@ -265,40 +566,222 @@
     border: 1px solid #333;
   }
 
-  .text-preview {
+  .url-card {
     width: 100%;
-    height: 100%;
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-family: 'JetBrains Mono', monospace;
-    color: #ffb5bc;
-    font-size: 0.95rem;
+    display: flex;
+    flex-direction: row;
+    background: #181818;
+    border: 1px solid #2e2e2e;
+    border-radius: 14px;
+    padding: 20px;
   }
 
-  /* ── FOOTER ── */
+  .inner-url-card {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 100%;
+    padding: 12px 12px 20px;
+    gap: 12px;
+  }
+
+  .url-thumb-wrap {
+    position: relative;
+    width: 40%;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #111;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+  }
+
+  .url-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .yt-play-badge {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: #fff;
+    background: radial-gradient(circle, rgba(0,0,0,0.55) 36%, transparent 70%);
+    pointer-events: none;
+    opacity: 0.85;
+  }
+
+  .url-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Blue tint on preview favicon too */
+  .url-favicon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .url-hostname {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #e2e8f0;
+  }
+
+  .url-full {
+    font-size: 0.78rem;
+    color: #60a5fa;
+    word-break: break-all;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    opacity: 0.8;
+  }
+
+  .url-open {
+    font-size: 0.78rem;
+    color: #fff;
+    text-decoration: underline;
+    opacity: 0.6;
+    align-self: flex-start;
+  }
+  .url-open:hover { opacity: 1; }
+
+  .email-card {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    background: #181818;
+    border: 1px solid #2e2e2e;
+    border-radius: 14px;
+    padding: 28px 20px;
+  }
+
+  .email-icon { font-size: 2.2rem; opacity: 0.3; }
+
+  .email-address {
+    font-size: 1rem;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    color: #c084fc;
+    word-break: break-all;
+    text-align: center;
+  }
+
+  .json-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .json-preview {
+    flex: 1;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.78rem;
+    color: #fb923c;
+    background: #181818;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    padding: 14px;
+    overflow: auto;
+    margin: 0;
+    white-space: pre;
+    line-height: 1.6;
+  }
+
+  .code-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .code-preview {
+    flex: 1;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.78rem;
+    color: #facc15;
+    background: #181818;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    padding: 14px;
+    overflow: auto;
+    margin: 0;
+    white-space: pre;
+    line-height: 1.6;
+  }
+
+  .multiline-container,
+  .text-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .text-preview {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+    <!-- font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace; -->
+    color: #ffb5bc;
+    font-size: 0.95rem;
+    overflow: auto;
+  }
+
   .metadata {
-    padding: 10px 16px;
+    padding: 8px 16px;
     border-top: 1px solid #2a2a2a;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
   }
 
   .type-badge {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     padding: 2px 8px;
     border-radius: 6px;
     text-transform: capitalize;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    margin-right: 2px;
   }
 
-  .type-badge.type-text   { background: #2a2a2a; color: #888;   border: 1px solid #3a3a3a; }
-  .type-badge.type-image  { background: #1a2a1a; color: #6a9;   border: 1px solid #2a3a2a; }
-  .type-badge.type-color  { background: #2a1a2a; color: #a6a;   border: 1px solid #3a2a3a; }
+  .type-badge.type-text      { background: #2a2a2a; color: #888;    border: 1px solid #3a3a3a; }
+  .type-badge.type-multiline { background: #2a2a2a; color: #888;    border: 1px solid #3a3a3a; }
+  .type-badge.type-image     { background: #1a2a1a; color: #6a9;    border: 1px solid #2a3a2a; }
+  .type-badge.type-color     { background: #2a1a2a; color: #a6a;    border: 1px solid #3a2a3a; }
+  .type-badge.type-url       { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
+  .type-badge.type-email     { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
+  .type-badge.type-json      { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
+  .type-badge.type-code      { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
+
+  .stat-chip {
+    font-size: 0.72rem;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    background: #1e1e1e;
+    border: 1px solid #2e2e2e;
+    color: #666;
+    padding: 2px 8px;
+    border-radius: 5px;
+  }
 
   .timestamp {
     margin-left: auto;
-    font-size: 0.9rem;
-    opacity: 0.4;
+    font-size: 0.78rem;
+    opacity: 0.35;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    white-space: nowrap;
   }
 </style>
