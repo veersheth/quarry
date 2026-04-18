@@ -90,6 +90,7 @@
     z-index: 500;
     min-width: 200px;
     max-width: 280px;
+    font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
     background: rgba(40, 40, 42, 0.70);
     border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 16px;

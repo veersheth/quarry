@@ -222,7 +222,7 @@
     color: var(--q-font-color, #ffffff);
     font-size: var(--q-font-size);
     font-family:
-      Inter,
+      "Inter",
       "Segoe UI",
       "Adwaita Sans",
       "Noto Color Emoji",

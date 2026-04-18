@@ -157,7 +157,7 @@
     color: white;
     overflow: hidden;
     box-sizing: border-box;
-    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }
 
   .editor-wrap {
@@ -190,7 +190,7 @@
   :global(.vim-mode .editor-wrap .cm-editor),
   :global(.vim-mode .editor-wrap .cm-content),
   :global(.vim-mode .editor-wrap .cm-line) {
-    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", monospace !important;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }
 
   :global(.editor-wrap .cm-scroller) {
@@ -239,7 +239,7 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 3px;
     color: rgba(255, 255, 255, 0.2);
-    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;

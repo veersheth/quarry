@@ -17,3 +17,8 @@
   {/each}
 </div>
 
+<style>
+  .toast-container {
+    font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
+  }
+</style>

@@ -60,7 +60,7 @@
   }
 
   .math-answer-bar {
-    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono", "Roboto Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     width: auto;
     display: flex;
     justify-content: center;

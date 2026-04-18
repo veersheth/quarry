@@ -103,7 +103,7 @@
   }
 
   .markdown-body :global(code) {
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     font-size: 0.85em;
     background: rgba(255, 255, 255, 0.1);
     padding: 0.15em 0.4em;

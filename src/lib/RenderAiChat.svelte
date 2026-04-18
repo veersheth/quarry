@@ -374,7 +374,7 @@
 
   .error-msg {
     font-size: 0.82rem;
-    font-family: "JetBrains Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     color: #f09595;
     margin: 0;
     opacity: 0.8;
@@ -393,7 +393,7 @@
   .md :global(li)    { margin-bottom: 0.25rem; line-height: 1.5; }
 
   .md :global(code) {
-    font-family: "JetBrains Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     padding: 0.1rem 0.3rem;
@@ -450,13 +450,13 @@
 
   .model {
     font-weight: 500;
-    font-family: "JetBrainsMono Nerd Font", "Cascadia Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }
 
   .link {
     text-decoration: none;
     color: #60a5fa;
-    font-family: "JetBrainsMono Nerd Font", "Cascadia Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }
 
   .usage {
@@ -464,6 +464,6 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
     padding: 6px 10px;
-    font-family: "JetBrainsMono Nerd Font", "Cascadia Mono", monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }
 </style>
