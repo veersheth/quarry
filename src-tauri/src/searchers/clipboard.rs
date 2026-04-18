@@ -24,14 +24,12 @@ impl SearchProvider for ClipboardSearcher {
         }
 
         let history = CLIPBOARD_MANAGER.get_history();
-
         let results = history
             .iter()
             .filter(|entry| {
                 if query.is_empty() {
                     return true;
                 }
-                // images match on their display label or the literal word "image"
                 entry
                     .display_text()
                     .to_lowercase()
@@ -40,23 +38,29 @@ impl SearchProvider for ClipboardSearcher {
             .map(|entry| match &entry.content {
                 ClipboardContent::Text { value } => ResultItem::new(
                     value.clone(),
-                    vec![Action::new("Copy", ActionData::CopyToClipboard { text: value.clone() })],
+                    vec![
+                        Action::new("Copy", ActionData::CopyToClipboard { text: value.clone() }),
+                        Action::new("Delete", ActionData::RunFunction {
+                            function_name: "delete_clipboard_entry".into(),
+                            params: vec![entry.timestamp.to_string()],
+                        }),
+                    ],
                 )
                 .description(format_timestamp(entry.timestamp)),
 
-                ClipboardContent::Image {
-                    thumbnail,
-                    full,
-                    width,
-                    height,
-                    ..
-                } => ResultItem::new(
+                ClipboardContent::Image { thumbnail, full, width, height, .. } => ResultItem::new(
                     format!("Image {}×{}", width, height),
-                    vec![Action::new("Copy", ActionData::CopyImageToClipboard {
-                        base64_png: full.clone(),
-                        width: *width,
-                        height: *height,
-                    })],
+                    vec![
+                        Action::new("Copy", ActionData::CopyImageToClipboard {
+                            base64_png: full.clone(),
+                            width: *width,
+                            height: *height,
+                        }),
+                        Action::new("Delete", ActionData::RunFunction {
+                            function_name: "delete_clipboard_entry".into(),
+                            params: vec![entry.timestamp.to_string()],
+                        }),
+                    ],
                 )
                 .description(format_timestamp(entry.timestamp))
                 .thumbnail(thumbnail.clone()),
@@ -76,7 +80,6 @@ fn format_timestamp(ts: u64) -> String {
         .unwrap()
         .as_secs();
     let age = now.saturating_sub(ts);
-
     if age < 60 {
         "just now".to_string()
     } else if age < 3600 {

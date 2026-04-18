@@ -161,17 +161,14 @@ impl FileSearcher {
 
         let mut actions: Vec<Action> = Vec::new();
 
-        // ── Scripts: Run is the primary action, Open is secondary ──
+        // Scripts: Run is the primary action, Open is secondary
         if is_script(&path) {
             actions.push(Action::new(
                 "Run",
-                ActionData:: {
-                    path: path_str.clone(),
-                },
+                ActionData::RunScript { path: path_str.clone() },
             ));
             actions.push(open_action);
         } else {
-            // Everything else: Open is primary
             actions.push(open_action);
         }
 
