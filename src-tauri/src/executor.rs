@@ -120,6 +120,8 @@ fn run_script(path: &str) -> Result<(), String> {
         let cmd_simple = format!("{path}; exec bash");
         let cmd_wrapped = format!("sh -c '{path}; exec bash'");
         let launched: &[(&str, &[&str])] = &[
+            ("wezterm",        &["start", "--", "sh", "-c", &cmd_simple]),
+            ("ghostty",        &["-e", "sh", "-c", &cmd_simple]),
             ("gnome-terminal", &["--", "sh", "-c", &cmd_simple]),
             ("kitty",          &["sh", "-c", &cmd_simple]),
             ("alacritty",      &["-e", "sh", "-c", &cmd_simple]),
