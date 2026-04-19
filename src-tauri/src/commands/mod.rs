@@ -129,8 +129,10 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         }
     }
 
-    if let Ok(history) = USAGE_HISTORY.read() {
-        search_result.results = boost_results_by_usage(search_result.results, &query, &history);
+    if !matches!(search_result.result_type, crate::types::ResultType::Clipboard) {
+        if let Ok(history) = USAGE_HISTORY.read() {
+            search_result.results = boost_results_by_usage(search_result.results, &query, &history);
+        }
     }
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
