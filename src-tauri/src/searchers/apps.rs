@@ -1,5 +1,7 @@
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use once_cell::sync::Lazy;
+use std::path::PathBuf;
+use std::sync::RwLock;
 use tauri::AppHandle;
 
 use super::SearchProvider;
@@ -26,7 +28,9 @@ struct CachedApp {
     icon: Option<String>,
 }
 
-static APP_CACHE: Lazy<Vec<CachedApp>> = Lazy::new(|| {
+static APP_CACHE: Lazy<RwLock<Vec<CachedApp>>> = Lazy::new(|| RwLock::new(build_app_list()));
+
+fn build_app_list() -> Vec<CachedApp> {
     let mut apps = Vec::new();
     let locales = get_languages_from_env();
     let entries = Iter::new(default_paths())
@@ -56,27 +60,30 @@ static APP_CACHE: Lazy<Vec<CachedApp>> = Lazy::new(|| {
 
         let icon = entry.icon().and_then(|i| resolve_icon(&i));
 
-        apps.push(CachedApp {
-            name,
-            exec,
-            description,
-            icon,
-        });
+        apps.push(CachedApp { name, exec, description, icon });
     }
 
     apps
-});
+}
 
 /// Call at startup to build APP_CACHE eagerly in a background thread.
 pub fn warm() {
-    let _ = APP_CACHE.len();
+    let _ = APP_CACHE.read().map(|g| g.len());
+}
+
+/// Rebuild APP_CACHE from disk (picks up newly installed apps).
+pub fn reload() {
+    if let Ok(mut cache) = APP_CACHE.write() {
+        *cache = build_app_list();
+    }
 }
 
 pub struct AppSearcher;
 
 impl SearchProvider for AppSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
-        let candidates: Vec<ResultItem> = APP_CACHE
+        let guard = APP_CACHE.read().unwrap_or_else(|e| e.into_inner());
+        let candidates: Vec<ResultItem> = guard
             .iter()
             .map(|cached_app| {
                 let parts: Vec<String> = cached_app
@@ -138,6 +145,7 @@ impl SearchProvider for AppSearcher {
                 item
             })
             .collect();
+        drop(guard);
 
         if query.is_empty() {
             let recent = crate::usage_tracker::get_recent_entries("", 30);

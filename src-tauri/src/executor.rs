@@ -236,6 +236,17 @@ fn run_custom_function(
             }
             BookmarksSearcher::remove_bookmark(&params[0]).map(|_| ())
         }
+        "reload_quarry" => {
+            // Rebuild file index immediately in background
+            crate::searchers::files::rebuild_index_now();
+            // Rebuild app cache in background
+            std::thread::spawn(|| crate::searchers::apps::reload());
+            // Reload the frontend webview to pick up config/style changes
+            if let Some(win) = app.get_webview_window("main") {
+                win.eval("location.reload()").ok();
+            }
+            Ok(())
+        }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
 }

@@ -2,6 +2,7 @@ use tauri::AppHandle;
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
+
 pub struct SystemSearcher;
 
 struct SystemAction {
@@ -83,6 +84,19 @@ impl SearchProvider for SystemSearcher {
                 .icon(action.icon)
             })
             .collect();
+
+        let mut candidates = candidates;
+        candidates.push(
+            ResultItem::new(
+                "Reload Quarry",
+                vec![Action::new("Reload", ActionData::RunFunction {
+                    function_name: "reload_quarry".to_string(),
+                    params: vec![],
+                })],
+            )
+            .description("Rebuild file index, refresh app list, reload styles")
+            .icon("icons/system/reboot.png"),
+        );
 
         let results = if q.is_empty() {
             candidates

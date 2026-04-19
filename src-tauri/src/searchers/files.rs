@@ -58,6 +58,16 @@ pub fn start_file_index() {
     });
 }
 
+/// Trigger an immediate index rebuild outside the normal refresh cycle.
+pub fn rebuild_index_now() {
+    std::thread::spawn(|| {
+        let entries = build_index_entries();
+        if let Ok(mut idx) = FILE_INDEX.write() {
+            idx.entries = entries;
+        }
+    });
+}
+
 fn build_index_entries() -> Vec<(PathBuf, u64)> {
     let mut entries = Vec::new();
     let mut seen = std::collections::HashSet::new();

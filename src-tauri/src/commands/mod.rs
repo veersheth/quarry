@@ -171,7 +171,7 @@ pub fn execute(
 
 #[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
-    CONFIG.theme.clone()
+    config::Config::load().theme
 }
 
 #[tauri::command]
