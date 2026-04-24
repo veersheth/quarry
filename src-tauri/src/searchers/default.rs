@@ -145,7 +145,8 @@ impl SearchProvider for DefaultSearcher {
         }
 
         if q.len() >= 2 {
-            let cfg = &*crate::CONFIG;
+            let cfg_guard = crate::CONFIG.read().unwrap();
+            let cfg = &*cfg_guard;
             let max = cfg.default_search.max_web_results;
 
             for name in &cfg.default_search.web_searches {

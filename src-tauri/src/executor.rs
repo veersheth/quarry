@@ -237,11 +237,19 @@ fn run_custom_function(
             BookmarksSearcher::remove_bookmark(&params[0]).map(|_| ())
         }
         "reload_quarry" => {
-            // Rebuild file index immediately in background
+            // Reload config from disk
+            if let Ok(mut cfg) = crate::CONFIG.write() {
+                *cfg = crate::config::Config::load();
+            }
+            // Rebuild triggers from new config
+            crate::commands::reload_triggers();
+            // Rebuild searcher caches in background
             crate::searchers::files::rebuild_index_now();
-            // Rebuild app cache in background
-            std::thread::spawn(|| crate::searchers::apps::reload());
-            // Reload the frontend webview to pick up config/style changes
+            std::thread::spawn(|| {
+                crate::searchers::apps::reload();
+                crate::searchers::settings::reload();
+            });
+            // Reload the frontend webview to pick up style changes
             if let Some(win) = app.get_webview_window("main") {
                 win.eval("location.reload()").ok();
             }

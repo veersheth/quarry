@@ -61,6 +61,12 @@ fn build_settings_list() -> Vec<SettingsEntry> {
     entries
 }
 
+pub fn reload() {
+    if let Ok(mut cache) = SETTINGS_CACHE.write() {
+        *cache = build_settings_list();
+    }
+}
+
 pub struct SettingsSearcher;
 
 impl SearchProvider for SettingsSearcher {

@@ -29,9 +29,14 @@ use crate::types::{ActionData, SearchResult};
 use crate::usage_tracker::boost_results_by_usage;
 use crate::{ACTION_REGISTRY, CLIPBOARD_MANAGER, CONFIG, SEARCH_SEQ, USAGE_HISTORY};
 
-// Triggers are built once from the static CONFIG and reused for every search.
-pub static TRIGGERS: Lazy<Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)>> =
-    Lazy::new(|| build_triggers(&CONFIG));
+pub static TRIGGERS: Lazy<std::sync::RwLock<Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)>>> =
+    Lazy::new(|| std::sync::RwLock::new(build_triggers(&CONFIG.read().unwrap())));
+
+pub fn reload_triggers() {
+    if let Ok(mut triggers) = TRIGGERS.write() {
+        *triggers = build_triggers(&CONFIG.read().unwrap());
+    }
+}
 
 // ---------------------------------------------------------
 // TRIGGER BUILDER
@@ -104,8 +109,9 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
     let result = tauri::async_runtime::spawn_blocking(move || {
         let mut result = None;
+        let triggers = TRIGGERS.read().unwrap();
 
-        for (regex, searcher) in TRIGGERS.iter() {
+        for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
                 let rest = caps.get(1).map_or("", |m| m.as_str());
                 result = Some(searcher.search(rest, &app));
@@ -215,7 +221,7 @@ pub fn write_note(content: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_groq_api_key() -> String {
-    CONFIG.groq_api_key.clone()
+    CONFIG.read().unwrap().groq_api_key.clone()
 }
 
 #[tauri::command]

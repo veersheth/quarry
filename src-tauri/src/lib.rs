@@ -34,9 +34,9 @@ use tauri::{
 pub(crate) static SEARCH_SEQ: AtomicU64 = AtomicU64::new(0);
 
 lazy_static! {
-    pub static ref CONFIG: config::Config = {
+    pub static ref CONFIG: RwLock<config::Config> = {
         config::Config::write_default_if_missing();
-        config::Config::load()
+        RwLock::new(config::Config::load())
     };
     pub static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     pub(crate) static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
@@ -56,7 +56,7 @@ lazy_static! {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let _ = &*CONFIG;
+    drop(CONFIG.read());
     CLIPBOARD_MANAGER.start_monitoring();
 
     // Warm caches in background so the first search is instant
