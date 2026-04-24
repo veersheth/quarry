@@ -7,6 +7,7 @@
   import rehypeSanitize from "rehype-sanitize";
   import rehypeStringify from "rehype-stringify";
   import { aiSubmitQuery } from "../stores/search";
+  import { onMount } from "svelte";
 
   const processor = unified()
     .use(remarkParse)
@@ -35,18 +36,56 @@
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let isTimeout = false;
   let lastTokens: number | null = null;
-  let glowState: "success" | "error" | "" = "";
 
-  function triggerGlow(type: "success" | "error") {
-    glowState = type;
-    setTimeout(() => (glowState = ""), 2000);
+  // Animation state
+  type GlowState = "idle" | "loading" | "streaming" | "success" | "error" | "settling";
+  let glowState: GlowState = "idle";
+  let beamVisible = false;
+  let mounted = false;
+
+  onMount(() => {
+    // Trigger the top-beam entrance animation shortly after mount
+    setTimeout(() => {
+      beamVisible = true;
+      mounted = true;
+    }, 120);
+  });
+
+  function setGlow(state: GlowState) {
+    glowState = state;
+  }
+
+  function triggerSuccess() {
+    setGlow("success");
+    setTimeout(() => setGlow("idle"), 2400);
+  }
+
+  function triggerError() {
+    setGlow("error");
+    setTimeout(() => setGlow("settling"), 2400);
+    setTimeout(() => setGlow("idle"), 3600);
   }
 
   function setError(label: string, detail: string) {
     errorLabel = label;
     response = detail;
     hasError = true;
-    triggerGlow("error");
+    triggerError();
+  }
+
+  // Flicker the border on each streaming chunk
+  let flickerTimeout: ReturnType<typeof setTimeout> | null = null;
+  function onChunkArrived() {
+    if (glowState === "streaming") {
+      const el = document.querySelector(".ai-border") as HTMLElement | null;
+      if (el) {
+        el.style.animationDuration = "0.45s, 1.7s";
+        if (flickerTimeout) clearTimeout(flickerTimeout);
+        flickerTimeout = setTimeout(() => {
+          el.style.animationDuration = "";
+        }, 320);
+      }
+    }
   }
 
   $: if ($aiSubmitQuery) stream($aiSubmitQuery);
@@ -62,6 +101,7 @@
     hasError = false;
     lastTokens = null;
     isTimeout = false;
+    setGlow("loading");
 
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
@@ -131,6 +171,7 @@
       const reader = res.body!.getReader();
       const dec = new TextDecoder();
       let buf = "";
+      let firstChunk = true;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -147,8 +188,16 @@
 
           try {
             const parsed = JSON.parse(d);
-            response += parsed.choices?.[0]?.delta?.content ?? "";
-            rendered = await parseMarkdown(response);
+            const delta = parsed.choices?.[0]?.delta?.content ?? "";
+            if (delta) {
+              if (firstChunk) {
+                firstChunk = false;
+                setGlow("streaming");
+              }
+              response += delta;
+              rendered = await parseMarkdown(response);
+              onChunkArrived();
+            }
             if (parsed.usage?.total_tokens) lastTokens = parsed.usage.total_tokens;
           } catch {}
         }
@@ -164,7 +213,7 @@
       if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
       if (!hasError) {
         rendered = await parseMarkdown(response);
-        triggerGlow("success");
+        triggerSuccess();
       }
       loading = false;
       aiSubmitQuery.set("");
@@ -174,59 +223,123 @@
 
 <svelte:head>
   <style>
+    /* @property registrations for animatable custom props */
     @property --ai-deg {
       syntax: "<angle>";
       inherits: true;
       initial-value: 0deg;
     }
-
-    @keyframes ai-spin {
-      to { --ai-deg: 360deg; }
+    @property --ai-border-opacity {
+      syntax: "<number>";
+      inherits: true;
+      initial-value: 0;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 0.4; transform: scale(1); }
-      50%       { opacity: 1;   transform: scale(1.2); }
+    /* ── Spin keyframes ───────────────────────────── */
+    @keyframes ai-spin-idle    { to { --ai-deg: 360deg; } }
+    @keyframes ai-spin-load    { to { --ai-deg: 360deg; } }
+    @keyframes ai-spin-stream  { to { --ai-deg: 360deg; } }
+    @keyframes ai-spin-success { to { --ai-deg: 360deg; } }
+    @keyframes ai-spin-error   { to { --ai-deg: 360deg; } }
+
+    /* ── Border opacity breathe / pulse ──────────── */
+    @keyframes idle-breathe {
+      0%, 100% { --ai-border-opacity: 0.13; }
+      50%       { --ai-border-opacity: 0.30; }
+    }
+    @keyframes load-pulse {
+      0%, 100% { --ai-border-opacity: 0.55; }
+      50%       { --ai-border-opacity: 1;    }
+    }
+    @keyframes stream-flicker {
+      0%, 100% { --ai-border-opacity: 0.60; }
+      33%       { --ai-border-opacity: 1;    }
+      66%       { --ai-border-opacity: 0.45; }
     }
 
-    @keyframes answer-glow {
-      0%   { box-shadow: 0 0 0px  rgba(59, 130, 246, 0); }
-      30%  { box-shadow: 0 0 28px rgba(64, 0, 255, 0.8); }
-      100% { box-shadow: 0 0 0px  rgba(59, 130, 246, 0); }
+    /* ── Wrap glow keyframes ──────────────────────── */
+    @keyframes success-bloom {
+      0%   { box-shadow: 0 0 0px   rgba(99,102,241,0);    }
+      18%  { box-shadow: 0 0 44px 10px rgba(99,102,241,0.52); }
+      55%  { box-shadow: 0 0 24px 3px  rgba(99,102,241,0.26); }
+      100% { box-shadow: 0 0 0px   rgba(99,102,241,0);    }
     }
-
-    @keyframes error-glow {
-      0%   { box-shadow: 0 0 0px  rgba(226, 75, 74, 0); }
-      30%  { box-shadow: 0 0 28px rgba(226, 75, 74, 0.8); }
-      100% { box-shadow: 0 0 0px  rgba(226, 75, 74, 0); }
+    @keyframes error-bloom {
+      0%   { box-shadow: 0 0 0px   rgba(220,38,38,0);    }
+      18%  { box-shadow: 0 0 44px 8px  rgba(220,38,38,0.50); }
+      55%  { box-shadow: 0 0 20px 2px  rgba(220,38,38,0.26); }
+      100% { box-shadow: 0 0 8px  1px  rgba(220,38,38,0.12); }
+    }
+    @keyframes settling-dim {
+      from { box-shadow: 0 0 8px 1px rgba(220,38,38,0.12); }
+      to   { box-shadow: 0 0 0px rgba(220,38,38,0); }
     }
 
     @keyframes shake {
-      0%, 100% { transform: translateX(0);  }
-      20%       { transform: translateX(-6px); }
-      40%       { transform: translateX(6px);  }
-      60%       { transform: translateX(-4px); }
-      80%       { transform: translateX(4px);  }
+      0%,100% { transform: translateX(0); }
+      15%     { transform: translateX(-7px) rotate(-0.4deg); }
+      30%     { transform: translateX(7px)  rotate(0.4deg);  }
+      50%     { transform: translateX(-5px); }
+      65%     { transform: translateX(5px);  }
+      80%     { transform: translateX(-2px); }
+    }
+
+    /* ── Dot loader ──────────────────────────────── */
+    @keyframes dot-pulse {
+      0%,80%,100% { transform: scale(0.65); opacity: 0.35; }
+      40%          { transform: scale(1.2);  opacity: 1;    }
+    }
+
+    /* ── TOP BEAM intro ──────────────────────────── */
+    @keyframes beam-slide {
+      0%   { transform: translateX(-100%); opacity: 0; }
+      10%  { opacity: 1; }
+      80%  { opacity: 1; }
+      100% { transform: translateX(100%);  opacity: 0; }
+    }
+    @keyframes beam-glow-fade {
+      0%   { opacity: 0; }
+      15%  { opacity: 1; }
+      75%  { opacity: 1; }
+      100% { opacity: 0; }
     }
   </style>
 </svelte:head>
 
 {#await apiKey then key}
   <div class="outer">
+
+    <!-- ── Top beam ───────────────────────────────── -->
+    <div class="beam-rail" aria-hidden="true">
+      <div class="beam-line" class:beam-active={beamVisible}></div>
+      <div class="beam-glow" class:beam-active={beamVisible}></div>
+    </div>
+
+    <!-- ── Main card ──────────────────────────────── -->
     <div
-      class="ai-container"
-      class:is-loading={loading}
-      class:has-response={rendered && !loading}
-      class:just-answered={glowState === "success"}
-      class:just-errored={glowState === "error"}
+      class="ai-wrap"
+      class:state-idle={glowState === "idle"}
+      class:state-loading={glowState === "loading"}
+      class:state-streaming={glowState === "streaming"}
+      class:state-success={glowState === "success"}
+      class:state-error={glowState === "error"}
+      class:state-settling={glowState === "settling"}
     >
-      <div class="inner">
+      <!-- animated conic border ring -->
+      <div class="ai-border" aria-hidden="true"></div>
+
+      <div
+        class="inner"
+        class:shake={glowState === "error"}
+      >
         {#if !key}
           <p class="dim">
             Add <code>groq_api_key = "gsk_..."</code> to ~/.config/quarry/config.toml
           </p>
         {:else if loading && !rendered}
-          <div class="dots"><span /><span /><span /></div>
+          <div class="dots">
+            <span></span><span></span><span></span>
+          </div>
         {:else if hasError}
           <div class="error-block">
             <span class="error-badge">{errorLabel}</span>
@@ -240,6 +353,7 @@
       </div>
     </div>
 
+    <!-- ── Footer ─────────────────────────────────── -->
     {#if key}
       <div class="footer">
         <span class="model">{MODEL.name}</span>
@@ -247,9 +361,12 @@
           {#if lastTokens !== null}
             <span class="usage">{lastTokens} tokens</span>
           {/if}
-          <a href={MODEL.dashboard} target="_blank" rel="noopener noreferrer" class="link">
-            Dashboard ↗
-          </a>
+          <a
+            href={MODEL.dashboard}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link"
+          >Dashboard ↗</a>
         </div>
       </div>
     {/if}
@@ -258,85 +375,176 @@
 
 <style>
   .outer {
-    height: 100%;
+    height: 99%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     font-size: 1rem;
   }
 
-  .ai-container {
+  .beam-rail {
+    position: relative;
+    width: 100%;
+    height: 2px;
+    overflow: hidden;
+    margin-bottom: -10px;
+    z-index: 10;
+  }
+
+  .beam-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 60%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(148,130,255,0.9) 20%,
+      #c4b5fd 45%,
+      #fff     50%,
+      #c4b5fd 55%,
+      rgba(148,130,255,0.4) 80%,
+      transparent 100%
+    );
+    border-radius: 2px;
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  .beam-line.beam-active {
+    animation: beam-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+  }
+
+  .beam-glow {
+    position: absolute;
+    top: -6px;
+    left: 0;
+    width: 100%;
+    height: 14px;
+    background: radial-gradient(
+      ellipse 55% 100% at 50% 0%,
+      rgba(139,92,246,0.35) 0%,
+      transparent 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+  }
+  .beam-glow.beam-active {
+    animation: beam-glow-fade 1.8s ease-out 0.1s forwards;
+  }
+
+  .ai-wrap {
     position: relative;
     margin: 20px;
-    padding: 1px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    transition: background 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow  0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    padding: 1.5px;
+    border-radius: 14px;
+    background: rgba(128,128,128,0.06);
+    transition:
+      background       0.6s cubic-bezier(0.22,1,0.36,1),
+      box-shadow       0.6s cubic-bezier(0.22,1,0.36,1);
   }
 
-  .ai-container::before {
-    content: "";
+  /* ── Conic border ring ────────────────────────────── */
+  .ai-border {
     position: absolute;
-    inset: -1px;
-    border-radius: 20px;
+    inset: -1.5px;
+    border-radius: 15.5px;
     padding: 2px;
+    /* default: indigo sweep */
     background: conic-gradient(
       from var(--ai-deg),
       transparent 0deg,
-      #3b82f6 120deg,
-      #60a5fa 180deg,
-      #93c5fd 240deg,
+      #6366f1  90deg,
+      #818cf8 170deg,
+      #a5b4fc 240deg,
       transparent 360deg
     );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
     -webkit-mask-composite: xor;
-            mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.4s ease;
+    /* idle default */
+    --ai-border-opacity: 0.18;
+    opacity: var(--ai-border-opacity);
+    animation:
+      idle-breathe 3.8s ease-in-out infinite,
+      ai-spin-idle 14s linear infinite;
+    transition: opacity 0.5s ease;
   }
 
-  .ai-container.is-loading::before {
-    opacity: 1;
-    animation: ai-spin 1.2s linear infinite;
+  /* ── State: loading ───────────────────────────────── */
+  .state-loading .ai-border {
+    --ai-border-opacity: 0.9;
+    animation:
+      load-pulse 1.1s ease-in-out infinite,
+      ai-spin-load 1.5s linear infinite;
+  }
+  .state-loading {
+    background: rgba(99,102,241,0.05);
   }
 
-  .ai-container.has-response {
-    background: rgba(59, 130, 246, 0.08);
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);
+  /* ── State: streaming ─────────────────────────────── */
+  .state-streaming .ai-border {
+    --ai-border-opacity: 0.72;
+    animation:
+      stream-flicker 0.7s ease-in-out infinite,
+      ai-spin-stream 2.0s linear infinite;
+  }
+  .state-streaming {
+    background: rgba(99,102,241,0.06);
   }
 
-  .ai-container.has-response::before {
-    opacity: 0.5;
-    animation: ai-spin 8s linear infinite;
+  /* ── State: success ───────────────────────────────── */
+  .state-success .ai-border {
+    --ai-border-opacity: 0.42;
+    animation:
+      ai-spin-success 9s linear infinite;
+  }
+  .state-success {
+    background: rgba(99,102,241,0.07);
+    animation: success-bloom 2.2s cubic-bezier(0.22,1,0.36,1) forwards;
   }
 
-  .ai-container.just-answered {
-    animation: answer-glow 2s ease-out forwards;
-  }
-
-  .ai-container.just-errored::before {
+  /* ── State: error ─────────────────────────────────── */
+  .state-error .ai-border {
+    --ai-border-opacity: 1;
     background: conic-gradient(
       from var(--ai-deg),
       transparent 0deg,
-      #e24b4a 120deg,
-      #f09595 180deg,
-      #fcc     240deg,
+      #dc2626  80deg,
+      #ef4444 160deg,
+      #fca5a5 220deg,
       transparent 360deg
     );
-    opacity: 1;
-    animation: ai-spin 1.8s linear infinite;
+    animation:
+      load-pulse 0.9s ease-in-out infinite,
+      ai-spin-error 1.6s linear infinite;
+  }
+  .state-error {
+    background: rgba(220,38,38,0.05);
+    animation: error-bloom 2.4s cubic-bezier(0.22,1,0.36,1) forwards;
   }
 
-  .ai-container.just-errored {
-    animation: error-glow 2s ease-out forwards;
+  /* ── State: settling (post-error wind-down) ────────── */
+  .state-settling .ai-border {
+    --ai-border-opacity: 0.18;
+    background: conic-gradient(
+      from var(--ai-deg),
+      transparent 0deg,
+      #6366f1  90deg,
+      #818cf8 170deg,
+      #a5b4fc 240deg,
+      transparent 360deg
+    );
+    animation:
+      idle-breathe 3.8s ease-in-out infinite,
+      ai-spin-idle 14s linear infinite;
+  }
+  .state-settling {
+    background: rgba(220,38,38,0.025);
+    animation: settling-dim 1.2s ease-out forwards;
   }
 
-  .ai-container.just-errored .inner {
-    animation: shake 0.45s ease-out;
-  }
-
+  /* ── Inner content pane ───────────────────────────── */
   .inner {
     border-radius: 12px;
     padding: 16px 18px;
@@ -346,11 +554,17 @@
     z-index: 1;
   }
 
+  .inner.shake {
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  /* ── Text ─────────────────────────────────────────── */
   .dim {
-    opacity: 0.4;
+    opacity: 0.38;
     margin: 0;
   }
 
+  /* ── Error block ──────────────────────────────────── */
   .error-block {
     display: flex;
     flex-direction: column;
@@ -360,86 +574,84 @@
   .error-badge {
     display: inline-flex;
     align-items: center;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    background: rgba(226, 75, 74, 0.12);
-    color: #f09595;
-    border: 1px solid rgba(226, 75, 74, 0.3);
+    background: rgba(220,38,38,0.10);
+    color: #f87171;
+    border: 1px solid rgba(220,38,38,0.24);
     border-radius: 6px;
     padding: 3px 10px;
     width: fit-content;
   }
 
   .error-msg {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    color: #f09595;
+    color: #fca5a5;
     margin: 0;
-    opacity: 0.8;
+    opacity: 0.85;
     word-break: break-all;
   }
 
-  .md :global(p)     { margin: 0 0 0.75rem; line-height: 1.6; }
+  /* ── Markdown output ──────────────────────────────── */
+  .md :global(p)               { margin: 0 0 0.75rem; line-height: 1.65; }
   .md :global(h1),
   .md :global(h2),
   .md :global(h3),
   .md :global(h4),
   .md :global(h5),
-  .md :global(h6)    { margin: 1rem 0 0.4rem; line-height: 1.3; font-weight: 600; }
+  .md :global(h6)              { margin: 1rem 0 0.4rem; line-height: 1.3; font-weight: 600; }
   .md :global(ul),
-  .md :global(ol)    { margin: 0 0 0.75rem 1.25rem; padding: 0; }
-  .md :global(li)    { margin-bottom: 0.25rem; line-height: 1.5; }
-
+  .md :global(ol)              { margin: 0 0 0.75rem 1.25rem; padding: 0; }
+  .md :global(li)              { margin-bottom: 0.25rem; line-height: 1.5; }
   .md :global(code) {
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255,255,255,0.1);
     border-radius: 4px;
     padding: 0.1rem 0.3rem;
     font-size: 0.875em;
   }
-
   .md :global(pre) {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0,0,0,0.3);
     border-radius: 8px;
     padding: 12px;
     overflow-x: auto;
     margin: 0 0 0.75rem;
   }
-
-  .md :global(pre code) { background: none; padding: 0; font-size: 0.875em; }
-
+  .md :global(pre code)        { background: none; padding: 0; font-size: 0.875em; }
   .md :global(blockquote) {
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid #6366f1;
     margin: 0 0 0.75rem;
     padding: 0.25rem 0 0.25rem 1rem;
     opacity: 0.8;
   }
-
-  .md :global(table)  { width: 100%; border-collapse: collapse; margin: 0 0 0.75rem; font-size: 0.9em; }
+  .md :global(table)           { width: 100%; border-collapse: collapse; margin: 0 0 0.75rem; font-size: 0.9em; }
   .md :global(th),
-  .md :global(td)     { border: 1px solid rgba(255, 255, 255, 0.15); padding: 6px 10px; text-align: left; }
-  .md :global(th)     { background: rgba(255, 255, 255, 0.07); font-weight: 600; }
-  .md :global(hr)     { border: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 1rem 0; }
-  .md :global(a)      { color: #60a5fa; text-decoration: none; }
-  .md :global(a:hover){ text-decoration: underline; }
-  .md :global(del)    { opacity: 0.6; }
+  .md :global(td)              { border: 1px solid rgba(255,255,255,0.14); padding: 6px 10px; text-align: left; }
+  .md :global(th)              { background: rgba(255,255,255,0.07); font-weight: 600; }
+  .md :global(hr)              { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1rem 0; }
+  .md :global(a)               { color: #818cf8; text-decoration: none; }
+  .md :global(a:hover)         { text-decoration: underline; }
+  .md :global(del)             { opacity: 0.6; }
 
-  .dots          { display: flex; gap: 5px; padding: 10px 0; }
-  .dots span     { width: 8px; height: 8px; background: #60a5fa; border-radius: 50%; animation: pulse 1.4s infinite ease-in-out; }
+  /* ── Dots loader ──────────────────────────────────── */
+  .dots          { display: flex; gap: 6px; padding: 10px 0; align-items: center; }
+  .dots span     { width: 8px; height: 8px; background: #818cf8; border-radius: 50%; animation: dot-pulse 1.4s ease-in-out infinite; }
   .dots span:nth-child(2) { animation-delay: 0.2s; }
   .dots span:nth-child(3) { animation-delay: 0.4s; }
 
+  /* ── Footer ───────────────────────────────────────── */
   .footer {
-    padding: 16px;
+    padding: 12px 16px 16px;
     display: flex;
     gap: 10px;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.8rem;
-    opacity: 0.6;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.78rem;
+    opacity: 0.55;
+    border-top: 1px solid rgba(255,255,255,0.08);
   }
 
   .footer-right {
@@ -451,19 +663,22 @@
   .model {
     font-weight: 500;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.74rem;
   }
 
   .link {
     text-decoration: none;
-    color: #60a5fa;
+    color: #818cf8;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.74rem;
   }
 
   .usage {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    padding: 6px 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 4px 10px;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.72rem;
   }
 </style>
