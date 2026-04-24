@@ -11,6 +11,7 @@ use crate::searchers::ai::AiSearcher;
 use crate::searchers::apps::AppSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::camera::CameraSearcher;
+use crate::searchers::settings::SettingsSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::currency::CurrencySearcher;
@@ -70,6 +71,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.url, "url", URLSearcher);
     push!(v, &t.currency, "currency", CurrencySearcher);
     push!(v, &t.note, "note", NoteSearcher);
+    push!(v, &t.settings, "settings", SettingsSearcher);
 
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {

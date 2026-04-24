@@ -148,6 +148,7 @@ pub struct TriggerConfig {
     pub note:         String,
     pub ai:           String,
     pub time:         String,
+    pub settings:     String,
 }
 
 impl Default for TriggerConfig {
@@ -170,6 +171,7 @@ impl Default for TriggerConfig {
             note:         r"^note$".into(),
             ai:           r"^ai\s+(.*)$".into(),
             time:         r"^time\s+(.*)$".into(),
+            settings:     r"^set\s*(.*)$".into(),
         }
     }
 }

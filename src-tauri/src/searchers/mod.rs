@@ -16,6 +16,7 @@ pub mod files;
 pub mod bookmarks;
 pub mod camera;
 pub mod note;
+pub mod settings;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;

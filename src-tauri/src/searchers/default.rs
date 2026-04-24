@@ -13,6 +13,7 @@ use crate::searchers::{
     files::FileSearcher,
     bookmarks::BookmarksSearcher,
     math::MathSearcher,
+    settings::SettingsSearcher,
     shell::ShellSearcher,
     system::SystemSearcher,
     web_searchers::WebSearcher,
@@ -74,6 +75,12 @@ impl SearchProvider for DefaultSearcher {
             ),
         );
 
+        let settings_results = if q.len() >= 3 {
+            SettingsSearcher.search(&q_owned, &app_handle).results
+        } else {
+            vec![]
+        };
+
         let mut scored: Vec<(ResultItem, i64)> = Vec::new();
         for item in app_results {
             let score = Self::score_item(&item, q);
@@ -91,6 +98,17 @@ impl SearchProvider for DefaultSearcher {
             let score = Self::score_item(&item, q);
             if score > 0 { scored.push((item, score)); }
         }
+
+        let mut settings_scored: Vec<(ResultItem, i64)> = settings_results
+            .into_iter()
+            .filter_map(|item| {
+                let score = Self::score_item(&item, q);
+                if score > 0 { Some((item, score)) } else { None }
+            })
+            .collect();
+        settings_scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        settings_scored.truncate(3);
+        scored.extend(settings_scored);
 
         scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
 
