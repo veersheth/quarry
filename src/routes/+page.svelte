@@ -160,7 +160,7 @@
         {:else if $resultType === "Clipboard"}
           <RenderClipboard listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "ColorPicker"}
-          <RenderColorPicker />
+          <RenderColorPicker initialColor={$resultItems[0]?.name ?? ""} />
         {:else if $resultType === "Home"}
           <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Math"}

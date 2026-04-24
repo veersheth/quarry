@@ -78,6 +78,14 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.note, "note", NoteSearcher);
     push!(v, &t.settings, "settings", SettingsSearcher);
 
+    // Detect raw pasted color values without requiring the "color" prefix.
+    push!(
+        v,
+        r"^(#[0-9a-fA-F]{3,8}|rgba?\s*\([^)]+\)|hsla?\s*\([^)]+\)|oklch\s*\([^)]+\))$",
+        "color_value",
+        ColorPicker
+    );
+
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {
             Ok(r) => v.push((

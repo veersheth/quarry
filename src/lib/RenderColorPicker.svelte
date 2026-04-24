@@ -1,9 +1,73 @@
 <script>
+  export let initialColor = "";
+
   let hue = 0;
   let saturation = 100;
   let lightness = 50;
   let isDraggingSL = false;
   let isDraggingHue = false;
+
+  // ── Color parsing ──────────────────────────────────────────
+
+  function hexToRgb(hex) {
+    let h = hex.replace("#", "");
+    if (h.length === 3 || h.length === 4)
+      h = h.split("").map((c) => c + c).join("");
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+
+  function parseColor(str) {
+    str = str.trim();
+    if (!str) return null;
+
+    // HEX
+    if (/^#[0-9a-fA-F]{3,8}$/.test(str)) {
+      const { r, g, b } = hexToRgb(str);
+      return rgbToHsl(r, g, b);
+    }
+
+    // RGB / RGBA
+    const rgb = str.match(/^rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+    if (rgb) return rgbToHsl(+rgb[1], +rgb[2], +rgb[3]);
+
+    // HSL / HSLA
+    const hsl = str.match(/^hsla?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?/);
+    if (hsl) return { h: Math.round(+hsl[1]), s: Math.round(+hsl[2]), l: Math.round(+hsl[3]) };
+
+    return null;
+  }
+
+  let lastInitialColor = "";
+  $: if (initialColor !== lastInitialColor) {
+    lastInitialColor = initialColor;
+    const parsed = parseColor(initialColor);
+    if (parsed) {
+      hue = parsed.h;
+      saturation = parsed.s;
+      lightness = parsed.l;
+    }
+  }
 
   let slPickerEl;
   let hueSliderEl;
