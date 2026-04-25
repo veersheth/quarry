@@ -91,13 +91,13 @@
     min-width: 200px;
     max-width: 280px;
     font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
-    background: rgba(40, 40, 42, 0.99);
-    border: 1px solid rgba(255, 255, 255, 0.20);
-    border-radius: 16px;
+    background: rgba(25, 25, 25, 0.00);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 24px;
     box-shadow:
       0 0px 10px rgba(0, 0, 0, 0.4);
-    <!-- -webkit-backdrop-filter: blur(6px); -->
-    padding: 8px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     overflow: hidden;
   }
 
@@ -106,8 +106,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    margin: 8px 6px;
     padding: 12px 14px;
-    border-radius: 13px;
+    border-radius: 12px;
     cursor: pointer;
     user-select: none;
     color: var(--q-font-color, #fff);
