@@ -119,7 +119,6 @@
 
   .item-desc {
     opacity: 0.4;
-    font-size: 0.8rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -12,6 +12,8 @@ use crate::searchers::apps::AppSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::camera::CameraSearcher;
 use crate::searchers::settings::SettingsSearcher;
+use crate::searchers::windows_switcher::WindowSwitcher;
+use crate::searchers::timer::TimerSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::currency::CurrencySearcher;
@@ -77,6 +79,8 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.currency, "currency", CurrencySearcher);
     push!(v, &t.note, "note", NoteSearcher);
     push!(v, &t.settings, "settings", SettingsSearcher);
+    push!(v, &t.windows, "windows", WindowSwitcher);
+    push!(v, &t.timer, "timer", TimerSearcher);
 
     // Detect raw pasted color values without requiring the "color" prefix.
     push!(
@@ -171,6 +175,7 @@ pub fn execute(
 
     let tag = match &action_data {
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
+        ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
         _ => "launched",
     };
 
@@ -185,6 +190,11 @@ pub fn execute(
     }
 
     result.map(|_| tag.to_string())
+}
+
+#[tauri::command]
+pub fn exec_shell(command: String) -> Result<(), String> {
+    executor::run_shell_command(&command)
 }
 
 #[tauri::command]

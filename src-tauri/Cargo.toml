@@ -49,6 +49,7 @@ chrono-tz = "0.10.4"
 chrono = "0.4.44"
 unicode_names2 = "2.0.0"
 unicode-general-category = "1.1.0"
+rodio = { version = "0.19", default-features = false, features = ["symphonia-mp3"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = { version = "2.0", features = ["v2_40"] }

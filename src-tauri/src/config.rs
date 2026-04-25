@@ -150,6 +150,7 @@ pub struct TriggerConfig {
     pub time:         String,
     pub settings:     String,
     pub windows:      String,
+    pub timer:        String,
 }
 
 impl Default for TriggerConfig {
@@ -174,6 +175,7 @@ impl Default for TriggerConfig {
             time:         r"^time\s+(.*)$".into(),
             settings:     r"^set\s*(.*)$".into(),
             windows:      r"^wm\s*(.*)$".into(),
+            timer:        r"^timer\s*(.*)$".into(),
         }
     }
 }

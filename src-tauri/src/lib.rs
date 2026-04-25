@@ -14,8 +14,8 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    clear_clipboard_history, execute, get_groq_api_key, get_theme, read_note, save_capture,
-    save_groq_api_key, search, write_note,
+    clear_clipboard_history, exec_shell, execute, get_groq_api_key, get_theme, read_note,
+    save_capture, save_groq_api_key, search, write_note,
 };
 use lazy_static::lazy_static;
 use std::sync::{
@@ -97,6 +97,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             search,
             execute,
+            exec_shell,
             clear_clipboard_history,
             get_theme,
             read_note,

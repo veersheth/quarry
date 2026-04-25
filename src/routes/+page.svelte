@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { fly } from "svelte/transition";
   import { backOut } from "svelte/easing";
   import RenderList from "$lib/RenderList.svelte";
@@ -25,10 +26,22 @@
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
   import RenderAiChat from "$lib/RenderAiChat.svelte";
+  import Modal from "$lib/Modal.svelte";
+
+  interface ModalButton {
+    label: string;
+    kind?: string;
+    shell?: string;
+  }
+  interface ModalPayload {
+    body: string;
+    buttons?: ModalButton[];
+  }
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
+  let modal: ModalPayload | null = null;
   let searchTimeout: ReturnType<typeof setTimeout>;
   let resultsEl: HTMLDivElement;
 
@@ -104,8 +117,13 @@
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
+    const unlistenTimer = await listen<ModalPayload>("quarry-modal", (event) => {
+      modal = event.payload;
+    });
+
     return () => {
       unlisten.then((fn) => fn());
+      unlistenTimer();
       window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
     };
   });
@@ -183,6 +201,10 @@
       y={$contextMenu.y}
       onClose={closeContextMenu}
     />
+  {/if}
+
+  {#if modal !== null}
+    <Modal body={modal.body} buttons={modal.buttons} onClose={() => { modal = null; }} />
   {/if}
 
   <!-- Toasts -->
@@ -300,12 +322,20 @@
     letter-spacing: 0.01em;
     white-space: nowrap;
     z-index: 1000;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(40, 40, 40, 0.70);
-    <!-- backdrop-filter: blur(12px); -->
-    <!-- -webkit-backdrop-filter: blur(12px); -->
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(15, 15, 15, 0.80);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     color: rgba(255, 255, 255, 0.75);
+
+
+
+    background: rgba(5, 5, 5, 0.20);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .toast-dot {
@@ -326,4 +356,6 @@
   .toast.info {
     border-color: rgba(96, 165, 250, 0.2);
   }
+
+
 </style>
