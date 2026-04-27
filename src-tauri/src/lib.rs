@@ -14,8 +14,8 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    clear_clipboard_history, execute, get_groq_api_key, get_theme, read_note, save_capture,
-    save_groq_api_key, search, write_note,
+    cancel_rofi, clear_clipboard_history, exec_shell, execute, get_groq_api_key, get_theme,
+    read_note, save_capture, save_groq_api_key, search, write_note,
 };
 use lazy_static::lazy_static;
 use std::sync::{
@@ -34,9 +34,9 @@ use tauri::{
 pub(crate) static SEARCH_SEQ: AtomicU64 = AtomicU64::new(0);
 
 lazy_static! {
-    pub static ref CONFIG: config::Config = {
+    pub static ref CONFIG: RwLock<config::Config> = {
         config::Config::write_default_if_missing();
-        config::Config::load()
+        RwLock::new(config::Config::load())
     };
     pub static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     pub(crate) static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
@@ -56,8 +56,13 @@ lazy_static! {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let _ = &*CONFIG;
+    drop(CONFIG.read());
     CLIPBOARD_MANAGER.start_monitoring();
+
+    // Warm caches in background so the first search is instant
+    std::thread::spawn(|| crate::searchers::apps::warm());
+    std::thread::spawn(|| { let _ = &*crate::commands::TRIGGERS; });
+    crate::searchers::files::start_file_index();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -92,6 +97,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             search,
             execute,
+            exec_shell,
             clear_clipboard_history,
             get_theme,
             read_note,
@@ -99,6 +105,7 @@ pub fn run() {
             save_capture,
             get_groq_api_key,
             save_groq_api_key,
+            cancel_rofi,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

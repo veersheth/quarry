@@ -14,7 +14,7 @@ impl SearchProvider for ClipboardSearcher {
             return SearchResult {
                 results: vec![ResultItem::new(
                     "Clear clipboard history?",
-                    vec![Action::new("Clear", ActionData::RunFunction {
+                   vec![Action::new("Clear", ActionData::RunFunction {
                         function_name: "clear_clipboard".into(),
                         params: vec![],
                     })],
@@ -43,6 +43,10 @@ impl SearchProvider for ClipboardSearcher {
                         Action::new("Delete", ActionData::RunFunction {
                             function_name: "delete_clipboard_entry".into(),
                             params: vec![entry.timestamp.to_string()],
+                        }),
+                        Action::new("Clear entire clipboard", ActionData::RunFunction {
+                        function_name: "clear_clipboard".into(),
+                        params: vec![],
                         }),
                     ],
                 )

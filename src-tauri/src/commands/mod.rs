@@ -1,5 +1,6 @@
 use regex::Regex;
 use base64::{engine::general_purpose, Engine};
+use once_cell::sync::Lazy;
 use std::sync::atomic::Ordering;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,6 +11,9 @@ use crate::searchers::ai::AiSearcher;
 use crate::searchers::apps::AppSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::camera::CameraSearcher;
+use crate::searchers::settings::SettingsSearcher;
+use crate::searchers::windows_switcher::WindowSwitcher;
+use crate::searchers::timer::TimerSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
 use crate::searchers::currency::CurrencySearcher;
@@ -26,6 +30,15 @@ use crate::searchers::web_searchers::{URLSearcher, WebSearcher};
 use crate::types::{ActionData, SearchResult};
 use crate::usage_tracker::boost_results_by_usage;
 use crate::{ACTION_REGISTRY, CLIPBOARD_MANAGER, CONFIG, SEARCH_SEQ, USAGE_HISTORY};
+
+pub static TRIGGERS: Lazy<std::sync::RwLock<Vec<(Regex, Box<dyn SearchProvider + Send + Sync>)>>> =
+    Lazy::new(|| std::sync::RwLock::new(build_triggers(&CONFIG.read().unwrap())));
+
+pub fn reload_triggers() {
+    if let Ok(mut triggers) = TRIGGERS.write() {
+        *triggers = build_triggers(&CONFIG.read().unwrap());
+    }
+}
 
 // ---------------------------------------------------------
 // TRIGGER BUILDER
@@ -65,6 +78,17 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.url, "url", URLSearcher);
     push!(v, &t.currency, "currency", CurrencySearcher);
     push!(v, &t.note, "note", NoteSearcher);
+    push!(v, &t.settings, "settings", SettingsSearcher);
+    push!(v, &t.windows, "windows", WindowSwitcher);
+    push!(v, &t.timer, "timer", TimerSearcher);
+
+    // Detect raw pasted color values without requiring the "color" prefix.
+    push!(
+        v,
+        r"^(#[0-9a-fA-F]{3,8}|rgba?\s*\([^)]+\)|hsla?\s*\([^)]+\)|oklch\s*\([^)]+\))$",
+        "color_value",
+        ColorPicker
+    );
 
     for ws in &cfg.web_searches {
         match Regex::new(&ws.trigger) {
@@ -95,10 +119,9 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
     let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
     let query_clone = query.clone();
 
-    let cfg = CONFIG.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let triggers = build_triggers(&cfg);
         let mut result = None;
+        let triggers = TRIGGERS.read().unwrap();
 
         for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
@@ -126,8 +149,10 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         }
     }
 
-    if let Ok(history) = USAGE_HISTORY.read() {
-        search_result.results = boost_results_by_usage(search_result.results, &query, &history);
+    if !matches!(search_result.result_type, crate::types::ResultType::Clipboard) {
+        if let Ok(history) = USAGE_HISTORY.read() {
+            search_result.results = boost_results_by_usage(search_result.results, &query, &history);
+        }
     }
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
@@ -150,6 +175,7 @@ pub fn execute(
 
     let tag = match &action_data {
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
+        ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
         _ => "launched",
     };
 
@@ -167,8 +193,13 @@ pub fn execute(
 }
 
 #[tauri::command]
+pub fn exec_shell(command: String) -> Result<(), String> {
+    executor::run_shell_command(&command)
+}
+
+#[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
-    CONFIG.theme.clone()
+    config::Config::load().theme
 }
 
 #[tauri::command]
@@ -208,12 +239,26 @@ pub fn write_note(content: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_groq_api_key() -> String {
-    CONFIG.groq_api_key.clone()
+    CONFIG.read().unwrap().groq_api_key.clone()
 }
 
 #[tauri::command]
 pub fn save_groq_api_key(key: String) -> Result<(), String> {
     config::Config::save_groq_api_key(&key)
+}
+
+// ---------------------------------------------------------
+// ROFI COMMAND
+// ---------------------------------------------------------
+
+#[tauri::command]
+pub fn cancel_rofi(response_socket: String) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::unix::net::UnixStream;
+    if let Ok(mut stream) = UnixStream::connect(&response_socket) {
+        let _ = stream.write_all(b"\n");
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------

@@ -87,6 +87,7 @@ pub enum ActionData {
     ShellCommand { command: String },
     RunScript { path: String },
     OpenInTerminal { path: String },
+    RofiSelect { name: String, response_socket: String },
 }
 
 impl ActionData {
@@ -102,33 +103,9 @@ impl ActionData {
                 format!("fn:{}:{}", function_name, params.join(","))
             }
             ActionData::ShellCommand { command } => format!("shell:{}", command),
-            ActionData::RunScript { path } => {
-                #[cfg(target_os = "macos")]
-                std::process::Command::new("open")
-                    .args(["-a", "Terminal", &path])
-                    .spawn().ok();
-                #[cfg(target_os = "linux")]
-                for term in &[ "wezterm", "ghostty", "kitty", "alacritty", "xterm", "gnome-terminal"] {
-                    if std::process::Command::new(term)
-                        .arg("--").arg(&path)
-                        .spawn().is_ok() { break; }
-                }
-                "ok".to_string()
-            },
-
-            ActionData::OpenInTerminal { path } => {
-                #[cfg(target_os = "macos")]
-                std::process::Command::new("open")
-                    .args(["-a", "Terminal", &path])
-                    .spawn().ok();
-                #[cfg(target_os = "linux")]
-                for term in &[ "wezterm", "ghostty", "kitty", "alacritty", "xterm", "gnome-terminal"] {
-                    if std::process::Command::new(term)
-                        .arg("--working-directory").arg(&path)
-                        .spawn().is_ok() { break; }
-                }
-                "ok".to_string()
-            }
+            ActionData::RunScript { path } => format!("script:{}", path),
+            ActionData::OpenInTerminal { path } => format!("terminal:{}", path),
+            ActionData::RofiSelect { .. } => "rofi:select".to_string(),
             ActionData::None => "none".to_string(),
         }
     }

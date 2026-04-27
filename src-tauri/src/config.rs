@@ -148,6 +148,9 @@ pub struct TriggerConfig {
     pub note:         String,
     pub ai:           String,
     pub time:         String,
+    pub settings:     String,
+    pub windows:      String,
+    pub timer:        String,
 }
 
 impl Default for TriggerConfig {
@@ -163,13 +166,16 @@ impl Default for TriggerConfig {
             math:         r"^=\s*(.*)$".into(),
             dictionary:   r"^def\s+(.*)$".into(),
             system:       r"^sys\s+(.*)$".into(),
-            color_picker: r"^color$".into(),
+            color_picker: r"^color\s*(.*)$".into(),
             apps:         r"^app\s+(.*)$".into(),
             url:          r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$".into(),
             currency:     r"^fx\s+(.*)$".into(),
             note:         r"^note$".into(),
             ai:           r"^ai\s+(.*)$".into(),
             time:         r"^time\s+(.*)$".into(),
+            settings:     r"^set\s*(.*)$".into(),
+            windows:      r"^wm\s*(.*)$".into(),
+            timer:        r"^timer\s*(.*)$".into(),
         }
     }
 }

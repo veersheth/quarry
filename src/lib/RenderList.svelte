@@ -1,7 +1,12 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { runItemAction } from "./keyHandler";
+
+  function iconSrc(icon: string): string {
+    return icon.startsWith("/") ? convertFileSrc(icon) : icon;
+  }
 
   function handleClick(item: ResultItem) {
     runItemAction(item);
@@ -33,7 +38,7 @@
       {#if item.icon}
         <img
           class="item-icon"
-          src={item.icon}
+          src={iconSrc(item.icon)}
           alt=""
         />
       {/if}
@@ -63,6 +68,7 @@
     margin: 0 12px;
     border-radius: var(--q-item-border-radius);
     background: none;
+    background: rgba(5, 5, 5, 0.8);
     text-align: left;
     color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
@@ -113,7 +119,6 @@
 
   .item-desc {
     opacity: 0.4;
-    font-size: 0.8rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

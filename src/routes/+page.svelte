@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { fly } from "svelte/transition";
   import { backOut } from "svelte/easing";
   import RenderList from "$lib/RenderList.svelte";
@@ -25,12 +26,52 @@
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
   import RenderAiChat from "$lib/RenderAiChat.svelte";
+  import Modal from "$lib/Modal.svelte";
+
+  interface ModalButton {
+    label: string;
+    kind?: string;
+    shell?: string;
+  }
+  interface ModalPayload {
+    body: string;
+    buttons?: ModalButton[];
+  }
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
+  let modal: ModalPayload | null = null;
   let searchTimeout: ReturnType<typeof setTimeout>;
   let resultsEl: HTMLDivElement;
+
+  // Rofi mode: bypass backend search, filter items locally
+  let rofiMode = false;
+  let rofiResponseSocket = "";
+  let rofiAllItems: import("../stores/search").ResultItem[] = [];
+
+  function filterRofiItems(q: string) {
+    if (!q) {
+      resultItems.set(rofiAllItems);
+      return;
+    }
+    const lower = q.toLowerCase();
+    resultItems.set(
+      rofiAllItems.filter((item) => item.name.toLowerCase().includes(lower))
+    );
+  }
+
+  async function cancelRofi() {
+    if (!rofiMode) return;
+    rofiMode = false;
+    rofiAllItems = [];
+    try {
+      await invoke("cancel_rofi", { responseSocket: rofiResponseSocket });
+    } catch (_) {}
+    rofiResponseSocket = "";
+    query.set("");
+    resultItems.set([]);
+  }
 
   function handleContextMenu(event: MouseEvent, item: import("../stores/search").ResultItem) {
     if (item.actions.length <= 1) return;
@@ -99,36 +140,66 @@
     appWindow = getCurrentWindow();
     await refresh();
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
-      if (focused) refresh();
+      if (focused) {
+        refresh();
+      } else if (rofiMode) {
+        cancelRofi();
+      }
     });
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
+    const unlistenModal = await listen<ModalPayload>("quarry-modal", (event) => {
+      modal = event.payload;
+    });
+
+    const unlistenRofiSocket = await listen<string>("quarry-rofi-socket", (event) => {
+      rofiResponseSocket = event.payload;
+    });
+
+    const unlistenRofi = await listen<import("../stores/search").SearchResult>("quarry-rofi", (event) => {
+      const res = event.payload;
+      rofiAllItems = res.results;
+      rofiMode = true;
+      resultItems.set(res.results);
+      resultType.set(res.result_type);
+      query.set("");
+      activeIndex.set(0);
+    });
+
     return () => {
       unlisten.then((fn) => fn());
+      unlistenModal();
+      unlistenRofiSocket();
+      unlistenRofi();
       window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
     };
   });
 
   $: if ($query !== undefined) {
-    isLoading = true;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      search($query)
-        .then((res) => {
-          if (res === null) return;
-          resultItems.set(res.results);
-          resultType.set(res.result_type);
-          activeIndex.set(0);
-        })
-        .catch((err) => {
-          console.error("Search error:", err);
-          resultItems.set([]);
-        })
-        .finally(() => {
-          isLoading = false;
-        });
-    }, 100);
+    if (rofiMode) {
+      filterRofiItems($query);
+      activeIndex.set(0);
+    } else {
+      isLoading = true;
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        search($query)
+          .then((res) => {
+            if (res === null) return;
+            resultItems.set(res.results);
+            resultType.set(res.result_type);
+            activeIndex.set(0);
+          })
+          .catch((err) => {
+            console.error("Search error:", err);
+            resultItems.set([]);
+          })
+          .finally(() => {
+            isLoading = false;
+          });
+      }, 100);
+    }
   }
 </script>
 
@@ -160,7 +231,7 @@
         {:else if $resultType === "Clipboard"}
           <RenderClipboard listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "ColorPicker"}
-          <RenderColorPicker />
+          <RenderColorPicker initialColor={$resultItems[0]?.name ?? ""} />
         {:else if $resultType === "Home"}
           <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else if $resultType === "Math"}
@@ -183,6 +254,10 @@
       y={$contextMenu.y}
       onClose={closeContextMenu}
     />
+  {/if}
+
+  {#if modal !== null}
+    <Modal body={modal.body} buttons={modal.buttons} onClose={() => { modal = null; }} />
   {/if}
 
   <!-- Toasts -->
@@ -210,7 +285,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: var(--q-bg-color, rgba(15, 15, 15, 1));
+    background-color: var(--q-bg-color, rgba(10, 10, 10, 1));
     opacity: var(--q-bg-opacity, 1);
     overflow: hidden;
     color: var(--q-font-color, #ffffff);
@@ -300,12 +375,20 @@
     letter-spacing: 0.01em;
     white-space: nowrap;
     z-index: 1000;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(40, 40, 40, 0.70);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(15, 15, 15, 0.80);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     color: rgba(255, 255, 255, 0.75);
+
+
+
+    background: rgba(5, 5, 5, 0.20);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .toast-dot {
@@ -326,4 +409,6 @@
   .toast.info {
     border-color: rgba(96, 165, 250, 0.2);
   }
+
+
 </style>

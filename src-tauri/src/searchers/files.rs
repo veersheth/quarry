@@ -4,12 +4,15 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::sync::RwLock;
+use std::time::{Duration, SystemTime};
 use tauri::AppHandle;
 use walkdir::WalkDir;
 
 const MAX_DEPTH: usize = 4;
 const MAX_RESULTS: usize = 10;
+const INDEX_REFRESH_SECS: u64 = 30; 
+
 const SKIP_DIRS: &[&str] = &[
     "node_modules", "__pycache__", ".git", ".svn", ".hg",
     "target", "build", "dist", ".gradle", ".mvn", ".idea",
@@ -18,19 +21,77 @@ const SKIP_DIRS: &[&str] = &[
 ];
 
 const SCRIPT_EXTENSIONS: &[&str] = &[
-    "sh", "bash", "zsh", "fish",           
-    "py",                                  
-    "rb",                                  
-    "js", "mjs", "ts",                     
-    "pl", "pm",                            
-    "lua",                                 
-    "ps1",                                 
-    "bat", "cmd",                          
-    "r",                                   
-    "php",                                 
+    "sh", "bash", "zsh", "fish",
+    "py",
+    "rb",
+    "js", "mjs", "ts",
+    "pl", "pm",
+    "lua",
+    "ps1",
+    "bat", "cmd",
+    "r",
+    "php",
 ];
 
 static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(SkimMatcherV2::default);
+
+// ---------------------------------------------------------------------------
+// Background file index
+// ---------------------------------------------------------------------------
+
+struct FileIndex {
+    entries: Vec<(PathBuf, u64)>, // (path, mtime_secs)
+}
+
+static FILE_INDEX: Lazy<RwLock<FileIndex>> =
+    Lazy::new(|| RwLock::new(FileIndex { entries: Vec::new() }));
+
+/// Spawn a background thread that builds the file index immediately, then
+/// refreshes it every INDEX_REFRESH_SECS seconds.
+pub fn start_file_index() {
+    std::thread::spawn(|| loop {
+        let entries = build_index_entries();
+        if let Ok(mut idx) = FILE_INDEX.write() {
+            idx.entries = entries;
+        }
+        std::thread::sleep(Duration::from_secs(INDEX_REFRESH_SECS));
+    });
+}
+
+/// Trigger an immediate index rebuild outside the normal refresh cycle.
+pub fn rebuild_index_now() {
+    std::thread::spawn(|| {
+        let entries = build_index_entries();
+        if let Ok(mut idx) = FILE_INDEX.write() {
+            idx.entries = entries;
+        }
+    });
+}
+
+fn build_index_entries() -> Vec<(PathBuf, u64)> {
+    let mut entries = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for base in FileSearcher::search_paths() {
+        for entry in WalkDir::new(&base)
+            .max_depth(MAX_DEPTH)
+            .follow_links(false)
+            .into_iter()
+            .filter_entry(|e| {
+                let name = e.file_name().to_str().unwrap_or("");
+                !name.starts_with('.')
+                    && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+            })
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path().to_path_buf();
+            if seen.insert(path.clone()) {
+                entries.push((path.clone(), mtime_secs(&path)));
+            }
+        }
+    }
+    entries
+}
 
 pub struct FileSearcher;
 
@@ -100,6 +161,25 @@ impl FileSearcher {
     }
 
     fn collect_candidates(query_words: &[&str]) -> Vec<(PathBuf, i64)> {
+        // Fast path: query the in-memory index
+        if let Ok(idx) = FILE_INDEX.read() {
+            if !idx.entries.is_empty() {
+                let mut hits: Vec<(PathBuf, i64, u64)> = idx
+                    .entries
+                    .iter()
+                    .filter_map(|(path, mtime)| {
+                        Self::score(query_words, path)
+                            .map(|s| (path.clone(), s, *mtime))
+                    })
+                    .collect();
+                hits.sort_unstable_by(|a, b| {
+                    b.1.cmp(&a.1).then_with(|| b.2.cmp(&a.2))
+                });
+                return hits.into_iter().map(|(p, s, _)| (p, s)).collect();
+            }
+        }
+
+        // Fallback: walk the filesystem directly (index not ready yet)
         let mut hits: Vec<(PathBuf, i64)> = Vec::new();
         let mut seen = std::collections::HashSet::new();
 

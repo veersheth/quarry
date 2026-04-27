@@ -1,10 +1,18 @@
 use std::path::PathBuf;
-use tauri::Manager;
+use std::sync::atomic::Ordering;
+use tauri::{Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct RofiItem {
+    name: String,
+    description: Option<String>,
+    shell: Option<String>,
+}
 
 #[derive(serde::Deserialize, serde::Serialize)]
 enum IpcCommand {
@@ -13,6 +21,7 @@ enum IpcCommand {
     Hide,
     Ping,
     ToggleNote,
+    ShowRofi { items: Vec<RofiItem>, response_socket: String },
 }
 
 #[derive(serde::Serialize)]
@@ -128,6 +137,43 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 success: true,
                 message: "Note window toggled".to_string(),
             }
+        }
+        IpcCommand::ShowRofi { items, response_socket } => {
+            use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+
+            let seq = crate::SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
+
+            let results: Vec<ResultItem> = items
+                .into_iter()
+                .enumerate()
+                .map(|(i, item)| {
+                    let action_data = ActionData::RofiSelect {
+                        name: item.name.clone(),
+                        response_socket: response_socket.clone(),
+                    };
+                    let action_id = format!("action_{}_{}_{}", seq, i, 0);
+                    let mut action = Action::new("Select", action_data.clone());
+                    action.id = action_id.clone();
+                    crate::ACTION_REGISTRY.register(action_id, action_data);
+
+                    let mut result = ResultItem::new(item.name, vec![action]);
+                    if let Some(desc) = item.description {
+                        result = result.description(desc);
+                    }
+                    result
+                })
+                .collect();
+
+            let search_result = SearchResult {
+                results,
+                result_type: ResultType::List,
+            };
+
+            show_window(app_handle);
+            app_handle.emit("quarry-rofi-socket", &response_socket).ok();
+            app_handle.emit("quarry-rofi", &search_result).ok();
+
+            IpcResponse { success: true, message: "Rofi shown".to_string() }
         }
     }
 }

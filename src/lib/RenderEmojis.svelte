@@ -52,7 +52,7 @@
     justify-content: center;
     padding: 28px 16px;
     border-radius: var(--q-item-border-radius);
-    border: 1px solid rgba(60, 60, 60, 0.7);
+    border: 1px solid rgba(60, 60, 60, 0.3);
     cursor: pointer;
     text-align: center;
     transition:

@@ -35,6 +35,7 @@ pkgs.mkShell {
     gobject-introspection
     pkg-config
     openssl
+    alsa-lib
   ];
 
   shellHook = ''
@@ -48,6 +49,7 @@ pkgs.mkShell {
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${pkgs.webkitgtk_4_1.dev}/lib/pkgconfig"
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${pkgs.libsoup_3.dev}/lib/pkgconfig"
     export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${pkgs.openssl.dev}/lib/pkgconfig"
+    export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:${pkgs.alsa-lib.dev}/lib/pkgconfig"
 
     # Ensure runtime can find libappindicator
     export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${pkgs.libappindicator}/lib"
