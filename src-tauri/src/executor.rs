@@ -112,59 +112,40 @@ pub(crate) fn run_shell_command(command: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Run a script file in a visible terminal window so the user sees output.
 fn run_script(path: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        // Use osascript to open Terminal and run the script
-        let script = format!(
-            r#"tell application "Terminal"
-                activate
-                do script "{}"
-            end tell"#,
-            path.replace('"', "\\\"")
-        );
-        Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
-            .spawn()
-            .map_err(|e| format!("Failed to open Terminal: {}", e))?;
-    }
+    use std::os::unix::process::CommandExt;
 
-    #[cfg(target_os = "linux")]
-    {
-        let cmd_simple = format!("{path}; exec bash");
-        let cmd_wrapped = format!("sh -c '{path}; exec bash'");
-        let launched: &[(&str, &[&str])] = &[
-            ("wezterm",        &["start", "--", "sh", "-c", &cmd_simple]),
-            ("ghostty",        &["-e", "sh", "-c", &cmd_simple]),
-            ("gnome-terminal", &["--", "sh", "-c", &cmd_simple]),
-            ("kitty",          &["sh", "-c", &cmd_simple]),
-            ("alacritty",      &["-e", "sh", "-c", &cmd_simple]),
-            ("xfce4-terminal", &["-e", &cmd_wrapped]),
-            ("xterm",          &["-e", &cmd_wrapped]),
-        ];
-        let mut ok = false;
-        for (term, args) in launched {
-            if Command::new(term).args(*args).spawn().is_ok() {
-                ok = true;
-                break;
-            }
-        }
-        if !ok {
-            return Err("No supported terminal emulator found".to_string());
+    let spawn = |binary: &str, args: &[&str]| {
+        Command::new(binary)
+            .args(args)
+            .process_group(0)
+            .stdin(std::process::Stdio::null())
+            .spawn()
+            .is_ok()
+    };
+
+    // Respect $TERMINAL if set
+    if let Ok(term) = std::env::var("TERMINAL") {
+        if !term.is_empty() && spawn(&term, &["-e", path]) {
+            return Ok(());
         }
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("cmd")
-            .args(["/c", "start", "cmd", "/k", path])
-            .spawn()
-            .map_err(|e| format!("Failed to open cmd: {}", e))?;
+    // Modern freedesktop standard
+    if spawn("xdg-terminal-exec", &[path]) {
+        return Ok(());
     }
 
-    Ok(())
+    // Known terminals
+    if spawn("ghostty", &["-e", path])                    { return Ok(()); }
+    if spawn("gnome-terminal", &["--", path])             { return Ok(()); }
+    if spawn("kitty", &[path])                            { return Ok(()); }
+    if spawn("alacritty", &["-e", path])                  { return Ok(()); }
+    if spawn("wezterm", &["start", "--", path])           { return Ok(()); }
+    if spawn("xfce4-terminal", &["-e", path])             { return Ok(()); }
+    if spawn("xterm", &["-e", path])                      { return Ok(()); }
+
+    Err("No terminal found. Set the $TERMINAL environment variable.".to_string())
 }
 
 /// Open a directory in the system terminal.
