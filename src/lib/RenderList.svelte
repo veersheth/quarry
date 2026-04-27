@@ -68,7 +68,7 @@
     margin: 0 12px;
     border-radius: var(--q-item-border-radius);
     background: none;
-    background: rgba(3, 3, 3, 0.8);
+    background: rgba(5, 5, 5, 0.8);
     text-align: left;
     color: rgba(255, 255, 255, 0.7);
     cursor: pointer;

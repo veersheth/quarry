@@ -60,3 +60,7 @@ tauri-plugin-cli = "2"
 [[bin]]
 name = "quarry-toggle"
 path = "src/bin/quarry-toggle.rs"
+
+[[bin]]
+name = "quarry-rofi"
+path = "src/bin/quarry-rofi.rs"

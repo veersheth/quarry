@@ -117,13 +117,22 @@
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
-    const unlistenTimer = await listen<ModalPayload>("quarry-modal", (event) => {
+    const unlistenModal = await listen<ModalPayload>("quarry-modal", (event) => {
       modal = event.payload;
+    });
+
+    const unlistenRofi = await listen<import("../stores/search").SearchResult>("quarry-rofi", (event) => {
+      const res = event.payload;
+      resultItems.set(res.results);
+      resultType.set(res.result_type);
+      query.set("");
+      activeIndex.set(0);
     });
 
     return () => {
       unlisten.then((fn) => fn());
-      unlistenTimer();
+      unlistenModal();
+      unlistenRofi();
       window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
     };
   });
@@ -232,7 +241,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: var(--q-bg-color, rgba(15, 15, 15, 1));
+    background-color: var(--q-bg-color, rgba(10, 10, 10, 1));
     opacity: var(--q-bg-opacity, 1);
     overflow: hidden;
     color: var(--q-font-color, #ffffff);
