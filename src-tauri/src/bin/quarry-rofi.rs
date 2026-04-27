@@ -1,5 +1,5 @@
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::UnixStream;
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 
 fn get_socket_path() -> PathBuf {
@@ -9,6 +9,10 @@ fn get_socket_path() -> PathBuf {
     PathBuf::from(runtime_dir).join("quarry.sock")
 }
 
+fn get_response_socket_path() -> PathBuf {
+    std::env::temp_dir().join(format!("quarry-rofi-{}.sock", std::process::id()))
+}
+
 #[derive(serde::Serialize)]
 struct RofiItem {
     name: String,
@@ -16,11 +20,10 @@ struct RofiItem {
     shell: Option<String>,
 }
 
-/// Parse a single item string.
 /// Formats:
-///   "Name"                     → name only (selection copies name)
-///   "Name:shell command"       → name + shell command
-///   "Name:Description:shell"   → name + description + shell (splitn(3, ':'))
+/// - "name" -> name only
+/// - "name:description" -> name + description
+/// - "name:description:shell" -> name + description + shell (splitn(3, ':'))
 fn parse_item(s: &str) -> RofiItem {
     let parts: Vec<&str> = s.splitn(3, ':').collect();
     match parts.as_slice() {
@@ -29,10 +32,10 @@ fn parse_item(s: &str) -> RofiItem {
             description: None,
             shell: None,
         },
-        [name, shell] => RofiItem {
+        [name, desc] => RofiItem {
             name: name.trim().to_string(),
-            description: None,
-            shell: Some(shell.trim().to_string()),
+            description: Some(desc.trim().to_string()),
+            shell: None,
         },
         [name, desc, shell] => RofiItem {
             name: name.trim().to_string(),
@@ -49,7 +52,6 @@ fn main() {
     let items: Vec<RofiItem> = if !args.is_empty() {
         args.iter().map(|a| parse_item(a)).collect()
     } else {
-        // Read newline-separated items from stdin
         let stdin = std::io::stdin();
         stdin
             .lock()
@@ -64,30 +66,67 @@ fn main() {
     if items.is_empty() {
         eprintln!("quarry-rofi: no items provided");
         eprintln!("Usage:");
-        eprintln!("  quarry-rofi \"Name:shell command\" \"Name 2:Description:shell command\"");
-        eprintln!("  echo -e \"Name:shell\\nName 2:shell\" | quarry-rofi");
+        eprintln!("  quarry-rofi \"Name\" \"Name 2:Description\" \"Name 3:Desc:shell cmd\"");
+        eprintln!("  echo -e \"Item 1\\nItem 2\" | quarry-rofi");
         std::process::exit(1);
     }
 
-    let socket_path = get_socket_path();
-    let mut stream = match UnixStream::connect(&socket_path) {
-        Ok(s) => s,
+    let response_path = get_response_socket_path();
+    let _ = std::fs::remove_file(&response_path);
+
+    let listener = match UnixListener::bind(&response_path) {
+        Ok(l) => l,
         Err(e) => {
-            eprintln!("quarry-rofi: failed to connect to quarry ({})", e);
-            eprintln!("Is quarry running?");
+            eprintln!("quarry-rofi: failed to create response socket: {}", e);
             std::process::exit(1);
         }
     };
 
-    let cmd = serde_json::json!({ "ShowRofi": { "items": items } });
+    let quarry_socket = get_socket_path();
+    let mut stream = match UnixStream::connect(&quarry_socket) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("quarry-rofi: failed to connect to quarry ({})", e);
+            eprintln!(" yo is quarry even running?");
+            let _ = std::fs::remove_file(&response_path);
+            std::process::exit(1);
+        }
+    };
+
+    let response_socket_str = response_path.to_string_lossy().to_string();
+    let cmd = serde_json::json!({
+        "ShowRofi": {
+            "items": items,
+            "response_socket": response_socket_str,
+        }
+    });
 
     if let Err(e) = stream.write_all(format!("{}\n", cmd).as_bytes()) {
         eprintln!("quarry-rofi: failed to send command: {}", e);
+        let _ = std::fs::remove_file(&response_path);
         std::process::exit(1);
     }
 
-    // Wait for acknowledgement
-    let mut reader = BufReader::new(stream);
-    let mut _response = String::new();
-    let _ = reader.read_line(&mut _response);
+    let mut ack_reader = BufReader::new(stream);
+    let mut _ack = String::new();
+    let _ = ack_reader.read_line(&mut _ack);
+
+    match listener.accept() {
+        Ok((conn, _)) => {
+            let mut reader = BufReader::new(conn);
+            let mut result = String::new();
+            let _ = reader.read_line(&mut result);
+            let result = result.trim_end_matches('\n').trim_end_matches('\r');
+            if !result.is_empty() {
+                println!("{}", result);
+            }
+        }
+        Err(e) => {
+            eprintln!("quarry-rofi: error accepting response: {}", e);
+            let _ = std::fs::remove_file(&response_path);
+            std::process::exit(1);
+        }
+    }
+
+    let _ = std::fs::remove_file(&response_path);
 }

@@ -14,8 +14,8 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    clear_clipboard_history, exec_shell, execute, get_groq_api_key, get_theme, read_note,
-    save_capture, save_groq_api_key, search, write_note,
+    cancel_rofi, clear_clipboard_history, exec_shell, execute, get_groq_api_key, get_theme,
+    read_note, save_capture, save_groq_api_key, search, write_note,
 };
 use lazy_static::lazy_static;
 use std::sync::{
@@ -105,6 +105,7 @@ pub fn run() {
             save_capture,
             get_groq_api_key,
             save_groq_api_key,
+            cancel_rofi,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

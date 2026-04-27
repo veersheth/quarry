@@ -21,7 +21,7 @@ enum IpcCommand {
     Hide,
     Ping,
     ToggleNote,
-    ShowRofi { items: Vec<RofiItem> },
+    ShowRofi { items: Vec<RofiItem>, response_socket: String },
 }
 
 #[derive(serde::Serialize)]
@@ -138,7 +138,7 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 message: "Note window toggled".to_string(),
             }
         }
-        IpcCommand::ShowRofi { items } => {
+        IpcCommand::ShowRofi { items, response_socket } => {
             use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
             let seq = crate::SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
@@ -147,12 +147,12 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 .into_iter()
                 .enumerate()
                 .map(|(i, item)| {
-                    let action_data = match item.shell {
-                        Some(cmd) => ActionData::ShellCommand { command: cmd },
-                        None => ActionData::CopyToClipboard { text: item.name.clone() },
+                    let action_data = ActionData::RofiSelect {
+                        name: item.name.clone(),
+                        response_socket: response_socket.clone(),
                     };
                     let action_id = format!("action_{}_{}_{}", seq, i, 0);
-                    let mut action = Action::new("Run", action_data.clone());
+                    let mut action = Action::new("Select", action_data.clone());
                     action.id = action_id.clone();
                     crate::ACTION_REGISTRY.register(action_id, action_data);
 
@@ -164,9 +164,13 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 })
                 .collect();
 
-            let search_result = SearchResult { results, result_type: ResultType::List };
+            let search_result = SearchResult {
+                results,
+                result_type: ResultType::List,
+            };
 
             show_window(app_handle);
+            app_handle.emit("quarry-rofi-socket", &response_socket).ok();
             app_handle.emit("quarry-rofi", &search_result).ok();
 
             IpcResponse { success: true, message: "Rofi shown".to_string() }

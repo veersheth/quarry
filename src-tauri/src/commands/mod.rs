@@ -248,6 +248,20 @@ pub fn save_groq_api_key(key: String) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------
+// ROFI COMMAND
+// ---------------------------------------------------------
+
+#[tauri::command]
+pub fn cancel_rofi(response_socket: String) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::unix::net::UnixStream;
+    if let Ok(mut stream) = UnixStream::connect(&response_socket) {
+        let _ = stream.write_all(b"\n");
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------
 // CAPTURE COMMAND
 // ---------------------------------------------------------
 

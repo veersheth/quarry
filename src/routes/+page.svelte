@@ -45,6 +45,34 @@
   let searchTimeout: ReturnType<typeof setTimeout>;
   let resultsEl: HTMLDivElement;
 
+  // Rofi mode: bypass backend search, filter items locally
+  let rofiMode = false;
+  let rofiResponseSocket = "";
+  let rofiAllItems: import("../stores/search").ResultItem[] = [];
+
+  function filterRofiItems(q: string) {
+    if (!q) {
+      resultItems.set(rofiAllItems);
+      return;
+    }
+    const lower = q.toLowerCase();
+    resultItems.set(
+      rofiAllItems.filter((item) => item.name.toLowerCase().includes(lower))
+    );
+  }
+
+  async function cancelRofi() {
+    if (!rofiMode) return;
+    rofiMode = false;
+    rofiAllItems = [];
+    try {
+      await invoke("cancel_rofi", { responseSocket: rofiResponseSocket });
+    } catch (_) {}
+    rofiResponseSocket = "";
+    query.set("");
+    resultItems.set([]);
+  }
+
   function handleContextMenu(event: MouseEvent, item: import("../stores/search").ResultItem) {
     if (item.actions.length <= 1) return;
     event.preventDefault();
@@ -112,7 +140,11 @@
     appWindow = getCurrentWindow();
     await refresh();
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
-      if (focused) refresh();
+      if (focused) {
+        refresh();
+      } else if (rofiMode) {
+        cancelRofi();
+      }
     });
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
@@ -121,8 +153,14 @@
       modal = event.payload;
     });
 
+    const unlistenRofiSocket = await listen<string>("quarry-rofi-socket", (event) => {
+      rofiResponseSocket = event.payload;
+    });
+
     const unlistenRofi = await listen<import("../stores/search").SearchResult>("quarry-rofi", (event) => {
       const res = event.payload;
+      rofiAllItems = res.results;
+      rofiMode = true;
       resultItems.set(res.results);
       resultType.set(res.result_type);
       query.set("");
@@ -132,30 +170,36 @@
     return () => {
       unlisten.then((fn) => fn());
       unlistenModal();
+      unlistenRofiSocket();
       unlistenRofi();
       window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
     };
   });
 
   $: if ($query !== undefined) {
-    isLoading = true;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      search($query)
-        .then((res) => {
-          if (res === null) return;
-          resultItems.set(res.results);
-          resultType.set(res.result_type);
-          activeIndex.set(0);
-        })
-        .catch((err) => {
-          console.error("Search error:", err);
-          resultItems.set([]);
-        })
-        .finally(() => {
-          isLoading = false;
-        });
-    }, 100);
+    if (rofiMode) {
+      filterRofiItems($query);
+      activeIndex.set(0);
+    } else {
+      isLoading = true;
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        search($query)
+          .then((res) => {
+            if (res === null) return;
+            resultItems.set(res.results);
+            resultType.set(res.result_type);
+            activeIndex.set(0);
+          })
+          .catch((err) => {
+            console.error("Search error:", err);
+            resultItems.set([]);
+          })
+          .finally(() => {
+            isLoading = false;
+          });
+      }, 100);
+    }
   }
 </script>
 

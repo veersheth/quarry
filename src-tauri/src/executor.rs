@@ -36,6 +36,7 @@ pub fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Result<(), 
         ActionData::ShellCommand { command } => run_shell_command(&command),
         ActionData::RunScript { path } => run_script(&path),
         ActionData::OpenInTerminal { path } => open_in_terminal(&path),
+        ActionData::RofiSelect { name, response_socket } => rofi_select(&name, &response_socket),
         ActionData::None => Ok(()),
     }
 }
@@ -324,6 +325,17 @@ fn run_custom_function(
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
+}
+
+fn rofi_select(name: &str, response_socket: &str) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::unix::net::UnixStream;
+    let mut stream = UnixStream::connect(response_socket)
+        .map_err(|e| format!("Failed to connect to rofi socket: {}", e))?;
+    stream
+        .write_all(format!("{}\n", name).as_bytes())
+        .map_err(|e| format!("Failed to write to rofi socket: {}", e))?;
+    Ok(())
 }
 
 fn play_beep() {

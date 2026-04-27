@@ -87,6 +87,7 @@ pub enum ActionData {
     ShellCommand { command: String },
     RunScript { path: String },
     OpenInTerminal { path: String },
+    RofiSelect { name: String, response_socket: String },
 }
 
 impl ActionData {
@@ -104,6 +105,7 @@ impl ActionData {
             ActionData::ShellCommand { command } => format!("shell:{}", command),
             ActionData::RunScript { path } => format!("script:{}", path),
             ActionData::OpenInTerminal { path } => format!("terminal:{}", path),
+            ActionData::RofiSelect { .. } => "rofi:select".to_string(),
             ActionData::None => "none".to_string(),
         }
     }
