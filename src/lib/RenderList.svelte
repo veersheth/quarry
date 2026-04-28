@@ -20,7 +20,12 @@
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
+
+  let mouseHasMoved = false;
+  $: { listitems; mouseHasMoved = false; }
 </script>
+
+<svelte:window on:mousemove={() => { mouseHasMoved = true; }} />
 
 <div class="result-list">
   {#each listitems as item, index}
@@ -31,7 +36,7 @@
       class:active={index === $activeIndex}
       class:has-desc={!!item.description}
       data-active={index === $activeIndex}
-      on:mouseenter={() => activeIndex.set(index)}
+      on:mouseenter={() => { if (mouseHasMoved) activeIndex.set(index); }}
       on:click={() => handleClick(item)}
       on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
