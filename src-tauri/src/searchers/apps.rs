@@ -1,6 +1,7 @@
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
-use std::path::PathBuf;
 use std::sync::RwLock;
 use tauri::AppHandle;
 
@@ -80,128 +81,84 @@ pub fn reload() {
 
 pub struct AppSearcher;
 
+fn build_result_item(cached_app: &CachedApp) -> ResultItem {
+    let parts: Vec<&str> = cached_app.exec.split_whitespace().collect();
+    let executable = parts.first().copied().unwrap_or("").to_string();
+    let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
+
+    let actions = vec![
+        Action::new("Launch", ActionData::LaunchApp { executable: executable.clone(), args }),
+        Action::new("Run as Administrator", ActionData::ShellCommand {
+            command: format!("pkexec {}", cached_app.exec),
+        }),
+        Action::new("Copy Command", ActionData::CopyToClipboard { text: cached_app.exec.clone() }),
+        Action::new("Copy Executable Path", ActionData::CopyToClipboard { text: executable }),
+    ];
+
+    let mut item = ResultItem::new(cached_app.name.clone(), actions);
+    if let Some(desc) = &cached_app.description { item = item.description(desc.clone()); }
+    if let Some(icon) = &cached_app.icon { item = item.icon(icon.clone()); }
+    item
+}
+
+fn fuzzy_score_app(matcher: &SkimMatcherV2, app: &CachedApp, query: &str) -> i64 {
+    let name_score = matcher.fuzzy_match(&app.name, query).unwrap_or(0) * 2;
+    let desc_score = app.description.as_deref()
+        .and_then(|d| matcher.fuzzy_match(d, query))
+        .unwrap_or(0);
+    name_score.max(desc_score)
+}
+
 impl SearchProvider for AppSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let guard = APP_CACHE.read().unwrap_or_else(|e| e.into_inner());
-        let candidates: Vec<ResultItem> = guard
-            .iter()
-            .map(|cached_app| {
-                let parts: Vec<String> = cached_app
-                    .exec
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .collect();
-
-                let executable = parts.first().cloned().unwrap_or_default();
-                let args: Vec<String> = parts.iter().skip(1).cloned().collect();
-
-                let full_command = cached_app.exec.clone();
-
-                // ─────────────────────────────────────────────
-                // Actions
-                // ─────────────────────────────────────────────
-                let mut actions = vec![
-                    // Normal launch
-                    Action::new(
-                        "Launch",
-                        ActionData::LaunchApp {
-                            executable: executable.clone(),
-                            args: args.clone(),
-                        },
-                    ),
-                    // Run as admin (Linux-friendly approach)
-                    Action::new(
-                        "Run as Administrator",
-                        ActionData::ShellCommand {
-                            command: format!("pkexec {}", full_command),
-                        },
-                    ),
-                    // Copy full exec command
-                    Action::new(
-                        "Copy Command",
-                        ActionData::CopyToClipboard {
-                            text: full_command.clone(),
-                        },
-                    ),
-                    // Copy executable only
-                    Action::new(
-                        "Copy Executable Path",
-                        ActionData::CopyToClipboard {
-                            text: executable.clone(),
-                        },
-                    ),
-                ];
-
-                let mut item = ResultItem::new(cached_app.name.clone(), actions);
-
-                if let Some(desc) = &cached_app.description {
-                    item = item.description(desc.clone());
-                }
-
-                if let Some(icon) = &cached_app.icon {
-                    item = item.icon(icon.clone());
-                }
-
-                item
-            })
-            .collect();
-        drop(guard);
 
         if query.is_empty() {
             let recent = crate::usage_tracker::get_recent_entries("", 30);
 
             if !recent.is_empty() {
-                let mut name_map: std::collections::HashMap<String, ResultItem> =
-                    candidates
-                        .into_iter()
-                        .map(|item| (item.name.to_lowercase(), item))
-                        .collect();
+                let mut name_map: std::collections::HashMap<String, &CachedApp> = guard
+                    .iter()
+                    .map(|a| (a.name.to_lowercase(), a))
+                    .collect();
 
-                let mut seen: std::collections::HashSet<String> =
-                    std::collections::HashSet::new();
-
+                let mut seen = std::collections::HashSet::new();
                 let mut results: Vec<ResultItem> = recent
                     .iter()
                     .filter_map(|e| {
                         let key = e.name.to_lowercase();
-
-                        if seen.contains(&key) {
-                            return None;
-                        }
-
-                        if let Some(item) = name_map.remove(&key) {
+                        if seen.contains(&key) { return None; }
+                        if let Some(app) = name_map.remove(&key) {
                             seen.insert(key);
-                            Some(item)
+                            Some(build_result_item(app))
                         } else {
                             None
                         }
                     })
                     .collect();
 
-                let mut remaining: Vec<ResultItem> =
-                    name_map.into_values().collect();
-
+                let mut remaining: Vec<ResultItem> = name_map.into_values().map(build_result_item).collect();
                 remaining.sort_unstable_by(|a, b| a.name.cmp(&b.name));
-
                 results.extend(remaining);
 
-                return SearchResult {
-                    results,
-                    result_type: ResultType::List,
-                };
+                return SearchResult { results, result_type: ResultType::List };
             }
 
-            return SearchResult {
-                results: candidates,
-                result_type: ResultType::List,
-            };
+            let results = guard.iter().map(build_result_item).collect();
+            return SearchResult { results, result_type: ResultType::List };
         }
 
-        let results = self.fuzzy_filter(candidates, query);
+        let matcher = SkimMatcherV2::default();
+        let mut scored: Vec<(&CachedApp, i64)> = guard
+            .iter()
+            .filter_map(|app| {
+                let score = fuzzy_score_app(&matcher, app, query);
+                if score > 0 { Some((app, score)) } else { None }
+            })
+            .collect();
+        scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        let results = scored.into_iter().map(|(app, _)| build_result_item(app)).collect();
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-        }
+        SearchResult { results, result_type: ResultType::List }
     }
 }
