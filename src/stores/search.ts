@@ -27,6 +27,7 @@ export type ContextMenuState = {
   x: number;
   y: number;
   activeIndex: number;
+  searchQuery: string;
 };
 
 export const query = writable("");
@@ -41,12 +42,13 @@ export const contextMenu = writable<ContextMenuState>({
   x: 0,
   y: 0,
   activeIndex: 0,
+  searchQuery: "",
 });
 
 export function openContextMenu(item: ResultItem, x: number, y: number) {
-  contextMenu.set({ open: true, item, x, y, activeIndex: 0 });
+  contextMenu.set({ open: true, item, x, y, activeIndex: 0, searchQuery: "" });
 }
 
 export function closeContextMenu() {
-  contextMenu.update(s => ({ ...s, open: false, item: null }));
+  contextMenu.update(s => ({ ...s, open: false, item: null, searchQuery: "" }));
 }
