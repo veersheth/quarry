@@ -45,19 +45,19 @@ fn default_web_searches() -> Vec<WebSearchConfig> {
             name:    "Google".into(),
             trigger: r"^g\s+(.*)$".into(),
             url:     "https://www.google.com/search?q={}".into(),
-            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png".into()),
+            icon:    None,
         },
         WebSearchConfig {
             name:    "YouTube".into(),
             trigger: r"^yt\s+(.*)$".into(),
             url:     "https://www.youtube.com/results?search_query={}".into(),
-            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png".into()),
+            icon:    None,
         },
         WebSearchConfig {
             name:    "GitHub".into(),
             trigger: r"^gh\s+(.*)$".into(),
             url:     "https://github.com/search?q={}".into(),
-            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png".into()),
+            icon:    None,
         },
         WebSearchConfig {
             name:    "Nix Packages".into(),
@@ -299,19 +299,16 @@ max_web_results = 1
 name    = "Google"
 trigger = '^g\s+(.*)$'
 url     = "https://www.google.com/search?q={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
 
 [[web_searches]]
 name    = "YouTube"
 trigger = '^yt\s+(.*)$'
 url     = "https://www.youtube.com/results?search_query={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png"
 
 [[web_searches]]
 name    = "GitHub"
 trigger = '^gh\s+(.*)$'
 url     = "https://github.com/search?q={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png"
 
 [[web_searches]]
 name    = "Nix Packages"
