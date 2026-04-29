@@ -17,6 +17,7 @@
     actions: { id: string; name: string }[];
     description?: string;
     icon?: string;
+    pinned?: boolean;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
@@ -35,6 +36,7 @@
       class="result-item"
       class:active={index === $activeIndex}
       class:has-desc={!!item.description}
+      class:pinned={item.pinned}
       data-active={index === $activeIndex}
       on:mouseenter={() => { if (mouseHasMoved) activeIndex.set(index); }}
       on:click={() => handleClick(item)}
@@ -80,9 +82,17 @@
     border: 2px solid transparent;
   }
 
+  .result-item.pinned {
+    border-color: rgba(168, 85, 247, 0.45);
+  }
+
   .result-item.active {
     background-color: var(--q-active-bg-color);
     border: 2px solid var(--q-active-border-color);
+  }
+
+  .result-item.pinned.active {
+    border-color: rgba(192, 132, 252, 0.5);
   }
 
   .result-item.active .item-icon {

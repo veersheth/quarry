@@ -234,6 +234,23 @@ fn run_custom_function(
             }
             BookmarksSearcher::remove_bookmark(&params[0]).map(|_| ())
         }
+        "pin" => {
+            if params.len() < 3 {
+                return Err("pin requires searcher, name, payload".into());
+            }
+            crate::PINS.add(&params[0], crate::pins::PinEntry {
+                name: params[1].clone(),
+                payload: params[2].clone(),
+            });
+            Ok(())
+        }
+        "unpin" => {
+            if params.len() < 2 {
+                return Err("unpin requires searcher and name".into());
+            }
+            crate::PINS.remove(&params[0], &params[1]);
+            Ok(())
+        }
         "reload_quarry" => {
             if let Ok(mut cfg) = crate::CONFIG.write() {
                 *cfg = crate::config::Config::load();

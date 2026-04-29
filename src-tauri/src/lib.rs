@@ -5,6 +5,7 @@ mod action_registry;
 mod clipboard_manager;
 mod config;
 mod ipc_server;
+pub mod pins;
 mod searchers;
 mod types;
 mod usage_tracker;
@@ -23,6 +24,7 @@ use std::sync::{
     RwLock,
 };
 use tauri::{
+    Manager,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
 };
@@ -39,6 +41,7 @@ lazy_static! {
         RwLock::new(config::Config::load())
     };
     pub static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
+    pub(crate) static ref PINS: pins::PinStore = pins::PinStore::load();
     pub(crate) static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
     pub(crate) static ref CLIPBOARD_MANAGER: ClipboardManager = {
         let data_dir = dirs::data_dir()
@@ -82,6 +85,7 @@ pub fn run() {
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
+                // .title("quarry")
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "toggle" => ipc_server::toggle_window(app),
                     "quit"   => app.exit(0),

@@ -26,6 +26,7 @@ pub struct ResultItem {
     pub icon: Option<String>,
     /// For image clipboard entries: base64 PNG thumbnail for the UI to render
     pub thumbnail: Option<String>,
+    pub pinned: bool,
 }
 
 impl ResultItem {
@@ -36,6 +37,7 @@ impl ResultItem {
             description: None,
             icon: None,
             thumbnail: None,
+            pinned: false,
         }
     }
 
@@ -51,6 +53,11 @@ impl ResultItem {
 
     pub fn thumbnail(mut self, t: impl Into<String>) -> Self {
         self.thumbnail = Some(t.into());
+        self
+    }
+
+    pub fn pinned(mut self) -> Self {
+        self.pinned = true;
         self
     }
 }

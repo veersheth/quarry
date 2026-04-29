@@ -10,6 +10,8 @@ export type ResultItem = {
   actions: Action[];
   description?: string;
   icon?: string;
+  thumbnail?: string;
+  pinned?: boolean;
 };
 
 export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai";
