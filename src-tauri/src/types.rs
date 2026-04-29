@@ -27,6 +27,7 @@ pub struct ResultItem {
     /// For image clipboard entries: base64 PNG thumbnail for the UI to render
     pub thumbnail: Option<String>,
     pub pinned: bool,
+    pub group: Option<String>,
 }
 
 impl ResultItem {
@@ -38,6 +39,7 @@ impl ResultItem {
             icon: None,
             thumbnail: None,
             pinned: false,
+            group: None,
         }
     }
 
@@ -58,6 +60,11 @@ impl ResultItem {
 
     pub fn pinned(mut self) -> Self {
         self.pinned = true;
+        self
+    }
+
+    pub fn group(mut self, g: impl Into<String>) -> Self {
+        self.group = Some(g.into());
         self
     }
 }

@@ -149,7 +149,7 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         }
     }
 
-    if !matches!(search_result.result_type, crate::types::ResultType::Clipboard) {
+    if !matches!(search_result.result_type, crate::types::ResultType::Clipboard | crate::types::ResultType::Grid) {
         if let Ok(history) = USAGE_HISTORY.read() {
             search_result.results = boost_results_by_usage(search_result.results, &query, &history);
         }
