@@ -218,6 +218,14 @@ fn run_custom_function(
             }
             Ok(())
         }
+        "open_settings" => {
+            if let Some(window) = app.get_webview_window("settings") {
+                let window = window.as_ref().window();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            Ok(())
+        }
         "clear_clipboard" => {
             crate::CLIPBOARD_MANAGER.clear_history();
             Ok(())

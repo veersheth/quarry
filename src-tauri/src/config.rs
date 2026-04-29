@@ -35,7 +35,7 @@ pub struct WebSearchConfig {
     pub name:    String,
     pub trigger: String,
     pub url:     String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon:    Option<String>,
 }
 
@@ -221,6 +221,15 @@ impl Config {
             fs::create_dir_all(parent).ok();
         }
         fs::write(&path, DEFAULT_CONFIG_TOML).ok();
+    }
+
+    pub fn save(config: &Config) -> Result<(), String> {
+        let path = Self::config_path();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let toml = toml::to_string_pretty(config).map_err(|e| e.to_string())?;
+        fs::write(&path, toml).map_err(|e| e.to_string())
     }
 
     /// Write just the groq_api_key into the config file, preserving all other content.

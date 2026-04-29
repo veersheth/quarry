@@ -199,7 +199,22 @@ pub fn exec_shell(command: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
-    config::Config::load().theme
+    CONFIG.read().unwrap().theme.clone()
+}
+
+#[tauri::command]
+pub fn get_config() -> config::Config {
+    CONFIG.read().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn save_config(config: config::Config) -> Result<(), String> {
+    config::Config::save(&config)?;
+    if let Ok(mut c) = CONFIG.write() {
+        *c = config;
+    }
+    reload_triggers();
+    Ok(())
 }
 
 #[tauri::command]

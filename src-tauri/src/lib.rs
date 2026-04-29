@@ -15,8 +15,8 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    cancel_rofi, clear_clipboard_history, exec_shell, execute, get_groq_api_key, get_theme,
-    read_note, save_capture, save_groq_api_key, search, write_note,
+    cancel_rofi, clear_clipboard_history, exec_shell, execute, get_config, get_groq_api_key,
+    get_theme, read_note, save_capture, save_config, save_groq_api_key, search, write_note,
 };
 use lazy_static::lazy_static;
 use std::sync::{
@@ -86,7 +86,6 @@ pub fn run() {
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                // .title("quarry")
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "toggle" => ipc_server::toggle_window(app),
                     "quit"   => app.exit(0),
@@ -95,6 +94,7 @@ pub fn run() {
                 .build(app)?;
 
             windows::setup_note_window(app)?;
+            windows::setup_settings_window(app)?;
             windows::setup_main_window(app)?;
 
             Ok(())
@@ -105,6 +105,8 @@ pub fn run() {
             exec_shell,
             clear_clipboard_history,
             get_theme,
+            get_config,
+            save_config,
             read_note,
             write_note,
             save_capture,

@@ -26,6 +26,28 @@ pub fn setup_note_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+pub fn setup_settings_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let settings_webview = tauri::WebviewWindowBuilder::new(
+        app,
+        "settings",
+        tauri::WebviewUrl::App("settings".into()),
+    )
+    .title("quarry settings")
+    .inner_size(780.0, 660.0)
+    .min_inner_size(600.0, 700.0)
+    .build()?;
+
+    let win = settings_webview.as_ref().window().clone();
+    settings_webview.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = win.hide();
+        }
+    });
+
+    Ok(())
+}
+
 pub fn setup_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(webview) = app.get_webview_window("main") {
         let window = webview.as_ref().window().clone();
