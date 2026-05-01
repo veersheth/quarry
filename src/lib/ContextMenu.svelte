@@ -86,12 +86,12 @@
     min-width: 200px;
     max-width: 280px;
     font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
-    background: rgba(25, 25, 25, 0.80);
-    border: 2px solid rgba(255, 255, 255, 0.15);
+    background: rgba(30, 30, 30, 0.80);
+    border: 2px solid rgba(255, 255, 255, 0.25);
     border-radius: 24px;
-    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 0px 20px 5px rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(16px);
     overflow: hidden;
   }
 
