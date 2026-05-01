@@ -324,10 +324,10 @@
 
   <div class="info-panel">
     {#if activeItem}
-      <div class="preview-area">
+      <div class="preview-area" class:image-fullsize={contentType === "image"}>
 
         {#if contentType === "image"}
-          <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} />
+          <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} style="border-radius: 0;" />
 
         {:else if contentType === "color"}
           <div class="color-hero">
@@ -534,11 +534,14 @@
     min-height: 0;
   }
 
+  .preview-area.image-fullsize {
+    padding: 0;
+  }
+
   .image-preview {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    border-radius: 8px;
   }
 
   .color-hero {

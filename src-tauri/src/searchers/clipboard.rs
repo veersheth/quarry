@@ -163,25 +163,29 @@ impl SearchProvider for ClipboardSearcher {
                         None => format_timestamp(entry.timestamp),
                     };
 
-                    ResultItem::new(
-                        format!("Image {}×{}", width, height),
-                        vec![
-                            Action::new("Copy", ActionData::CopyImageToClipboard {
-                                base64_png: full.clone(),
-                                width: *width,
-                                height: *height,
-                            }),
-                            pin_action,
-                            Action::new("Delete", ActionData::RunFunction {
-                                function_name: "delete_clipboard_entry".into(),
-                                params: vec![entry.timestamp.to_string()],
-                            }),
-                            Action::new("Clear entire clipboard", ActionData::RunFunction {
-                                function_name: "clear_clipboard".into(),
-                                params: vec![],
-                            }),
-                        ],
-                    )
+                    let mut actions = vec![
+                        Action::new("Copy", ActionData::CopyImageToClipboard {
+                            base64_png: full.clone(),
+                            width: *width,
+                            height: *height,
+                        }),
+                    ];
+                    if let Some(text) = ocr_text {
+                        actions.push(Action::new("Copy Text", ActionData::CopyToClipboard { text: text.clone() }));
+                    }
+                    actions.extend([
+                        pin_action,
+                        Action::new("Delete", ActionData::RunFunction {
+                            function_name: "delete_clipboard_entry".into(),
+                            params: vec![entry.timestamp.to_string()],
+                        }),
+                        Action::new("Clear entire clipboard", ActionData::RunFunction {
+                            function_name: "clear_clipboard".into(),
+                            params: vec![],
+                        }),
+                    ]);
+
+                    ResultItem::new(format!("Image {}×{}", width, height), actions)
                     .description(description)
                     .thumbnail(thumbnail.clone())
                 }
