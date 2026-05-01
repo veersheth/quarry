@@ -2,6 +2,7 @@ import type { Writable } from "svelte/store";
 import type { ResultItem } from "../stores/search";
 import { execute } from "./searcher";
 import { get } from "svelte/store";
+import { tick } from "svelte";
 import { query, resultType, aiSubmitQuery, contextMenu, closeContextMenu } from "../stores/search";
 
 function deleteWordFromEnd(str: string): string {
@@ -148,18 +149,22 @@ export function handleKeydown(
   }
 
   activeIndex.update((index) => {
-    if (event.key === "ArrowDown") return (index + 1) % items.length;
-    if (event.key === "ArrowUp") return index === 0 ? items.length - 1 : index - 1;
-    if (event.key === "Tab" && !event.shiftKey) return (index + 1) % items.length;
-    if (event.key === "Tab" && event.shiftKey) return index === 0 ? items.length - 1 : index - 1;
-    if (event.key === "n" && event.ctrlKey) return (index + 1) % items.length;
-    if (event.key === "p" && event.ctrlKey) return index === 0 ? items.length - 1 : index - 1;
+    if (event.key === "ArrowDown") return Math.min(index + 1, items.length - 1);
+    if (event.key === "ArrowUp") return Math.max(index - 1, 0);
+    if (event.key === "Tab" && !event.shiftKey) return Math.min(index + 1, items.length - 1);
+    if (event.key === "Tab" && event.shiftKey) return Math.max(index - 1, 0);
+    if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length - 1);
+    if (event.key === "p" && event.ctrlKey) return Math.max(index - 1, 0);
     if (event.key === "Enter") { runItemAction(items[index]); return index; }
     if (event.key === "1" && event.altKey && items[0]) { runItemAction(items[0]); return index; }
     if (event.key === "2" && event.altKey && items[1]) { runItemAction(items[1]); return index; }
     if (event.key === "3" && event.altKey && items[2]) { runItemAction(items[2]); return index; }
     if (event.key === "4" && event.altKey && items[3]) { runItemAction(items[3]); return index; }
     return index;
+  });
+
+  tick().then(() => {
+    document.querySelector('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
   });
 }
 

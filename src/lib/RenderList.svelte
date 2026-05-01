@@ -23,7 +23,7 @@
   export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
 
   let mouseHasMoved = false;
-  $: { listitems; mouseHasMoved = false; }
+  $: { listitems; $activeIndex; mouseHasMoved = false; }
 </script>
 
 <svelte:window on:mousemove={() => { mouseHasMoved = true; }} />
