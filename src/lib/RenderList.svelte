@@ -55,6 +55,9 @@
           <span class="item-desc">{item.description}</span>
         {/if}
       </div>
+      {#if index < 4}
+        <span class="alt-hint">Alt + {index + 1}</span>
+      {/if}
     </div>
   {/each}
 </div>
@@ -139,5 +142,13 @@
     text-overflow: ellipsis;
     flex: 1;
     min-width: 0;
+  }
+
+  .alt-hint {
+    font-size: 0.80rem;
+    opacity: 0.5;
+    flex-shrink: 0;
+    margin-left: 8px;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
   }
 </style>

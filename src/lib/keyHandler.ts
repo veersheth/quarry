@@ -76,6 +76,17 @@ export function handleKeydown(
       return;
     }
 
+    // Alt+1-4: directly execute that action
+    if (event.altKey && ["1","2","3","4"].includes(event.key)) {
+      event.preventDefault();
+      const n = parseInt(event.key) - 1;
+      if (filtered[n]) {
+        execute(filtered[n].id, menu.item!.name, get(query));
+        closeContextMenu();
+      }
+      return;
+    }
+
     // Printable character: append to search query
     if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
       event.preventDefault();
@@ -156,10 +167,10 @@ export function handleKeydown(
     if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length - 1);
     if (event.key === "p" && event.ctrlKey) return Math.max(index - 1, 0);
     if (event.key === "Enter") { runItemAction(items[index]); return index; }
-    if (event.key === "1" && event.altKey && items[0]) { runItemAction(items[0]); return index; }
-    if (event.key === "2" && event.altKey && items[1]) { runItemAction(items[1]); return index; }
-    if (event.key === "3" && event.altKey && items[2]) { runItemAction(items[2]); return index; }
-    if (event.key === "4" && event.altKey && items[3]) { runItemAction(items[3]); return index; }
+    if (event.key === "1" && event.altKey) return items.length > 0 ? 0 : index;
+    if (event.key === "2" && event.altKey) return items.length > 1 ? 1 : index;
+    if (event.key === "3" && event.altKey) return items.length > 2 ? 2 : index;
+    if (event.key === "4" && event.altKey) return items.length > 3 ? 3 : index;
     return index;
   });
 

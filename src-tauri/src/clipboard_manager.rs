@@ -217,19 +217,26 @@ impl ClipboardManager {
                     if last_text.as_ref() != Some(&text) {
                         if !text.trim().is_empty() && text.len() < 1_000_000 {
                             let mut hist = history.lock().unwrap();
-                            let is_new = hist
-                                .first()
-                                .map(|e| match &e.content {
-                                    ClipboardContent::Text { value } => value != &text,
-                                    _ => true,
-                                })
-                                .unwrap_or(true);
-
-                            if is_new {
-                                hist.insert(0, ClipboardEntry::new_text(text.clone()));
-                                drop(hist);
-                                if let Some(ref p) = storage_path {
-                                    Self::save_to_disk_inner(&history, p);
+                            let existing = hist.iter().position(|e| match &e.content {
+                                ClipboardContent::Text { value } => value == &text,
+                                _ => false,
+                            });
+                            match existing {
+                                Some(0) => {} // already at top, nothing to do
+                                Some(pos) => {
+                                    hist.remove(pos);
+                                    hist.insert(0, ClipboardEntry::new_text(text.clone()));
+                                    drop(hist);
+                                    if let Some(ref p) = storage_path {
+                                        Self::save_to_disk_inner(&history, p);
+                                    }
+                                }
+                                None => {
+                                    hist.insert(0, ClipboardEntry::new_text(text.clone()));
+                                    drop(hist);
+                                    if let Some(ref p) = storage_path {
+                                        Self::save_to_disk_inner(&history, p);
+                                    }
                                 }
                             }
                         }

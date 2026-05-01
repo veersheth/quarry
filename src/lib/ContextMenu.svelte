@@ -63,9 +63,6 @@
       on:mouseenter={() => contextMenu.update(s => ({ ...s, activeIndex: i }))}
     >
       <span class="ctx-label">{action.name}</span>
-      {#if action.id === item.actions[0].id}
-        <span class="ctx-badge">default</span>
-      {/if}
     </div>
   {/each}
 
