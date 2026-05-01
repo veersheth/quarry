@@ -20,21 +20,7 @@
     }
   },
   "app": {
-    "windows": [
-      {
-        "additionalBrowserArgs": "--enable-media-stream --use-fake-ui-for-media-stream",
-        "title": "quarry",
-        "width": 1200,
-        "height": 700,
-        "decorations": false,
-        "transparent": true,
-        "resizable": false,
-        "alwaysOnTop": true,
-        "visible": false,
-        "focus": false,
-        "skipTaskbar": true
-      }
-    ],
+    "windows": [],
     "security": {
       "assetProtocol": {
         "enable": true,

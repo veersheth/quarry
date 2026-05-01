@@ -33,7 +33,7 @@ const SCRIPT_EXTENSIONS: &[&str] = &[
     "php",
 ];
 
-static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(SkimMatcherV2::default);
+static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
 
 // ---------------------------------------------------------------------------
 // Background file index

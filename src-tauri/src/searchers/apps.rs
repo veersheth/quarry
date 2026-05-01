@@ -148,7 +148,7 @@ impl SearchProvider for AppSearcher {
             return SearchResult { results, result_type: ResultType::List };
         }
 
-        let matcher = SkimMatcherV2::default();
+        let matcher = SkimMatcherV2::default().ignore_case();
         let mut scored: Vec<(&CachedApp, i64)> = guard
             .iter()
             .filter_map(|app| {

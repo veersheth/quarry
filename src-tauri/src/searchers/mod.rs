@@ -32,7 +32,7 @@ pub trait SearchProvider {
         if query.is_empty() {
             return items;
         }
-        let matcher = SkimMatcherV2::default();
+        let matcher = SkimMatcherV2::default().ignore_case();
         let mut scored: Vec<(ResultItem, i64)> = items
             .into_iter()
             .filter_map(|item| {

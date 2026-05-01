@@ -25,7 +25,7 @@ use std::sync::{
 };
 use tauri::{
     Manager,
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
 };
 
@@ -79,23 +79,38 @@ pub fn run() {
             let app_handle = app.handle().clone();
             ipc_server::start_ipc_server(app_handle);
 
-            let toggle = MenuItem::with_id(app, "toggle", "Toggle Window", true, None::<&str>)?;
-            let quit   = MenuItem::with_id(app, "quit",   "Quit",          true, None::<&str>)?;
-            let menu   = Menu::with_items(app, &[&toggle, &quit])?;
+            let toggle   = MenuItem::with_id(app, "toggle",   "Toggle Launcher", true, None::<&str>)?;
+            let note     = MenuItem::with_id(app, "note",     "Notepad",         true, None::<&str>)?;
+            let settings = MenuItem::with_id(app, "settings", "Settings",        true, None::<&str>)?;
+            let sep      = PredefinedMenuItem::separator(app)?;
+            let quit     = MenuItem::with_id(app, "quit",     "Quit",            true, None::<&str>)?;
+            let menu     = Menu::with_items(app, &[&toggle, &note, &settings, &sep, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "toggle" => ipc_server::toggle_window(app),
-                    "quit"   => app.exit(0),
-                    _        => {}
+                    "toggle"   => ipc_server::toggle_window(app),
+                    "note"     => {
+                        if let Some(w) = app.get_webview_window("note") {
+                            if w.is_visible().unwrap_or(false) { let _ = w.hide(); }
+                            else { let _ = w.show(); let _ = w.set_focus(); }
+                        }
+                    }
+                    "settings" => {
+                        if let Some(w) = app.get_webview_window("settings") {
+                            if w.is_visible().unwrap_or(false) { let _ = w.hide(); }
+                            else { let _ = w.show(); let _ = w.set_focus(); }
+                        }
+                    }
+                    "quit"     => app.exit(0),
+                    _          => {}
                 })
                 .build(app)?;
 
+            windows::setup_main_window(app)?;
             windows::setup_note_window(app)?;
             windows::setup_settings_window(app)?;
-            windows::setup_main_window(app)?;
 
             Ok(())
         })
