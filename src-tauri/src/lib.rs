@@ -72,8 +72,13 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            ipc_server::toggle_window(app);
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // A second instance was launched — dispatch to the running app.
+            match args.get(1).map(|s| s.as_str()) {
+                Some("notepad")  => ipc_server::toggle_note_window(app),
+                Some("settings") => ipc_server::toggle_settings_window(app),
+                _                => ipc_server::toggle_window(app),
+            }
         }))
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -111,6 +116,18 @@ pub fn run() {
             windows::setup_main_window(app)?;
             windows::setup_note_window(app)?;
             windows::setup_settings_window(app)?;
+
+            // Handle CLI subcommands on first launch.
+            use tauri_plugin_cli::CliExt;
+            if let Ok(matches) = app.cli().matches() {
+                if let Some(sub) = matches.subcommand {
+                    match sub.name.as_str() {
+                        "notepad"  => ipc_server::toggle_note_window(app.handle()),
+                        "settings" => ipc_server::toggle_settings_window(app.handle()),
+                        _          => {}
+                    }
+                }
+            }
 
             Ok(())
         })

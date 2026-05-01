@@ -205,8 +205,20 @@ fn hide_window(app_handle: &tauri::AppHandle) {
     }
 }
 
-fn toggle_note_window(app_handle: &tauri::AppHandle) {
+pub(crate) fn toggle_note_window(app_handle: &tauri::AppHandle) {
     if let Some(window) = app_handle.get_webview_window("note") {
+        let window = window.as_ref().window();
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
+pub(crate) fn toggle_settings_window(app_handle: &tauri::AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("settings") {
         let window = window.as_ref().window();
         if window.is_visible().unwrap_or(false) {
             let _ = window.hide();

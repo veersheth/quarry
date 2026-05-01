@@ -11,10 +11,16 @@
   },
   "plugins": {
     "cli": {
-      "description": "Tauri CLI Plugin Example",
+      "description": "Quarry launcher",
       "subcommands": {
         "toggle": {
-          "description": "Toggle the main window"
+          "description": "Toggle the main launcher window"
+        },
+        "notepad": {
+          "description": "Open the notepad window"
+        },
+        "settings": {
+          "description": "Open the settings window"
         }
       }
     }
