@@ -14,7 +14,7 @@ impl SearchProvider for ClipboardSearcher {
             return SearchResult {
                 results: vec![ResultItem::new(
                     "Clear clipboard history?",
-                   vec![Action::new("Clear", ActionData::RunFunction {
+                    vec![Action::new("Clear", ActionData::RunFunction {
                         function_name: "clear_clipboard".into(),
                         params: vec![],
                     })],
@@ -23,9 +23,15 @@ impl SearchProvider for ClipboardSearcher {
             };
         }
 
-        let pins = crate::PINS.get("clipboard");
+        let text_pins = crate::PINS.get("clipboard");
         let pinned_texts: std::collections::HashSet<&str> =
-            pins.iter().map(|p| p.payload.as_str()).collect();
+            text_pins.iter().map(|p| p.payload.as_str()).collect();
+
+        let image_pins = crate::PINS.get("clipboard_image");
+        let pinned_hashes: std::collections::HashSet<u64> = image_pins
+            .iter()
+            .filter_map(|p| p.name.parse::<u64>().ok())
+            .collect();
 
         let history = CLIPBOARD_MANAGER.get_history();
 
@@ -33,7 +39,7 @@ impl SearchProvider for ClipboardSearcher {
 
         // Prepend pinned entries on empty query (survive history eviction)
         if query.is_empty() {
-            for pin in &pins {
+            for pin in &text_pins {
                 results.push(
                     ResultItem::new(
                         pin.payload.clone(),
@@ -49,14 +55,44 @@ impl SearchProvider for ClipboardSearcher {
                     .pinned(),
                 );
             }
+
+            for pin in &image_pins {
+                if let Ok(img) = serde_json::from_str::<serde_json::Value>(&pin.payload) {
+                    let full = img["full"].as_str().unwrap_or("").to_string();
+                    let thumbnail = img["thumbnail"].as_str().unwrap_or("").to_string();
+                    let width = img["width"].as_u64().unwrap_or(0) as u32;
+                    let height = img["height"].as_u64().unwrap_or(0) as u32;
+                    results.push(
+                        ResultItem::new(
+                            format!("Image {}×{}", width, height),
+                            vec![
+                                Action::new("Copy", ActionData::CopyImageToClipboard {
+                                    base64_png: full,
+                                    width,
+                                    height,
+                                }),
+                                Action::new("Unpin", ActionData::RunFunction {
+                                    function_name: "unpin".into(),
+                                    params: vec!["clipboard_image".into(), pin.name.clone()],
+                                }),
+                            ],
+                        )
+                        .description("pinned".to_string())
+                        .thumbnail(thumbnail)
+                        .pinned(),
+                    );
+                }
+            }
         }
 
         let history_items = history
             .iter()
             .filter(|entry| {
                 if query.is_empty() {
-                    // Exclude entries already shown as pinned above
-                    return !pinned_texts.contains(entry.display_text().as_str());
+                    return match &entry.content {
+                        ClipboardContent::Text { value } => !pinned_texts.contains(value.as_str()),
+                        ClipboardContent::Image { hash, .. } => !pinned_hashes.contains(hash),
+                    };
                 }
                 entry.display_text().to_lowercase().contains(&query)
             })
@@ -92,22 +128,63 @@ impl SearchProvider for ClipboardSearcher {
                     .description(format_timestamp(entry.timestamp))
                 }
 
-                ClipboardContent::Image { thumbnail, full, width, height, .. } => ResultItem::new(
-                    format!("Image {}×{}", width, height),
-                    vec![
-                        Action::new("Copy", ActionData::CopyImageToClipboard {
-                            base64_png: full.clone(),
-                            width: *width,
-                            height: *height,
-                        }),
-                        Action::new("Delete", ActionData::RunFunction {
-                            function_name: "delete_clipboard_entry".into(),
-                            params: vec![entry.timestamp.to_string()],
-                        }),
-                    ],
-                )
-                .description(format_timestamp(entry.timestamp))
-                .thumbnail(thumbnail.clone()),
+                ClipboardContent::Image { thumbnail, full, width, height, ocr_text, hash } => {
+                    let hash_str = hash.to_string();
+                    let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
+                    let pin_action = if is_pinned {
+                        Action::new("Unpin", ActionData::RunFunction {
+                            function_name: "unpin".into(),
+                            params: vec!["clipboard_image".into(), hash_str],
+                        })
+                    } else {
+                        let payload = serde_json::json!({
+                            "full": full,
+                            "thumbnail": thumbnail,
+                            "width": width,
+                            "height": height,
+                        })
+                        .to_string();
+                        Action::new("Pin", ActionData::RunFunction {
+                            function_name: "pin".into(),
+                            params: vec!["clipboard_image".into(), hash_str, payload],
+                        })
+                    };
+
+                    let description = match ocr_text {
+                        Some(text) => {
+                            let preview: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+                            let preview = if preview.len() > 80 {
+                                format!("{}…", &preview[..80])
+                            } else {
+                                preview
+                            };
+                            format!("{} · {}", preview, format_timestamp(entry.timestamp))
+                        }
+                        None => format_timestamp(entry.timestamp),
+                    };
+
+                    ResultItem::new(
+                        format!("Image {}×{}", width, height),
+                        vec![
+                            Action::new("Copy", ActionData::CopyImageToClipboard {
+                                base64_png: full.clone(),
+                                width: *width,
+                                height: *height,
+                            }),
+                            pin_action,
+                            Action::new("Delete", ActionData::RunFunction {
+                                function_name: "delete_clipboard_entry".into(),
+                                params: vec![entry.timestamp.to_string()],
+                            }),
+                            Action::new("Clear entire clipboard", ActionData::RunFunction {
+                                function_name: "clear_clipboard".into(),
+                                params: vec![],
+                            }),
+                        ],
+                    )
+                    .description(description)
+                    .thumbnail(thumbnail.clone())
+                }
             });
 
         results.extend(history_items);

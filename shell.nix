@@ -36,6 +36,7 @@ pkgs.mkShell {
     pkg-config
     openssl
     alsa-lib
+    tesseract
   ];
 
   shellHook = ''

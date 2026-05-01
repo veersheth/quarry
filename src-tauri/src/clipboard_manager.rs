@@ -30,6 +30,9 @@ pub enum ClipboardContent {
         height: u32,
         /// xxhash of raw bytes for deduplication
         hash: u64,
+        /// Text extracted from the image via tesseract OCR, if available
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ocr_text: Option<String>,
     },
 }
 
@@ -47,7 +50,7 @@ impl ClipboardEntry {
         }
     }
 
-    fn new_image(thumbnail: String, full: String, width: u32, height: u32, hash: u64) -> Self {
+    fn new_image(thumbnail: String, full: String, width: u32, height: u32, hash: u64, ocr_text: Option<String>) -> Self {
         Self {
             content: ClipboardContent::Image {
                 thumbnail,
@@ -55,17 +58,23 @@ impl ClipboardEntry {
                 width,
                 height,
                 hash,
+                ocr_text,
             },
             timestamp: now_secs(),
         }
     }
 
-    /// Returns a plain-text label for display / searching
+    /// Returns a plain-text label used for searching (includes OCR text for images).
     pub fn display_text(&self) -> String {
         match &self.content {
             ClipboardContent::Text { value } => value.clone(),
-            ClipboardContent::Image { width, height, .. } => {
-                format!("[Image {}×{}]", width, height)
+            ClipboardContent::Image { width, height, ocr_text, .. } => {
+                let mut s = format!("image {}×{}", width, height);
+                if let Some(text) = ocr_text {
+                    s.push(' ');
+                    s.push_str(text);
+                }
+                s
             }
         }
     }
@@ -87,17 +96,11 @@ fn hash_bytes(data: &[u8]) -> u64 {
     h.finish()
 }
 
-/// Encode raw RGBA image data as a base64 PNG string.
-fn encode_png_base64(
-    bytes: &[u8],
-    width: u32,
-    height: u32,
-    target_width: Option<u32>,
-) -> Option<String> {
+/// Encode raw RGBA bytes to a PNG byte vector, optionally scaling to `target_width`.
+fn encode_to_png(bytes: &[u8], width: u32, height: u32, target_width: Option<u32>) -> Option<Vec<u8>> {
     let img: ImageBuffer<Rgba<u8>, _> =
         ImageBuffer::from_raw(width, height, bytes.to_vec())?;
 
-    // Optionally resize
     let img = if let Some(tw) = target_width {
         if width > tw {
             let scale = tw as f32 / width as f32;
@@ -114,11 +117,35 @@ fn encode_png_base64(
     image::DynamicImage::ImageRgba8(img)
         .write_to(&mut buf, ImageFormat::Png)
         .ok()?;
+    Some(buf.into_inner())
+}
 
-    Some(format!(
-        "data:image/png;base64,{}",
-        general_purpose::STANDARD.encode(buf.get_ref())
-    ))
+fn png_to_data_url(png: &[u8]) -> String {
+    format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(png))
+}
+
+/// Run tesseract on PNG bytes and return extracted text, or None if tesseract is
+/// unavailable or the image contains no recognisable text.
+fn ocr_png(png_bytes: &[u8]) -> Option<String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new("tesseract")
+        .args(["stdin", "stdout", "quiet"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+
+    // Drop stdin after writing so tesseract sees EOF.
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(png_bytes);
+    }
+
+    let output = child.wait_with_output().ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() { None } else { Some(text) }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,15 +260,20 @@ impl ClipboardManager {
                     last_text = None; // reset text tracking
 
                     // Build thumbnail and full PNG on this thread (CPU-bound but rare)
-                    let thumbnail =
-                        match encode_png_base64(raw, w, h, Some(THUMBNAIL_WIDTH)) {
-                            Some(t) => t,
-                            None => continue,
-                        };
-                    let full = match encode_png_base64(raw, w, h, None) {
-                        Some(f) => f,
+                    let thumb_png = match encode_to_png(raw, w, h, Some(THUMBNAIL_WIDTH)) {
+                        Some(p) => p,
                         None => continue,
                     };
+                    let full_png = match encode_to_png(raw, w, h, None) {
+                        Some(p) => p,
+                        None => continue,
+                    };
+
+                    // OCR runs synchronously here; it's rare and the loop can afford the pause.
+                    let ocr_text = ocr_png(&full_png);
+
+                    let thumbnail = png_to_data_url(&thumb_png);
+                    let full = png_to_data_url(&full_png);
 
                     let mut hist = history.lock().unwrap();
 
@@ -255,7 +287,7 @@ impl ClipboardManager {
                         continue;
                     }
 
-                    hist.insert(0, ClipboardEntry::new_image(thumbnail, full, w, h, hash));
+                    hist.insert(0, ClipboardEntry::new_image(thumbnail, full, w, h, hash, ocr_text));
 
                     // Enforce image cap: remove oldest image entries beyond the limit
                     let mut image_count = 0usize;
