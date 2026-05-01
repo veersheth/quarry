@@ -9,6 +9,7 @@
     description?: string;
     icon?: string;
     thumbnail?: string;
+    ocr_text?: string;
     pinned?: boolean;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
@@ -20,6 +21,9 @@
   $: activeColor = activeItem?.thumbnail ? null : getValidColor(activeItem?.name);
   $: contentType = activeItem ? detectType(activeItem) : ("text" as ContentType);
   $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType) : [];
+
+  let showOcrText = false;
+  $: if (activeItem) showOcrText = false;
 
   type UrlMeta = {
     favicon: string | null;
@@ -324,10 +328,25 @@
 
   <div class="info-panel">
     {#if activeItem}
+      {#if contentType === "image" && activeItem.ocr_text}
+        <div class="view-tabs">
+          <button class="view-tab" class:active={!showOcrText} on:click={() => showOcrText = false}>
+            Image
+          </button>
+          <button class="view-tab" class:active={showOcrText} on:click={() => showOcrText = true}>
+            Text
+          </button>
+        </div>
+      {/if}
+
       <div class="preview-area" class:image-fullsize={contentType === "image"}>
 
         {#if contentType === "image"}
-          <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} style="border-radius: 0;" />
+          {#if activeItem.ocr_text && showOcrText}
+            <div class="image-ocr-text">{activeItem.ocr_text}</div>
+          {:else}
+            <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} />
+          {/if}
 
         {:else if contentType === "color"}
           <div class="color-hero">
@@ -542,6 +561,48 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+
+  .image-ocr-text {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 16px 20px;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: #ccc;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+  }
+
+  .view-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #222;
+    color: #555;
+  }
+
+  .view-tab {
+    flex: 1;
+    padding: 5px 0;
+    font-size: 0.78rem;
+    color: #555;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+  }
+
+  .view-tab:hover { color: #999; }
+
+  .view-tab.active {
+    color: #ddd;
+    background: #1e1e1e;
+    border-color: #333;
   }
 
   .color-hero {

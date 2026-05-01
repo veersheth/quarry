@@ -26,6 +26,8 @@ pub struct ResultItem {
     pub icon: Option<String>,
     /// For image clipboard entries: base64 PNG thumbnail for the UI to render
     pub thumbnail: Option<String>,
+    /// OCR text extracted from clipboard images, for display in the preview panel
+    pub ocr_text: Option<String>,
     pub pinned: bool,
     pub group: Option<String>,
 }
@@ -38,6 +40,7 @@ impl ResultItem {
             description: None,
             icon: None,
             thumbnail: None,
+            ocr_text: None,
             pinned: false,
             group: None,
         }
@@ -55,6 +58,11 @@ impl ResultItem {
 
     pub fn thumbnail(mut self, t: impl Into<String>) -> Self {
         self.thumbnail = Some(t.into());
+        self
+    }
+
+    pub fn ocr_text(mut self, t: impl Into<String>) -> Self {
+        self.ocr_text = Some(t.into());
         self
     }
 

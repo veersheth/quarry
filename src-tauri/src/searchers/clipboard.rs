@@ -150,19 +150,6 @@ impl SearchProvider for ClipboardSearcher {
                         })
                     };
 
-                    let description = match ocr_text {
-                        Some(text) => {
-                            let preview: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
-                            let preview = if preview.len() > 80 {
-                                format!("{}…", &preview[..80])
-                            } else {
-                                preview
-                            };
-                            format!("{} · {}", preview, format_timestamp(entry.timestamp))
-                        }
-                        None => format_timestamp(entry.timestamp),
-                    };
-
                     let mut actions = vec![
                         Action::new("Copy", ActionData::CopyImageToClipboard {
                             base64_png: full.clone(),
@@ -185,9 +172,13 @@ impl SearchProvider for ClipboardSearcher {
                         }),
                     ]);
 
-                    ResultItem::new(format!("Image {}×{}", width, height), actions)
-                    .description(description)
-                    .thumbnail(thumbnail.clone())
+                    let mut item = ResultItem::new(format!("Image {}×{}", width, height), actions)
+                        .description(format_timestamp(entry.timestamp))
+                        .thumbnail(thumbnail.clone());
+                    if let Some(text) = ocr_text {
+                        item = item.ocr_text(text.clone());
+                    }
+                    item
                 }
             });
 
