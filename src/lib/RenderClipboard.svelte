@@ -1,7 +1,12 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { runItemAction } from "./keyHandler";
+
+  function iconSrc(icon: string): string {
+    return icon.startsWith("/") ? convertFileSrc(icon) : icon;
+  }
 
   export let listitems: {
     name: string;
@@ -9,6 +14,8 @@
     description?: string;
     icon?: string;
     thumbnail?: string;
+    ocr_text?: string;
+    pinned?: boolean;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
@@ -19,6 +26,9 @@
   $: activeColor = activeItem?.thumbnail ? null : getValidColor(activeItem?.name);
   $: contentType = activeItem ? detectType(activeItem) : ("text" as ContentType);
   $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType) : [];
+
+  let showOcrText = false;
+  $: if (activeItem) showOcrText = false;
 
   type UrlMeta = {
     favicon: string | null;
@@ -277,6 +287,7 @@
       <div
         class="result-item"
         class:active={index === $activeIndex}
+        class:pinned={item.pinned}
         data-active={index === $activeIndex}
         on:mouseenter={() => activeIndex.set(index)}
         on:click={() => handleClick(item)}
@@ -285,6 +296,8 @@
         <div class="type-icon">
           {#if item.thumbnail}
             <img class="icon-thumb" src={item.thumbnail} alt="" />
+          {:else if item.icon}
+            <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
             <div class="icon-swatch" style:background-color={getValidColor(item.name)}></div>
           {:else if isURL(item.name)}
@@ -322,10 +335,25 @@
 
   <div class="info-panel">
     {#if activeItem}
-      <div class="preview-area">
+      {#if contentType === "image" && activeItem.ocr_text}
+        <div class="view-tabs">
+          <button class="view-tab" class:active={!showOcrText} on:click={() => showOcrText = false}>
+            Image
+          </button>
+          <button class="view-tab" class:active={showOcrText} on:click={() => showOcrText = true}>
+            Text
+          </button>
+        </div>
+      {/if}
+
+      <div class="preview-area" class:image-fullsize={contentType === "image"}>
 
         {#if contentType === "image"}
-          <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} />
+          {#if activeItem.ocr_text && showOcrText}
+            <div class="image-ocr-text">{activeItem.ocr_text}</div>
+          {:else}
+            <img class="image-preview" src={activeItem.thumbnail} alt={activeItem.name} />
+          {/if}
 
         {:else if contentType === "color"}
           <div class="color-hero">
@@ -446,9 +474,17 @@
     border: 2px solid transparent;
   }
 
+  .result-item.pinned {
+    border-color: rgba(168, 85, 247, 0.45);
+  }
+
   .result-item.active {
     background: var(--q-active-bg-color);
     border-color: var(--q-active-border-color);
+  }
+
+  .result-item.pinned.active {
+    border-color: rgba(192, 132, 252, 0.8);
   }
 
   .type-icon {
@@ -492,10 +528,15 @@
     font-weight: 600;
     text-transform: uppercase;
   }
-  .icon-url   { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
-  .icon-email { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
-  .icon-json  { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
-  .icon-code  { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
+  .icon-url    { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
+  .icon-email  { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
+  .icon-json   { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
+  .icon-code   { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
+  .icon-img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+  }
 
   .item-body { flex: 1; min-width: 0; }
 
@@ -524,11 +565,56 @@
     min-height: 0;
   }
 
+  .preview-area.image-fullsize {
+    padding: 0;
+  }
+
   .image-preview {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    border-radius: 8px;
+  }
+
+  .image-ocr-text {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 16px 20px;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: #ccc;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+  }
+
+  .view-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #222;
+    color: #555;
+  }
+
+  .view-tab {
+    flex: 1;
+    padding: 5px 0;
+    font-size: 0.78rem;
+    color: #555;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+  }
+
+  .view-tab:hover { color: #999; }
+
+  .view-tab.active {
+    color: #ddd;
+    background: #1e1e1e;
+    border-color: #333;
   }
 
   .color-hero {
@@ -785,3 +871,4 @@
     white-space: nowrap;
   }
 </style>
+

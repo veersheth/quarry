@@ -30,6 +30,7 @@ pub fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Result<(), 
         ActionData::CopyImageToClipboard { base64_png, width, height } => {
             copy_image_to_clipboard(&base64_png, width, height)
         }
+        ActionData::CopyImageFile { path } => copy_image_file_to_clipboard(&path),
         ActionData::RunFunction { function_name, params } => {
             run_custom_function(&function_name, &params, app)
         }
@@ -97,6 +98,22 @@ fn copy_image_to_clipboard(base64_png: &str, width: u32, height: u32) -> Result<
         .map_err(|e| format!("Failed to set clipboard image: {}", e))?;
 
     Ok(())
+}
+
+fn copy_image_file_to_clipboard(path: &str) -> Result<(), String> {
+    let img = image::open(path)
+        .map_err(|e| format!("Failed to open image: {}", e))?
+        .into_rgba8();
+    let (width, height) = img.dimensions();
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("Clipboard unavailable: {}", e))?;
+    clipboard
+        .set_image(arboard::ImageData {
+            width: width as usize,
+            height: height as usize,
+            bytes: img.into_raw().into(),
+        })
+        .map_err(|e| format!("Failed to set clipboard image: {}", e))
 }
 
 pub(crate) fn run_shell_command(command: &str) -> Result<(), String> {
@@ -218,6 +235,14 @@ fn run_custom_function(
             }
             Ok(())
         }
+        "open_settings" => {
+            if let Some(window) = app.get_webview_window("settings") {
+                let window = window.as_ref().window();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            Ok(())
+        }
         "clear_clipboard" => {
             crate::CLIPBOARD_MANAGER.clear_history();
             Ok(())
@@ -233,6 +258,23 @@ fn run_custom_function(
                 return Err("remove_bookmark requires a name".to_string());
             }
             BookmarksSearcher::remove_bookmark(&params[0]).map(|_| ())
+        }
+        "pin" => {
+            if params.len() < 3 {
+                return Err("pin requires searcher, name, payload".into());
+            }
+            crate::PINS.add(&params[0], crate::pins::PinEntry {
+                name: params[1].clone(),
+                payload: params[2].clone(),
+            });
+            Ok(())
+        }
+        "unpin" => {
+            if params.len() < 2 {
+                return Err("unpin requires searcher and name".into());
+            }
+            crate::PINS.remove(&params[0], &params[1]);
+            Ok(())
         }
         "reload_quarry" => {
             if let Ok(mut cfg) = crate::CONFIG.write() {
@@ -322,6 +364,39 @@ fn run_custom_function(
             };
             let payload = ModalPayload { body, buttons };
             app.emit("quarry-modal", &payload).map_err(|e| e.to_string())
+        }
+        "copy_clipboard_image" => {
+            let hash = params.first().and_then(|s| s.parse::<u64>().ok())
+                .ok_or("copy_clipboard_image requires a hash")?;
+            let (full, width, height) = crate::CLIPBOARD_MANAGER.get_full_image(hash)
+                .ok_or("Image not found in clipboard history")?;
+            copy_image_to_clipboard(&full, width, height)
+        }
+        "delete_clipboard_entry" => {
+            let ts = params.first().and_then(|s| s.parse::<u64>().ok())
+                .ok_or("delete_clipboard_entry requires a timestamp")?;
+            crate::CLIPBOARD_MANAGER.remove_by_timestamp(ts);
+            Ok(())
+        }
+        "delete_file" => {
+            if params.is_empty() {
+                return Err("delete_file requires a path".into());
+            }
+            std::fs::remove_file(&params[0]).map_err(|e| e.to_string())
+        }
+        "ocr_screenshot" => {
+            if params.is_empty() {
+                return Err("ocr_screenshot requires a path".into());
+            }
+            let output = std::process::Command::new("tesseract")
+                .args([&params[0], "stdout", "--psm", "3"])
+                .output()
+                .map_err(|e| format!("Failed to run tesseract: {}", e))?;
+            let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if text.is_empty() {
+                return Err("No text found in screenshot".into());
+            }
+            copy_to_clipboard(&text, app)
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }

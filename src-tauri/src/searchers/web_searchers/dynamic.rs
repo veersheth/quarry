@@ -11,7 +11,16 @@ pub struct WebSearcher {
     pub icon:         Option<String>,
 }
 
+fn favicon_url(url_template: &str) -> Option<String> {
+    let domain = url_template.split("://").nth(1)?.split('/').next()?.split('?').next()?;
+    Some(format!("https://www.google.com/s2/favicons?domain={}&sz=64", domain))
+}
+
 impl WebSearcher {
+    fn effective_icon(&self) -> Option<String> {
+        self.icon.clone().or_else(|| favicon_url(&self.url_template))
+    }
+
     fn term_from_name<'a>(&self, name: &'a str) -> &'a str {
         let prefix = format!("Search {}:", self.name);
         name.strip_prefix(&prefix)
@@ -24,8 +33,8 @@ impl WebSearcher {
         let url = self.url_template.replace("{}", &urlencoding::encode(term));
         let mut item = ResultItem::new(name, vec![Action::new("Open", ActionData::OpenUrl { url })])
             .description(description);
-        if let Some(icon) = &self.icon {
-            item = item.icon(icon.clone());
+        if let Some(icon) = self.effective_icon() {
+            item = item.icon(icon);
         }
         item
     }
@@ -43,8 +52,8 @@ impl SearchProvider for WebSearcher {
                 vec![Action::new("", ActionData::None)],
             )
             .description(format!("Type to search {}", self.name));
-            if let Some(icon) = &self.icon {
-                item = item.icon(icon.clone());
+            if let Some(icon) = self.effective_icon() {
+                item = item.icon(icon);
             }
             item
         } else {

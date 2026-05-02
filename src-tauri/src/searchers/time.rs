@@ -270,12 +270,33 @@ fn format_date(tz: Tz) -> String {
 }
 
 /// Build a ResultItem for a timezone match.
-fn tz_result(m: &TzMatch) -> ResultItem {
-    ResultItem::new(
+fn tz_result(m: &TzMatch, is_pinned: bool) -> ResultItem {
+    let pin_action = if is_pinned {
+        Action::new("Unpin", ActionData::RunFunction {
+            function_name: "unpin".into(),
+            params: vec!["time".into(), m.label.clone()],
+        })
+    } else {
+        Action::new("Pin", ActionData::RunFunction {
+            function_name: "pin".into(),
+            params: vec!["time".into(), m.label.clone(), m.label.clone()],
+        })
+    };
+
+    let mut item = ResultItem::new(
         format!("{} - {}", m.label, format_time(m.tz)),
-        vec![Action::new("Copy", ActionData::CopyToClipboard { text: format_time(m.tz) })],
+        vec![
+            Action::new("Copy", ActionData::CopyToClipboard { text: format_time(m.tz) }),
+            pin_action,
+        ],
     )
-    .description(format_date(m.tz))
+    .description(format_date(m.tz));
+
+    if is_pinned {
+        item = item.pinned();
+    }
+
+    item
 }
 
 /// Collect all matches for the given query, in order: exact, prefix, contains.
@@ -345,24 +366,35 @@ impl SearchProvider for TimeSearcher {
         let q = query.trim();
 
         if q.is_empty() {
-            let defaults = ["UTC", "Sydney", "India", "Boston", "Singapore"];
-            let results = defaults
+            let pins = crate::PINS.get("time");
+            let pinned_labels: std::collections::HashSet<&str> =
+                pins.iter().map(|p| p.name.as_str()).collect();
+
+            let mut results: Vec<ResultItem> = pins
                 .iter()
-                .flat_map(|name| find_matches(name).into_iter().next())
-                .map(|m| tz_result(&m))
+                .filter_map(|pin| {
+                    let city = pin.payload.split(',').next()?.trim();
+                    find_matches(city).into_iter().next().map(|m| tz_result(&m, true))
+                })
                 .collect();
-            return SearchResult {
-                results,
-                result_type: ResultType::List,
-            };
+
+            let defaults = ["UTC"];
+            results.extend(
+                defaults.iter()
+                    .flat_map(|name| find_matches(name).into_iter().next())
+                    .filter(|m| !pinned_labels.contains(m.label.as_str()))
+                    .map(|m| tz_result(&m, false)),
+            );
+
+            return SearchResult { results, result_type: ResultType::List };
         }
 
         let matches = find_matches(q);
-        let results = matches.iter().take(8).map(tz_result).collect();
+        let results = matches.iter().take(8).map(|m| {
+            let is_pinned = crate::PINS.contains("time", &m.label);
+            tz_result(m, is_pinned)
+        }).collect();
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-        }
+        SearchResult { results, result_type: ResultType::List }
     }
 }

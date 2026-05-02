@@ -19,6 +19,7 @@ pub mod note;
 pub mod settings;
 pub mod timer;
 pub mod windows_switcher;
+pub mod screenshots;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
@@ -32,7 +33,7 @@ pub trait SearchProvider {
         if query.is_empty() {
             return items;
         }
-        let matcher = SkimMatcherV2::default();
+        let matcher = SkimMatcherV2::default().ignore_case();
         let mut scored: Vec<(ResultItem, i64)> = items
             .into_iter()
             .filter_map(|item| {

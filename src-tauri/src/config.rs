@@ -9,6 +9,7 @@ pub struct Config {
     pub theme:         ThemeConfig,
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
+    pub screenshots:   ScreenshotsConfig,
     /// Groq API key for AI chat. Leave empty to be prompted on first use.
     #[serde(default)]
     pub groq_api_key:  String,
@@ -21,8 +22,26 @@ impl Default for Config {
             theme:         ThemeConfig::default(),
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
+            screenshots:   ScreenshotsConfig::default(),
             groq_api_key:  String::new(),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Screenshots
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScreenshotsConfig {
+    /// Directory to scan for screenshots. Defaults to ~/Pictures/Screenshots.
+    pub path: String,
+}
+
+impl Default for ScreenshotsConfig {
+    fn default() -> Self {
+        Self { path: "~/Pictures/Screenshots".into() }
     }
 }
 
@@ -35,7 +54,7 @@ pub struct WebSearchConfig {
     pub name:    String,
     pub trigger: String,
     pub url:     String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon:    Option<String>,
 }
 
@@ -45,19 +64,19 @@ fn default_web_searches() -> Vec<WebSearchConfig> {
             name:    "Google".into(),
             trigger: r"^g\s+(.*)$".into(),
             url:     "https://www.google.com/search?q={}".into(),
-            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png".into()),
+            icon:    None,
         },
         WebSearchConfig {
             name:    "YouTube".into(),
             trigger: r"^yt\s+(.*)$".into(),
             url:     "https://www.youtube.com/results?search_query={}".into(),
-            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png".into()),
+            icon:    None,
         },
         WebSearchConfig {
             name:    "GitHub".into(),
             trigger: r"^gh\s+(.*)$".into(),
             url:     "https://github.com/search?q={}".into(),
-            icon:    Some("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png".into()),
+            icon:    None,
         },
         WebSearchConfig {
             name:    "Nix Packages".into(),
@@ -151,6 +170,7 @@ pub struct TriggerConfig {
     pub settings:     String,
     pub windows:      String,
     pub timer:        String,
+    pub screenshots:  String,
 }
 
 impl Default for TriggerConfig {
@@ -176,6 +196,7 @@ impl Default for TriggerConfig {
             settings:     r"^set\s*(.*)$".into(),
             windows:      r"^wm\s*(.*)$".into(),
             timer:        r"^timer\s*(.*)$".into(),
+            screenshots:  r"^ss\s*(.*)$".into(),
         }
     }
 }
@@ -221,6 +242,15 @@ impl Config {
             fs::create_dir_all(parent).ok();
         }
         fs::write(&path, DEFAULT_CONFIG_TOML).ok();
+    }
+
+    pub fn save(config: &Config) -> Result<(), String> {
+        let path = Self::config_path();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let toml = toml::to_string_pretty(config).map_err(|e| e.to_string())?;
+        fs::write(&path, toml).map_err(|e| e.to_string())
     }
 
     /// Write just the groq_api_key into the config file, preserving all other content.
@@ -291,6 +321,9 @@ url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[
 ai           = '^ai\s+(.*)$'
 time         = '^time in\s(.*)$'
 
+[screenshots]
+# path = "~/Pictures/Screenshots"   # uncomment to override the default
+
 [default_search]
 web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]
 max_web_results = 1
@@ -299,19 +332,16 @@ max_web_results = 1
 name    = "Google"
 trigger = '^g\s+(.*)$'
 url     = "https://www.google.com/search?q={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
 
 [[web_searches]]
 name    = "YouTube"
 trigger = '^yt\s+(.*)$'
 url     = "https://www.youtube.com/results?search_query={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png"
 
 [[web_searches]]
 name    = "GitHub"
 trigger = '^gh\s+(.*)$'
 url     = "https://github.com/search?q={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png"
 
 [[web_searches]]
 name    = "Nix Packages"

@@ -27,7 +27,7 @@ static CURRENCY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(\d[\d,.]*)?\s*([a-z]{3})\s+(?:to\s+)?([a-z]{3})$").unwrap()
 });
 
-static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(SkimMatcherV2::default);
+static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
 
 pub struct DefaultSearcher;
 

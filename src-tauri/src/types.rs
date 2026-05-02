@@ -26,6 +26,10 @@ pub struct ResultItem {
     pub icon: Option<String>,
     /// For image clipboard entries: base64 PNG thumbnail for the UI to render
     pub thumbnail: Option<String>,
+    /// OCR text extracted from clipboard images, for display in the preview panel
+    pub ocr_text: Option<String>,
+    pub pinned: bool,
+    pub group: Option<String>,
 }
 
 impl ResultItem {
@@ -36,6 +40,9 @@ impl ResultItem {
             description: None,
             icon: None,
             thumbnail: None,
+            ocr_text: None,
+            pinned: false,
+            group: None,
         }
     }
 
@@ -53,6 +60,21 @@ impl ResultItem {
         self.thumbnail = Some(t.into());
         self
     }
+
+    pub fn ocr_text(mut self, t: impl Into<String>) -> Self {
+        self.ocr_text = Some(t.into());
+        self
+    }
+
+    pub fn pinned(mut self) -> Self {
+        self.pinned = true;
+        self
+    }
+
+    pub fn group(mut self, g: impl Into<String>) -> Self {
+        self.group = Some(g.into());
+        self
+    }
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -68,6 +90,7 @@ pub enum ResultType {
     Math,
     Camera,
     Ai,
+    Screenshots,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -83,6 +106,7 @@ pub enum ActionData {
     OpenUrl { url: String },
     CopyToClipboard { text: String },
     CopyImageToClipboard { base64_png: String, width: u32, height: u32 },
+    CopyImageFile { path: String },
     RunFunction { function_name: String, params: Vec<String> },
     ShellCommand { command: String },
     RunScript { path: String },
@@ -99,6 +123,7 @@ impl ActionData {
             ActionData::CopyImageToClipboard { width, height, .. } => {
                 format!("copy-img:{}x{}", width, height)
             }
+            ActionData::CopyImageFile { path } => format!("copy-file:{}", path),
             ActionData::RunFunction { function_name, params } => {
                 format!("fn:{}:{}", function_name, params.join(","))
             }

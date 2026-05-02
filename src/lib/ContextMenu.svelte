@@ -2,7 +2,7 @@
   import { scale } from "svelte/transition";
   import { cubicOut, cubicIn } from "svelte/easing";
   import { execute } from "./searcher";
-  import { query } from "../stores/search";
+  import { query, contextMenu } from "../stores/search";
   import type { ResultItem } from "../stores/search";
   import { get } from "svelte/store";
 
@@ -12,37 +12,18 @@
   export let onClose: () => void;
 
   const MENU_W = 220;
-  $: menuH = 46 + item.actions.length * 36;
+
+  $: searchQ = $contextMenu.searchQuery ?? "";
+  $: filteredActions = searchQ
+    ? item.actions.filter((a) => a.name.toLowerCase().includes(searchQ.toLowerCase()))
+    : item.actions;
+  $: activeIdx = $contextMenu.activeIndex;
+  $: menuH = (searchQ ? 52 : 24) + filteredActions.length * 52;
 
   $: cx = Math.max(8, Math.min(x, window.innerWidth - MENU_W - 8));
   $: cy = Math.max(8, Math.min(y, window.innerHeight - menuH - 8));
 
-  let activeIdx = 0;
   let menuEl: HTMLDivElement;
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-      return;
-    }
-    if (e.key === "ArrowDown" || (e.key === "n" && e.ctrlKey)) {
-      e.preventDefault();
-      e.stopPropagation();
-      activeIdx = (activeIdx + 1) % item.actions.length;
-    }
-    if (e.key === "ArrowUp" || (e.key === "p" && e.ctrlKey)) {
-      e.preventDefault();
-      e.stopPropagation();
-      activeIdx = (activeIdx - 1 + item.actions.length) % item.actions.length;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      e.stopPropagation();
-      selectAction(item.actions[activeIdx].id);
-    }
-  }
 
   function handleMousedown(e: MouseEvent) {
     if (menuEl && !menuEl.contains(e.target as Node)) {
@@ -56,7 +37,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} on:mousedown={handleMousedown} />
+<svelte:window on:mousedown={handleMousedown} />
 
 <div
   bind:this={menuEl}
@@ -66,21 +47,32 @@
   out:scale={{ duration: 110, start: 0.94, opacity: 0, easing: cubicIn }}
   role="menu"
 >
-  {#each item.actions as action, i}
+  {#if searchQ}
+    <div class="ctx-search-display">
+      <span class="ctx-search-text">{searchQ}</span><span class="ctx-cursor">|</span>
+    </div>
+  {/if}
+
+  {#each filteredActions as action, i (action.id)}
     <!-- svelte-ignore a11y_interactive_supports_focus -->
     <div
       class="ctx-item"
       class:active={i === activeIdx}
       role="menuitem"
       on:click={() => selectAction(action.id)}
-      on:mouseenter={() => (activeIdx = i)}
+      on:mouseenter={() => contextMenu.update(s => ({ ...s, activeIndex: i }))}
     >
       <span class="ctx-label">{action.name}</span>
-      {#if i === 0}
-        <span class="ctx-badge">default</span>
-      {/if}
     </div>
   {/each}
+
+  {#if filteredActions.length === 0}
+    <div class="ctx-empty">no match</div>
+  {/if}
+
+  {#if !searchQ}
+    <div class="ctx-hint">type to filter</div>
+  {/if}
 </div>
 
 <style>
@@ -91,13 +83,57 @@
     min-width: 200px;
     max-width: 280px;
     font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
-    background: rgba(25, 25, 25, 0.80);
-    border: 2px solid rgba(255, 255, 255, 0.15);
+    background: rgba(30, 30, 30, 0.80);
+    border: 2px solid rgba(255, 255, 255, 0.25);
     border-radius: 24px;
-    box-shadow: 0 0px 10px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 0px 20px 5px rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(16px);
     overflow: hidden;
+  }
+
+  .ctx-search-display {
+    display: flex;
+    align-items: center;
+    margin: 10px 10px 2px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    font-size: 0.82em;
+    color: var(--q-font-color, #fff);
+    min-height: 28px;
+  }
+
+  .ctx-search-text {
+    color: var(--q-font-color, #fff);
+  }
+
+  .ctx-cursor {
+    opacity: 0.5;
+    animation: blink 1s step-end infinite;
+    color: var(--q-font-color, #fff);
+    margin-left: 1px;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  .ctx-empty {
+    padding: 10px 18px 14px;
+    font-size: 0.82em;
+    opacity: 0.35;
+    color: var(--q-font-color, #fff);
+  }
+
+  .ctx-hint {
+    padding: 2px 0 10px;
+    font-size: 0.7em;
+    letter-spacing: 0.05em;
+    opacity: 0.22;
+    color: var(--q-font-color, #fff);
+    text-align: center;
   }
 
   .ctx-item {

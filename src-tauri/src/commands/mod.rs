@@ -13,6 +13,7 @@ use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::camera::CameraSearcher;
 use crate::searchers::settings::SettingsSearcher;
 use crate::searchers::windows_switcher::WindowSwitcher;
+use crate::searchers::screenshots::ScreenshotsSearcher;
 use crate::searchers::timer::TimerSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
@@ -81,6 +82,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.settings, "settings", SettingsSearcher);
     push!(v, &t.windows, "windows", WindowSwitcher);
     push!(v, &t.timer, "timer", TimerSearcher);
+    push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
 
     // Detect raw pasted color values without requiring the "color" prefix.
     push!(
@@ -149,7 +151,7 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         }
     }
 
-    if !matches!(search_result.result_type, crate::types::ResultType::Clipboard) {
+    if !matches!(search_result.result_type, crate::types::ResultType::Clipboard | crate::types::ResultType::Grid) {
         if let Ok(history) = USAGE_HISTORY.read() {
             search_result.results = boost_results_by_usage(search_result.results, &query, &history);
         }
@@ -199,7 +201,22 @@ pub fn exec_shell(command: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
-    config::Config::load().theme
+    CONFIG.read().unwrap().theme.clone()
+}
+
+#[tauri::command]
+pub fn get_config() -> config::Config {
+    CONFIG.read().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn save_config(config: config::Config) -> Result<(), String> {
+    config::Config::save(&config)?;
+    if let Ok(mut c) = CONFIG.write() {
+        *c = config;
+    }
+    reload_triggers();
+    Ok(())
 }
 
 #[tauri::command]

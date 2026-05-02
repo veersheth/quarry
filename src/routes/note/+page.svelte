@@ -71,6 +71,16 @@
     createEditor(docContent);
   }
 
+  const RESIZE_DIRS: Record<string, string> = {
+    n: 'North', ne: 'NorthEast', e: 'East', se: 'SouthEast',
+    s: 'South', sw: 'SouthWest', w: 'West', nw: 'NorthWest',
+  };
+
+  function startResize(dir: string, e: MouseEvent) {
+    e.preventDefault();
+    getCurrentWindow().startResizeDragging(RESIZE_DIRS[dir] as any);
+  }
+
   function handleGlobalKeydown(e: KeyboardEvent) {
     // In vim mode let CodeMirror own Escape (insert→normal transition).
     // Hide the window only when vim mode is off.
@@ -130,6 +140,11 @@
 
 <svelte:window on:keydown={handleGlobalKeydown} />
 
+{#each ['n','ne','e','se','s','sw','w','nw'] as dir}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-handle resize-{dir}" on:mousedown={(e) => startResize(dir, e)}></div>
+{/each}
+
 <main class="container" class:vim-mode={vimMode} on:drop={handleDrop} on:dragover={handleDragOver}>
   <div class="editor-wrap" bind:this={editorEl}></div>
   <div class="titlebar" data-tauri-drag-region>
@@ -184,6 +199,16 @@
       "Noto Color Emoji",
       sans-serif;
     font-size: var(--q-font-size, 16px);
+  }
+
+  :global(.vim-mode .cm-selectionBackground),
+  :global(.vim-mode .cm-focused .cm-selectionBackground) {
+    background: rgba(100, 160, 255, 0.35) !important;
+  }
+
+  :global(.editor-wrap .cm-content ::selection),
+  :global(.editor-wrap .cm-content *::selection) {
+    background: rgba(100, 160, 255, 0.4) !important;
   }
 
   /* Monospace everything when vim mode is active */
@@ -259,4 +284,15 @@
     border-color: #7ec8a4;
     background: rgba(126, 200, 164, 0.08);
   }
+
+  /* Resize handles */
+  .resize-handle { position: fixed; z-index: 9999; }
+  .resize-n  { top: 0;    left: 6px;   right: 6px;  height: 6px;  cursor: n-resize;  }
+  .resize-s  { bottom: 0; left: 6px;   right: 6px;  height: 6px;  cursor: s-resize;  }
+  .resize-e  { right: 0;  top: 6px;    bottom: 6px; width: 6px;   cursor: e-resize;  }
+  .resize-w  { left: 0;   top: 6px;    bottom: 6px; width: 6px;   cursor: w-resize;  }
+  .resize-ne { top: 0;    right: 0;    width: 10px; height: 10px; cursor: ne-resize; }
+  .resize-nw { top: 0;    left: 0;     width: 10px; height: 10px; cursor: nw-resize; }
+  .resize-se { bottom: 0; right: 0;    width: 10px; height: 10px; cursor: se-resize; }
+  .resize-sw { bottom: 0; left: 0;     width: 10px; height: 10px; cursor: sw-resize; }
 </style>

@@ -73,33 +73,44 @@ impl SearchProvider for SettingsSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let guard = SETTINGS_CACHE.read().unwrap_or_else(|e| e.into_inner());
 
-        let candidates: Vec<ResultItem> = guard
-            .iter()
-            .map(|entry| {
-                let parts: Vec<String> = entry
-                    .exec
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .collect();
-                let executable = parts.first().cloned().unwrap_or_default();
-                let args: Vec<String> = parts.into_iter().skip(1).collect();
+        let mut candidates: Vec<ResultItem> = vec![
+            ResultItem::new(
+                "Quarry Config",
+                vec![Action::new(
+                    "Open",
+                    ActionData::RunFunction {
+                        function_name: "open_settings".to_string(),
+                        params: vec![],
+                    },
+                )],
+            )
+            .description("Configure appearance, triggers, and web searches".to_string()),
+        ];
 
-                let mut item = ResultItem::new(
-                    entry.name.clone(),
-                    vec![Action::new(
-                        "Open",
-                        ActionData::LaunchApp { executable, args },
-                    )],
-                );
-                if let Some(desc) = &entry.description {
-                    item = item.description(desc.clone());
-                }
-                if let Some(icon) = &entry.icon {
-                    item = item.icon(icon.clone());
-                }
-                item
-            })
-            .collect();
+        candidates.extend(guard.iter().map(|entry| {
+            let parts: Vec<String> = entry
+                .exec
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect();
+            let executable = parts.first().cloned().unwrap_or_default();
+            let args: Vec<String> = parts.into_iter().skip(1).collect();
+
+            let mut item = ResultItem::new(
+                entry.name.clone(),
+                vec![Action::new(
+                    "Open",
+                    ActionData::LaunchApp { executable, args },
+                )],
+            );
+            if let Some(desc) = &entry.description {
+                item = item.description(desc.clone());
+            }
+            if let Some(icon) = &entry.icon {
+                item = item.icon(icon.clone());
+            }
+            item
+        }));
 
         drop(guard);
 
