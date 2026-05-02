@@ -65,6 +65,7 @@ pub fn run() {
     // Warm caches in background so the first search is instant
     std::thread::spawn(|| crate::searchers::apps::warm());
     std::thread::spawn(|| crate::searchers::emojis::warm());
+    std::thread::spawn(|| crate::searchers::clipboard::warm());
     std::thread::spawn(|| { let _ = &*crate::commands::TRIGGERS; });
     crate::searchers::files::start_file_index();
 

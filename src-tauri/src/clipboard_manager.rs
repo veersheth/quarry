@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -153,6 +154,7 @@ fn ocr_png(png_bytes: &[u8]) -> Option<String> {
 pub struct ClipboardManager {
     history: Arc<Mutex<Vec<ClipboardEntry>>>,
     storage_path: Option<PathBuf>,
+    generation: Arc<AtomicU64>,
 }
 
 impl ClipboardManager {
@@ -160,6 +162,7 @@ impl ClipboardManager {
         Self {
             history: Arc::new(Mutex::new(Vec::new())),
             storage_path: None,
+            generation: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -167,9 +170,32 @@ impl ClipboardManager {
         let mut manager = Self {
             history: Arc::new(Mutex::new(Vec::new())),
             storage_path: Some(storage_path),
+            generation: Arc::new(AtomicU64::new(0)),
         };
         manager.load_from_disk();
         manager
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation.load(Ordering::Relaxed)
+    }
+
+    pub fn get_full_image(&self, hash: u64) -> Option<(String, u32, u32)> {
+        let hist = self.history.lock().ok()?;
+        hist.iter().find_map(|e| {
+            if let ClipboardContent::Image { full, width, height, hash: h, .. } = &e.content {
+                if *h == hash { return Some((full.clone(), *width, *height)); }
+            }
+            None
+        })
+    }
+
+    pub fn remove_by_timestamp(&self, timestamp: u64) {
+        if let Ok(mut hist) = self.history.lock() {
+            hist.retain(|e| e.timestamp != timestamp);
+        }
+        self.generation.fetch_add(1, Ordering::Relaxed);
+        self.save_to_disk();
     }
 
     fn load_from_disk(&mut self) {
@@ -201,6 +227,7 @@ impl ClipboardManager {
     pub fn start_monitoring(&self) {
         let history = Arc::clone(&self.history);
         let storage_path = self.storage_path.clone();
+        let generation = Arc::clone(&self.generation);
 
         thread::spawn(move || {
             let mut clipboard =
@@ -227,6 +254,7 @@ impl ClipboardManager {
                                     hist.remove(pos);
                                     hist.insert(0, ClipboardEntry::new_text(text.clone()));
                                     drop(hist);
+                                    generation.fetch_add(1, Ordering::Relaxed);
                                     if let Some(ref p) = storage_path {
                                         Self::save_to_disk_inner(&history, p);
                                     }
@@ -234,6 +262,7 @@ impl ClipboardManager {
                                 None => {
                                     hist.insert(0, ClipboardEntry::new_text(text.clone()));
                                     drop(hist);
+                                    generation.fetch_add(1, Ordering::Relaxed);
                                     if let Some(ref p) = storage_path {
                                         Self::save_to_disk_inner(&history, p);
                                     }
@@ -308,6 +337,7 @@ impl ClipboardManager {
                     });
 
                     drop(hist);
+                    generation.fetch_add(1, Ordering::Relaxed);
                     if let Some(ref p) = storage_path {
                         Self::save_to_disk_inner(&history, p);
                     }
@@ -324,6 +354,7 @@ impl ClipboardManager {
         if let Ok(mut hist) = self.history.lock() {
             hist.clear();
         }
+        self.generation.fetch_add(1, Ordering::Relaxed);
         self.save_to_disk();
     }
 
@@ -333,6 +364,7 @@ impl ClipboardManager {
                 hist.remove(index);
             }
         }
+        self.generation.fetch_add(1, Ordering::Relaxed);
         self.save_to_disk();
     }
 }

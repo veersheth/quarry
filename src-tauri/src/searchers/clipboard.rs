@@ -1,10 +1,32 @@
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
 use super::SearchProvider;
 use crate::clipboard_manager::ClipboardContent;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use crate::CLIPBOARD_MANAGER;
 use tauri::AppHandle;
 
+// Cache for the empty-query result, keyed by (history generation, pin count).
+// Pin count changes whenever pins are added or removed, invalidating the cache.
+static CACHE: Lazy<Mutex<((u64, usize), Option<SearchResult>)>> =
+    Lazy::new(|| Mutex::new(((u64::MAX, 0), None)));
+
+fn cache_key() -> (u64, usize) {
+    let gen = CLIPBOARD_MANAGER.generation();
+    let pins = crate::PINS.get("clipboard").len() + crate::PINS.get("clipboard_image").len();
+    (gen, pins)
+}
+
 pub struct ClipboardSearcher;
+
+pub fn warm() {
+    let result = build_results("");
+    let key = cache_key();
+    if let Ok(mut cache) = CACHE.lock() {
+        *cache = (key, Some(result));
+    }
+}
 
 impl SearchProvider for ClipboardSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
@@ -22,6 +44,33 @@ impl SearchProvider for ClipboardSearcher {
                 result_type: ResultType::List,
             };
         }
+
+        // Serve from cache for empty queries when neither history nor pins changed.
+        if query.is_empty() {
+            let key = cache_key();
+            if let Ok(cache) = CACHE.lock() {
+                if cache.0 == key {
+                    if let Some(ref cached) = cache.1 {
+                        return cached.clone();
+                    }
+                }
+            }
+        }
+
+        let result = build_results(&query);
+
+        if query.is_empty() {
+            let key = cache_key();
+            if let Ok(mut cache) = CACHE.lock() {
+                *cache = (key, Some(result.clone()));
+            }
+        }
+
+        result
+    }
+}
+
+fn build_results(query: &str) -> SearchResult {
 
         let text_pins = crate::PINS.get("clipboard");
         let pinned_texts: std::collections::HashSet<&str> =
@@ -110,22 +159,28 @@ impl SearchProvider for ClipboardSearcher {
                             params: vec!["clipboard".into(), value.clone(), value.clone()],
                         })
                     };
-                    ResultItem::new(
-                        value.clone(),
-                        vec![
-                            Action::new("Copy", ActionData::CopyToClipboard { text: value.clone() }),
-                            pin_action,
-                            Action::new("Delete", ActionData::RunFunction {
-                                function_name: "delete_clipboard_entry".into(),
-                                params: vec![entry.timestamp.to_string()],
-                            }),
-                            Action::new("Clear entire clipboard", ActionData::RunFunction {
-                                function_name: "clear_clipboard".into(),
-                                params: vec![],
-                            }),
-                        ],
-                    )
-                    .description(format_timestamp(entry.timestamp))
+                    let (icon, path_actions) = detect_path(value);
+                    let mut actions = vec![
+                        Action::new("Copy", ActionData::CopyToClipboard { text: value.clone() }),
+                    ];
+                    actions.extend(path_actions);
+                    actions.extend([
+                        pin_action,
+                        Action::new("Delete", ActionData::RunFunction {
+                            function_name: "delete_clipboard_entry".into(),
+                            params: vec![entry.timestamp.to_string()],
+                        }),
+                        Action::new("Clear entire clipboard", ActionData::RunFunction {
+                            function_name: "clear_clipboard".into(),
+                            params: vec![],
+                        }),
+                    ]);
+                    let mut item = ResultItem::new(value.clone(), actions)
+                        .description(format_timestamp(entry.timestamp));
+                    if let Some(icon) = icon {
+                        item = item.icon(icon);
+                    }
+                    item
                 }
 
                 ClipboardContent::Image { thumbnail, full, width, height, ocr_text, hash } => {
@@ -134,7 +189,7 @@ impl SearchProvider for ClipboardSearcher {
                     let pin_action = if is_pinned {
                         Action::new("Unpin", ActionData::RunFunction {
                             function_name: "unpin".into(),
-                            params: vec!["clipboard_image".into(), hash_str],
+                            params: vec!["clipboard_image".into(), hash_str.clone()],
                         })
                     } else {
                         let payload = serde_json::json!({
@@ -146,15 +201,14 @@ impl SearchProvider for ClipboardSearcher {
                         .to_string();
                         Action::new("Pin", ActionData::RunFunction {
                             function_name: "pin".into(),
-                            params: vec!["clipboard_image".into(), hash_str, payload],
+                            params: vec!["clipboard_image".into(), hash_str.clone(), payload],
                         })
                     };
 
                     let mut actions = vec![
-                        Action::new("Copy", ActionData::CopyImageToClipboard {
-                            base64_png: full.clone(),
-                            width: *width,
-                            height: *height,
+                        Action::new("Copy", ActionData::RunFunction {
+                            function_name: "copy_clipboard_image".into(),
+                            params: vec![hash_str],
                         }),
                     ];
                     if let Some(text) = ocr_text {
@@ -184,10 +238,47 @@ impl SearchProvider for ClipboardSearcher {
 
         results.extend(history_items);
 
-        SearchResult {
-            results,
-            result_type: ResultType::Clipboard,
+    SearchResult {
+        results,
+        result_type: ResultType::Clipboard,
+    }
+}
+
+fn resolve_path(value: &str) -> Option<std::path::PathBuf> {
+    let trimmed = value.trim();
+    if !trimmed.starts_with('/') && !trimmed.starts_with("~/") {
+        return None;
+    }
+    if let Some(rest) = trimmed.strip_prefix("~/") {
+        Some(dirs::home_dir()?.join(rest))
+    } else {
+        Some(std::path::PathBuf::from(trimmed))
+    }
+}
+
+fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
+    let Some(path) = resolve_path(value) else {
+        return (None, vec![]);
+    };
+    let path_str = path.to_string_lossy().into_owned();
+
+    if path.is_dir() {
+        let actions = vec![
+            Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) }),
+        ];
+        (Some("icons/folder.png"), actions)
+    } else if path.is_file() {
+        let parent = path.parent()
+            .map(|p| format!("file://{}", p.to_string_lossy()));
+        let mut actions = vec![
+            Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) }),
+        ];
+        if let Some(parent_url) = parent {
+            actions.push(Action::new("Open Containing Folder", ActionData::OpenUrl { url: parent_url }));
         }
+        (Some("icons/file.png"), actions)
+    } else {
+        (None, vec![])
     }
 }
 

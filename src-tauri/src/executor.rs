@@ -365,6 +365,19 @@ fn run_custom_function(
             let payload = ModalPayload { body, buttons };
             app.emit("quarry-modal", &payload).map_err(|e| e.to_string())
         }
+        "copy_clipboard_image" => {
+            let hash = params.first().and_then(|s| s.parse::<u64>().ok())
+                .ok_or("copy_clipboard_image requires a hash")?;
+            let (full, width, height) = crate::CLIPBOARD_MANAGER.get_full_image(hash)
+                .ok_or("Image not found in clipboard history")?;
+            copy_image_to_clipboard(&full, width, height)
+        }
+        "delete_clipboard_entry" => {
+            let ts = params.first().and_then(|s| s.parse::<u64>().ok())
+                .ok_or("delete_clipboard_entry requires a timestamp")?;
+            crate::CLIPBOARD_MANAGER.remove_by_timestamp(ts);
+            Ok(())
+        }
         "delete_file" => {
             if params.is_empty() {
                 return Err("delete_file requires a path".into());
