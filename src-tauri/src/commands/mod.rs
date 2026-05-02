@@ -178,6 +178,7 @@ pub fn execute(
     let tag = match &action_data {
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
+        ActionData::RunFunction { function_name, .. } if function_name == "copy_clipboard_image" => "copied",
         _ => "launched",
     };
 

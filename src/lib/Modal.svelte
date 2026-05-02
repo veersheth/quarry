@@ -55,7 +55,7 @@
 
   .card {
     background: var(--q-bg-color, rgba(20, 20, 20, 1));
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--q-border-medium);
     border-radius: 14px;
     padding: 8px 32px 20px;
     max-width: 380px;
@@ -79,8 +79,8 @@
     flex: 1;
     padding: 12px 18px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--q-border-medium);
+    background: var(--q-surface-subtle);
     color: var(--q-font-color, #fff);
     cursor: pointer;
     font-size: 13px;
@@ -88,7 +88,7 @@
   }
 
   .btn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--q-surface-hover);
   }
 
   .btn.danger {

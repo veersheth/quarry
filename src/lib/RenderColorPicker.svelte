@@ -7,12 +7,13 @@
   let isDraggingSL = false;
   let isDraggingHue = false;
 
-  // ── Color parsing ──────────────────────────────────────────
-
   function hexToRgb(hex) {
     let h = hex.replace("#", "");
     if (h.length === 3 || h.length === 4)
-      h = h.split("").map((c) => c + c).join("");
+      h = h
+        .split("")
+        .map((c) => c + c)
+        .join("");
     return {
       r: parseInt(h.slice(0, 2), 16),
       g: parseInt(h.slice(2, 4), 16),
@@ -21,20 +22,34 @@
   }
 
   function rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0;
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b),
+      min = Math.min(r, g, b);
+    let h = 0,
+      s = 0;
     const l = (max + min) / 2;
     if (max !== min) {
       const d = max - min;
       s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
       switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-        case g: h = ((b - r) / d + 2) / 6; break;
-        case b: h = ((r - g) / d + 4) / 6; break;
+        case r:
+          h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+          break;
+        case g:
+          h = ((b - r) / d + 2) / 6;
+          break;
+        case b:
+          h = ((r - g) / d + 4) / 6;
+          break;
       }
     }
-    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    return {
+      h: Math.round(h * 360),
+      s: Math.round(s * 100),
+      l: Math.round(l * 100),
+    };
   }
 
   function parseColor(str) {
@@ -48,12 +63,21 @@
     }
 
     // RGB / RGBA
-    const rgb = str.match(/^rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+    const rgb = str.match(
+      /^rgba?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/,
+    );
     if (rgb) return rgbToHsl(+rgb[1], +rgb[2], +rgb[3]);
 
     // HSL / HSLA
-    const hsl = str.match(/^hsla?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?/);
-    if (hsl) return { h: Math.round(+hsl[1]), s: Math.round(+hsl[2]), l: Math.round(+hsl[3]) };
+    const hsl = str.match(
+      /^hsla?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?/,
+    );
+    if (hsl)
+      return {
+        h: Math.round(+hsl[1]),
+        s: Math.round(+hsl[2]),
+        l: Math.round(+hsl[3]),
+      };
 
     return null;
   }
@@ -83,17 +107,29 @@
       b = 0;
 
     if (h < 60) {
-      r = c; g = x; b = 0;
+      r = c;
+      g = x;
+      b = 0;
     } else if (h < 120) {
-      r = x; g = c; b = 0;
+      r = x;
+      g = c;
+      b = 0;
     } else if (h < 180) {
-      r = 0; g = c; b = x;
+      r = 0;
+      g = c;
+      b = x;
     } else if (h < 240) {
-      r = 0; g = x; b = c;
+      r = 0;
+      g = x;
+      b = c;
     } else if (h < 300) {
-      r = x; g = 0; b = c;
+      r = x;
+      g = 0;
+      b = c;
     } else {
-      r = c; g = 0; b = x;
+      r = c;
+      g = 0;
+      b = x;
     }
 
     return {
@@ -111,20 +147,7 @@
   $: rgb = hslToRgb(hue, saturation, lightness);
   $: hex = rgbToHex(rgb.r, rgb.g, rgb.b);
 
-  // The SL picker gradient is:
-  //   - bottom layer: white (left) → pure hue at hsl(h,100%,50%) (right)
-  //   - top layer:    black (bottom) → transparent (top)
-  //
-  // This means the actual colour at any (x, y) in [0..1]×[0..1] is:
-  //   S = x * 100
-  //   L = (1 - y) * (100 - x * 50)    ← ranges from 100% (top-left) to 50% (top-right) to 0% (bottom)
-  //
-  // Inverse (cursor position from S/L):
-  //   x = S / 100
-  //   lightnessAtTop = 100 - S / 2
-  //   y = 1 - L / lightnessAtTop        (clamped to [0,1])
-
-  $: cursorX = saturation;   // percentage, directly maps to left%
+  $: cursorX = saturation; // percentage, directly maps to left%
   $: cursorY = (() => {
     const lightnessAtTop = 100 - saturation / 2;
     if (lightnessAtTop <= 0) return 100;
@@ -136,8 +159,8 @@
     const rect = slPickerEl.getBoundingClientRect();
     const xRaw = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const yRaw = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
-    const xNorm = xRaw / rect.width;   // 0..1
-    const yNorm = yRaw / rect.height;  // 0..1
+    const xNorm = xRaw / rect.width; // 0..1
+    const yNorm = yRaw / rect.height; // 0..1
 
     saturation = Math.round(xNorm * 100);
     const lightnessAtTop = 100 - saturation / 2;
@@ -192,10 +215,7 @@
         handleSLPickerMove(e);
       }}
     >
-      <div
-        class="sl-cursor"
-        style="left: {cursorX}%; top: {cursorY}%"
-      ></div>
+      <div class="sl-cursor" style="left: {cursorX}%; top: {cursorY}%"></div>
     </div>
   </div>
 
@@ -216,27 +236,32 @@
   <div class="values-section">
     <button
       class="value-box"
-      class:copied={copiedKey === 'hsl'}
-      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`, 'hsl')}
+      class:copied={copiedKey === "hsl"}
+      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`, "hsl")}
     >
-      {#if copiedKey === 'hsl'}<span class="ripple"></span>{/if}
-      <span class="value-title">{copiedKey === 'hsl' ? 'Copied' : 'HSL'}</span>
-      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span>
+      {#if copiedKey === "hsl"}<span class="ripple"></span>{/if}
+      <span class="value-title">{copiedKey === "hsl" ? "Copied" : "HSL"}</span>
+      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span
+      >
     </button>
 
     <button
       class="value-box"
-      class:copied={copiedKey === 'rgb'}
-      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`, 'rgb')}
+      class:copied={copiedKey === "rgb"}
+      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`, "rgb")}
     >
-      {#if copiedKey === 'rgb'}<span class="ripple"></span>{/if}
-      <span class="value-title">{copiedKey === 'rgb' ? 'Copied' : 'RGB'}</span>
+      {#if copiedKey === "rgb"}<span class="ripple"></span>{/if}
+      <span class="value-title">{copiedKey === "rgb" ? "Copied" : "RGB"}</span>
       <span class="value-content mono">{rgb.r}, {rgb.g}, {rgb.b}</span>
     </button>
 
-    <button class="value-box" class:copied={copiedKey === 'hex'} on:click={() => copyText(hex, 'hex')}>
-      {#if copiedKey === 'hex'}<span class="ripple"></span>{/if}
-      <span class="value-title">{copiedKey === 'hex' ? 'Copied' : 'HEX'}</span>
+    <button
+      class="value-box"
+      class:copied={copiedKey === "hex"}
+      on:click={() => copyText(hex, "hex")}
+    >
+      {#if copiedKey === "hex"}<span class="ripple"></span>{/if}
+      <span class="value-title">{copiedKey === "hex" ? "Copied" : "HEX"}</span>
       <span class="value-content mono">{hex}</span>
     </button>
   </div>

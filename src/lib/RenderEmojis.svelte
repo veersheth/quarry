@@ -12,27 +12,34 @@
   }[] = [];
 
   export let activeIndex: Writable<number> = writable(0);
-  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
+  export let onContextMenu:
+    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | undefined = undefined;
 
   type ResultItem = (typeof listitems)[number];
 
-  $: featured = listitems.filter(i => i.group === "featured");
-  $: all = listitems.filter(i => i.group !== "featured");
+  $: featured = listitems.filter((i) => i.group === "featured");
+  $: all = listitems.filter((i) => i.group !== "featured");
 
-  // Global indices: featured items come first in listitems, so their index is their position.
-  // All items start after featured.
   $: featuredOffset = 0;
   $: allOffset = featured.length;
 
   let mouseHasMoved = false;
-  $: { listitems; mouseHasMoved = false; }
+  $: {
+    listitems;
+    mouseHasMoved = false;
+  }
 
   function handleClick(item: ResultItem) {
     runItemAction(item);
   }
 </script>
 
-<svelte:window on:mousemove={() => { mouseHasMoved = true; }} />
+<svelte:window
+  on:mousemove={() => {
+    mouseHasMoved = true;
+  }}
+/>
 
 <div class="emoji-layout">
   {#if featured.length > 0}
@@ -45,9 +52,14 @@
           class:active={featuredOffset + i === $activeIndex}
           class:pinned={item.pinned}
           data-active={featuredOffset + i === $activeIndex}
-          on:mouseenter={() => { if (mouseHasMoved) activeIndex.set(featuredOffset + i); }}
+          on:mouseenter={() => {
+            if (mouseHasMoved) activeIndex.set(featuredOffset + i);
+          }}
           on:click={() => handleClick(item)}
-          on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
+          on:contextmenu={(e) => {
+            e.preventDefault();
+            onContextMenu?.(e, item);
+          }}
         >
           <span class="emoji">{item.name}</span>
         </div>
@@ -65,9 +77,14 @@
         class:active={allOffset + i === $activeIndex}
         class:pinned={item.pinned}
         data-active={allOffset + i === $activeIndex}
-        on:mouseenter={() => { if (mouseHasMoved) activeIndex.set(allOffset + i); }}
+        on:mouseenter={() => {
+          if (mouseHasMoved) activeIndex.set(allOffset + i);
+        }}
         on:click={() => handleClick(item)}
-        on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
+        on:contextmenu={(e) => {
+          e.preventDefault();
+          onContextMenu?.(e, item);
+        }}
       >
         <span class="emoji">{item.name}</span>
       </div>
@@ -99,23 +116,25 @@
     width: 48px;
     height: 48px;
     border-radius: var(--q-item-border-radius);
-    border: 1px solid rgba(60, 60, 60, 0.3);
+    border: 1px solid var(--q-border-subtle);
     cursor: pointer;
     flex-shrink: 0;
+    transition: transform 100ms ease;
   }
 
   .featured-item.pinned {
-    border-color: rgba(168, 85, 247, 0.55);
+    border-color: var(--q-pin-border);
   }
 
   .featured-item.active {
     background-color: var(--q-active-bg-color);
     border-color: var(--q-active-border-color);
-    box-shadow: 0 0 12px 2px rgba(50, 50, 50, 1);
+    box-shadow: 0 0 12px 2px var(--q-glow);
+    transform: scale(1.08);
   }
 
   .featured-item.pinned.active {
-    border-color: rgba(192, 132, 252, 0.8);
+    border-color: var(--q-pin-border-active);
   }
 
   .section-divider {
@@ -144,24 +163,27 @@
     justify-content: center;
     padding: 28px 16px;
     border-radius: var(--q-item-border-radius);
-    border: 1px solid rgba(60, 60, 60, 0.3);
+    border: 1px solid var(--q-border-subtle);
     cursor: pointer;
     text-align: center;
-    transition: transform 100ms ease, border-radius 100ms ease;
+    transition:
+      transform 100ms ease,
+      border-radius 100ms ease;
   }
 
   .grid-item.pinned {
-    border-color: rgba(168, 85, 247, 0.45);
+    border-color: var(--q-pin-border);
   }
 
   .grid-item.active {
     background-color: var(--q-active-bg-color);
-    box-shadow: 0 0 20px 4px rgba(50, 50, 50, 1);
+    box-shadow: 0 0 20px 4px var(--q-glow);
     border: 1px solid var(--q-active-border-color);
+    transform: scale(1.05);
   }
 
   .grid-item.pinned.active {
-    border-color: rgba(192, 132, 252, 0.8);
+    border-color: var(--q-pin-border-active);
   }
 
   .emoji {

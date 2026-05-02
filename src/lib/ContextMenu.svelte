@@ -15,7 +15,9 @@
 
   $: searchQ = $contextMenu.searchQuery ?? "";
   $: filteredActions = searchQ
-    ? item.actions.filter((a) => a.name.toLowerCase().includes(searchQ.toLowerCase()))
+    ? item.actions.filter((a) =>
+        a.name.toLowerCase().includes(searchQ.toLowerCase()),
+      )
     : item.actions;
   $: activeIdx = $contextMenu.activeIndex;
   $: menuH = (searchQ ? 52 : 24) + filteredActions.length * 52;
@@ -49,7 +51,9 @@
 >
   {#if searchQ}
     <div class="ctx-search-display">
-      <span class="ctx-search-text">{searchQ}</span><span class="ctx-cursor">|</span>
+      <span class="ctx-search-text">{searchQ}</span><span class="ctx-cursor"
+        >|</span
+      >
     </div>
   {/if}
 
@@ -60,7 +64,8 @@
       class:active={i === activeIdx}
       role="menuitem"
       on:click={() => selectAction(action.id)}
-      on:mouseenter={() => contextMenu.update(s => ({ ...s, activeIndex: i }))}
+      on:mouseenter={() =>
+        contextMenu.update((s) => ({ ...s, activeIndex: i }))}
     >
       <span class="ctx-label">{action.name}</span>
     </div>
@@ -82,9 +87,9 @@
     z-index: 500;
     min-width: 200px;
     max-width: 280px;
-    font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
-    background: rgba(30, 30, 30, 0.80);
-    border: 2px solid rgba(255, 255, 255, 0.25);
+    font-family: var(--q-sans);
+    background: var(--q-overlay);
+    border: 2px solid var(--q-border-strong);
     border-radius: 24px;
     box-shadow: 0 0px 20px 5px rgba(0, 0, 0, 0.9);
     backdrop-filter: blur(12px);
@@ -97,8 +102,8 @@
     align-items: center;
     margin: 10px 10px 2px;
     padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: var(--q-surface-subtle);
+    border: 1px solid var(--q-border-medium);
     border-radius: 10px;
     font-size: 0.82em;
     color: var(--q-font-color, #fff);
@@ -117,7 +122,9 @@
   }
 
   @keyframes blink {
-    50% { opacity: 0; }
+    50% {
+      opacity: 0;
+    }
   }
 
   .ctx-empty {
@@ -151,7 +158,7 @@
 
   .ctx-item:hover,
   .ctx-item.active {
-    background: rgba(255, 255, 255, 0.20);
+    background: var(--q-surface-hover);
   }
 
   .ctx-label {

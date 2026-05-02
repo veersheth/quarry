@@ -58,7 +58,7 @@
     }
     const lower = q.toLowerCase();
     resultItems.set(
-      rofiAllItems.filter((item) => item.name.toLowerCase().includes(lower))
+      rofiAllItems.filter((item) => item.name.toLowerCase().includes(lower)),
     );
   }
 
@@ -74,7 +74,10 @@
     resultItems.set([]);
   }
 
-  function handleContextMenu(event: MouseEvent, item: import("../stores/search").ResultItem) {
+  function handleContextMenu(
+    event: MouseEvent,
+    item: import("../stores/search").ResultItem,
+  ) {
     if (item.actions.length <= 1) return;
     event.preventDefault();
     openContextMenu(item, event.clientX, event.clientY);
@@ -86,7 +89,9 @@
     const item = items[idx];
     if (!item || item.actions.length <= 1) return;
 
-    const activeRow = resultsEl?.querySelector("[data-active='true']") as HTMLElement | null;
+    const activeRow = resultsEl?.querySelector(
+      "[data-active='true']",
+    ) as HTMLElement | null;
     if (activeRow) {
       const rect = activeRow.getBoundingClientRect();
       openContextMenu(item, rect.left, rect.bottom + 4);
@@ -150,30 +155,42 @@
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
-    const unlistenModal = await listen<ModalPayload>("quarry-modal", (event) => {
-      modal = event.payload;
-    });
+    const unlistenModal = await listen<ModalPayload>(
+      "quarry-modal",
+      (event) => {
+        modal = event.payload;
+      },
+    );
 
-    const unlistenRofiSocket = await listen<string>("quarry-rofi-socket", (event) => {
-      rofiResponseSocket = event.payload;
-    });
+    const unlistenRofiSocket = await listen<string>(
+      "quarry-rofi-socket",
+      (event) => {
+        rofiResponseSocket = event.payload;
+      },
+    );
 
-    const unlistenRofi = await listen<import("../stores/search").SearchResult>("quarry-rofi", (event) => {
-      const res = event.payload;
-      rofiAllItems = res.results;
-      rofiMode = true;
-      resultItems.set(res.results);
-      resultType.set(res.result_type);
-      query.set("");
-      activeIndex.set(0);
-    });
+    const unlistenRofi = await listen<import("../stores/search").SearchResult>(
+      "quarry-rofi",
+      (event) => {
+        const res = event.payload;
+        rofiAllItems = res.results;
+        rofiMode = true;
+        resultItems.set(res.results);
+        resultType.set(res.result_type);
+        query.set("");
+        activeIndex.set(0);
+      },
+    );
 
     return () => {
       unlisten.then((fn) => fn());
       unlistenModal();
       unlistenRofiSocket();
       unlistenRofi();
-      window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
+      window.removeEventListener(
+        "open-context-menu-at-active",
+        handleOpenAtActive,
+      );
     };
   });
 
@@ -221,28 +238,56 @@
       class="search"
       class:loading={isLoading}
     />
-    <div class="results" class:loading-overlay={isLoading} bind:this={resultsEl}>
+    <div
+      class="results"
+      class:loading-overlay={isLoading}
+      bind:this={resultsEl}
+    >
       <div class="results-content" class:dimmed={isLoading}>
         {#if $resultType === "List"}
-          <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
+          <RenderList
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else if $resultType === "Grid"}
-          <RenderEmojis listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
+          <RenderEmojis
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else if $resultType === "Markdown"}
           <RenderMarkdown listitems={$resultItems} {activeIndex} />
         {:else if $resultType === "Clipboard"}
-          <RenderClipboard listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
+          <RenderClipboard
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else if $resultType === "ColorPicker"}
           <RenderColorPicker initialColor={$resultItems[0]?.name ?? ""} />
         {:else if $resultType === "Home"}
-          <RenderList listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
+          <RenderList
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else if $resultType === "Math"}
-          <RenderMath listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
+          <RenderMath
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else if $resultType === "Camera"}
           <RenderCamera />
         {:else if $resultType === "Ai"}
           <RenderAiChat />
         {:else if $resultType === "Screenshots"}
-          <RenderScreenshots listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
+          <RenderScreenshots
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else}
           Oops
         {/if}
@@ -260,7 +305,13 @@
   {/if}
 
   {#if modal !== null}
-    <Modal body={modal.body} buttons={modal.buttons} onClose={() => { modal = null; }} />
+    <Modal
+      body={modal.body}
+      buttons={modal.buttons}
+      onClose={() => {
+        modal = null;
+      }}
+    />
   {/if}
 
   <!-- Toasts -->
@@ -280,6 +331,37 @@
 </main>
 
 <style>
+  :global(:root) {
+    --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
+    --q-mono: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace;
+
+    --q-surface: rgba(5, 5, 5, 0.8);
+    --q-surface-subtle: rgba(255, 255, 255, 0.08);
+    --q-surface-hover: rgba(255, 255, 255, 0.2);
+    --q-surface-dark: #222;
+    --q-overlay: rgba(30, 30, 30, 0.8);
+    --q-code-bg: #181818;
+
+    --q-divider: rgba(80, 80, 80, 0.7);
+    --q-divider-dark: #2e2e2e;
+    --q-border-subtle: rgba(60, 60, 60, 0.3);
+    --q-border-medium: rgba(255, 255, 255, 0.15);
+    --q-border-strong: rgba(255, 255, 255, 0.25);
+    --q-border-dark: #333;
+
+    --q-text-secondary: rgba(255, 255, 255, 0.7);
+    --q-text-muted: rgba(255, 255, 255, 0.4);
+    --q-text-dim: #555;
+    --q-text-dim-active: #999;
+    --q-text-placeholder: #333;
+    --q-text-empty: #444;
+
+    --q-thumb-bg: #111;
+    --q-pin-border: rgba(200, 220, 255, 0.25);
+    --q-pin-border-active: rgba(210, 230, 255, 0.55);
+    --q-glow: rgba(50, 50, 50, 1);
+  }
+
   .container {
     display: flex;
     flex: 1;
@@ -293,18 +375,16 @@
     overflow: hidden;
     color: var(--q-font-color, #ffffff);
     position: relative;
+    border-radius: 18px;
+    border-style: inset;
+    border: 1px solid var(--q-border-strong);
   }
 
   .container * {
     z-index: 0;
     color: var(--q-font-color, #ffffff);
     font-size: var(--q-font-size);
-    font-family:
-      "Inter",
-      "Segoe UI",
-      "Adwaita Sans",
-      "Noto Color Emoji",
-      sans-serif;
+    font-family: var(--q-sans);
     padding: 0;
   }
 
@@ -320,6 +400,7 @@
     display: block;
     padding: 0 20px;
     margin: 0;
+    margin-bottom: 8px;
     box-sizing: border-box;
     border: none;
     outline: none;
@@ -327,6 +408,7 @@
     height: 56px;
     flex-shrink: 0;
     transition: opacity 0.15s ease;
+    border-bottom: 1px solid var(--q-divider);
   }
 
   .search.loading {
@@ -336,7 +418,10 @@
   .results {
     margin: 0;
     padding: 0;
-    border-top: 1px solid rgba(80, 80, 80, 0.7);
+    border-top: none;
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: top;
     flex: 1;
     box-sizing: border-box;
     overflow-y: auto;
@@ -378,17 +463,9 @@
     letter-spacing: 0.01em;
     white-space: nowrap;
     z-index: 1000;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    background: rgba(15, 15, 15, 0.80);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-    color: rgba(255, 255, 255, 0.75);
-
-
-
-    background: rgba(5, 5, 5, 0.20);
-    border: 2px solid rgba(255, 255, 255, 0.15);
+    color: var(--q-text-secondary);
+    background: rgba(5, 5, 5, 0.2);
+    border: 2px solid var(--q-border-medium);
     box-shadow: 0 0px 10px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -401,9 +478,15 @@
     flex-shrink: 0;
   }
 
-  .toast-dot.success { background: #4ade80; }
-  .toast-dot.error   { background: #f87171; }
-  .toast-dot.info    { background: #60a5fa; }
+  .toast-dot.success {
+    background: #4ade80;
+  }
+  .toast-dot.error {
+    background: #f87171;
+  }
+  .toast-dot.info {
+    background: #60a5fa;
+  }
 
   .toast.error {
     border-color: rgba(248, 113, 113, 0.2);
@@ -413,5 +496,17 @@
     border-color: rgba(96, 165, 250, 0.2);
   }
 
-
+  :global(::-webkit-scrollbar) {
+    width: 3px;
+  }
+  :global(::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+  :global(::-webkit-scrollbar-thumb) {
+    background: var(--q-pin-border);
+    border-radius: 99px;
+  }
+  :global(::-webkit-scrollbar-thumb:hover) {
+    background: var(--q-pin-border-active);
+  }
 </style>

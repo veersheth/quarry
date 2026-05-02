@@ -20,13 +20,23 @@
     pinned?: boolean;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
-  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
+  export let onContextMenu:
+    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | undefined = undefined;
 
   let mouseHasMoved = false;
-  $: { listitems; $activeIndex; mouseHasMoved = false; }
+  $: {
+    listitems;
+    $activeIndex;
+    mouseHasMoved = false;
+  }
 </script>
 
-<svelte:window on:mousemove={() => { mouseHasMoved = true; }} />
+<svelte:window
+  on:mousemove={() => {
+    mouseHasMoved = true;
+  }}
+/>
 
 <div class="result-list">
   {#each listitems as item, index}
@@ -38,16 +48,17 @@
       class:has-desc={!!item.description}
       class:pinned={item.pinned}
       data-active={index === $activeIndex}
-      on:mouseenter={() => { if (mouseHasMoved) activeIndex.set(index); }}
+      on:mouseenter={() => {
+        if (mouseHasMoved) activeIndex.set(index);
+      }}
       on:click={() => handleClick(item)}
-      on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
+      on:contextmenu={(e) => {
+        e.preventDefault();
+        onContextMenu?.(e, item);
+      }}
     >
       {#if item.icon}
-        <img
-          class="item-icon"
-          src={iconSrc(item.icon)}
-          alt=""
-        />
+        <img class="item-icon" src={iconSrc(item.icon)} alt="" />
       {/if}
       <div class="item-text">
         <span class="item-name">{item.name}</span>
@@ -67,7 +78,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 15px 0 5px;
+    padding: 5px 0;
   }
 
   .result-item {
@@ -78,15 +89,15 @@
     margin: 0 12px;
     border-radius: var(--q-item-border-radius);
     background: none;
-    background: rgba(5, 5, 5, 0.8);
+    background: var(--q-surface);
     text-align: left;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--q-text-secondary);
     cursor: pointer;
     border: 2px solid transparent;
   }
 
   .result-item.pinned {
-    border-color: rgba(168, 85, 247, 0.45);
+    border-color: var(--q-pin-border);
   }
 
   .result-item.active {
@@ -95,7 +106,7 @@
   }
 
   .result-item.pinned.active {
-    border-color: rgba(192, 132, 252, 0.5);
+    border-color: var(--q-pin-border-active);
   }
 
   .result-item.active .item-icon {
@@ -145,10 +156,10 @@
   }
 
   .alt-hint {
-    font-size: 0.80rem;
+    font-size: 0.8rem;
     opacity: 0.5;
     flex-shrink: 0;
     margin-left: 8px;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
+    font-family: var(--q-mono);
   }
 </style>

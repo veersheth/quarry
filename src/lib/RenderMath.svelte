@@ -60,7 +60,7 @@
   }
 
   .math-answer-bar {
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: var(--q-mono);
     width: auto;
     display: flex;
     justify-content: center;
@@ -70,9 +70,9 @@
   }
 
   .math-answer {
-    background-color: rgba(255,255,255,0.1);
+    background-color: var(--q-surface-subtle);
     font-size: 46px;
-    color: #f0f0f0;
+    color: var(--q-font-color);
     border-radius: 12px;
     width: 100%;
     padding: 20px;
@@ -97,7 +97,7 @@
 
   .math-desc {
     font-size: 14px;
-    color: rgba(180, 180, 180, 0.55);
+    color: var(--q-text-muted);
     text-align: center;
   }
 </style>
