@@ -9,6 +9,7 @@ pub struct Config {
     pub theme:         ThemeConfig,
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
+    pub screenshots:   ScreenshotsConfig,
     /// Groq API key for AI chat. Leave empty to be prompted on first use.
     #[serde(default)]
     pub groq_api_key:  String,
@@ -21,8 +22,26 @@ impl Default for Config {
             theme:         ThemeConfig::default(),
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
+            screenshots:   ScreenshotsConfig::default(),
             groq_api_key:  String::new(),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Screenshots
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScreenshotsConfig {
+    /// Directory to scan for screenshots. Defaults to ~/Pictures/Screenshots.
+    pub path: String,
+}
+
+impl Default for ScreenshotsConfig {
+    fn default() -> Self {
+        Self { path: "~/Pictures/Screenshots".into() }
     }
 }
 
@@ -151,6 +170,7 @@ pub struct TriggerConfig {
     pub settings:     String,
     pub windows:      String,
     pub timer:        String,
+    pub screenshots:  String,
 }
 
 impl Default for TriggerConfig {
@@ -176,6 +196,7 @@ impl Default for TriggerConfig {
             settings:     r"^set\s*(.*)$".into(),
             windows:      r"^wm\s*(.*)$".into(),
             timer:        r"^timer\s*(.*)$".into(),
+            screenshots:  r"^ss\s*(.*)$".into(),
         }
     }
 }
@@ -299,6 +320,9 @@ apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
 ai           = '^ai\s+(.*)$'
 time         = '^time in\s(.*)$'
+
+[screenshots]
+# path = "~/Pictures/Screenshots"   # uncomment to override the default
 
 [default_search]
 web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]

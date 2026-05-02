@@ -90,6 +90,7 @@ pub enum ResultType {
     Math,
     Camera,
     Ai,
+    Screenshots,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -105,6 +106,7 @@ pub enum ActionData {
     OpenUrl { url: String },
     CopyToClipboard { text: String },
     CopyImageToClipboard { base64_png: String, width: u32, height: u32 },
+    CopyImageFile { path: String },
     RunFunction { function_name: String, params: Vec<String> },
     ShellCommand { command: String },
     RunScript { path: String },
@@ -121,6 +123,7 @@ impl ActionData {
             ActionData::CopyImageToClipboard { width, height, .. } => {
                 format!("copy-img:{}x{}", width, height)
             }
+            ActionData::CopyImageFile { path } => format!("copy-file:{}", path),
             ActionData::RunFunction { function_name, params } => {
                 format!("fn:{}:{}", function_name, params.join(","))
             }

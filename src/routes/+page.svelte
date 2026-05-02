@@ -26,6 +26,7 @@
   import RenderCamera from "$lib/RenderCamera.svelte";
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
   import RenderAiChat from "$lib/RenderAiChat.svelte";
+  import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import Modal from "$lib/Modal.svelte";
 
   interface ModalButton {
@@ -240,6 +241,8 @@
           <RenderCamera />
         {:else if $resultType === "Ai"}
           <RenderAiChat />
+        {:else if $resultType === "Screenshots"}
+          <RenderScreenshots listitems={$resultItems} {activeIndex} onContextMenu={handleContextMenu} />
         {:else}
           Oops
         {/if}

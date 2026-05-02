@@ -19,6 +19,7 @@ pub mod note;
 pub mod settings;
 pub mod timer;
 pub mod windows_switcher;
+pub mod screenshots;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;

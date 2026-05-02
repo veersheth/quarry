@@ -25,11 +25,7 @@
   let showOcrText = false;
   $: if (activeItem) showOcrText = false;
 
-  type UrlMeta = {
-    favicon: string | null;
-    thumbnail: string | null;
-    title: string | null;
-  };
+  type UrlMeta = { favicon: string | null; thumbnail: string | null; title: string | null };
 
   const urlMetaCache = new Map<string, UrlMeta | "loading" | "error">();
   let urlMeta: Record<string, UrlMeta | "loading" | "error"> = {};
@@ -61,19 +57,16 @@
     if (urlMetaCache.has(url)) return;
     urlMetaCache.set(url, "loading");
     urlMeta = { ...urlMeta, [url]: "loading" };
-
     try {
       const u = new URL(url);
       const hostname = u.hostname;
       const ytId = youtubeVideoId(url);
-
       if (ytId) {
         const meta: UrlMeta = { favicon: faviconFor(hostname), thumbnail: youtubeThumbnail(ytId), title: null };
         urlMetaCache.set(url, meta);
         urlMeta = { ...urlMeta, [url]: meta };
         return;
       }
-
       const meta: UrlMeta = { favicon: faviconFor(hostname), thumbnail: null, title: null };
       urlMetaCache.set(url, meta);
       urlMeta = { ...urlMeta, [url]: meta };
@@ -85,9 +78,7 @@
 
   $: {
     for (const item of listitems) {
-      if (isURL(item.name) && !urlMetaCache.has(item.name)) {
-        fetchUrlMeta(item.name);
-      }
+      if (isURL(item.name) && !urlMetaCache.has(item.name)) fetchUrlMeta(item.name);
     }
   }
 
@@ -95,14 +86,6 @@
     const m = urlMeta[url];
     if (!m || m === "loading" || m === "error") return null;
     return m;
-  }
-
-  function getUrlFavicon(url: string): string | null {
-    return getUrlMeta(url)?.favicon ?? null;
-  }
-
-  function getUrlThumbnail(url: string): string | null {
-    return getUrlMeta(url)?.thumbnail ?? null;
   }
 
   function handleClick(item: typeof listitems[0]) {
@@ -129,17 +112,13 @@
   function getValidColor(str: string | undefined): string | null {
     if (!str) return null;
     const trimmed = str.trim();
-    const standardRegex = /^(#([A-Fa-f0-9]{3,4}){1,2}|(rgb|hsl)a?\s*\(.*\))$/i;
-    if (standardRegex.test(trimmed)) return trimmed;
-    const nakedRgb = /^(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*[\d.]+)?$/;
-    if (nakedRgb.test(trimmed)) return `rgb(${trimmed})`;
-    const nakedHsl = /^(\d{1,3})°?,\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*[\d.]+)?$/;
-    if (nakedHsl.test(trimmed)) return `hsl(${trimmed.replace("°", "")})`;
+    if (/^(#([A-Fa-f0-9]{3,4}){1,2}|(rgb|hsl)a?\s*\(.*\))$/i.test(trimmed)) return trimmed;
+    if (/^(\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})(,\s*[\d.]+)?$/.test(trimmed)) return `rgb(${trimmed})`;
+    if (/^(\d{1,3})°?,\s*(\d{1,3})%,\s*(\d{1,3})%(,\s*[\d.]+)?$/.test(trimmed)) return `hsl(${trimmed.replace("°", "")})`;
     return null;
   }
 
-  type ContentType =
-    | "image" | "color" | "url" | "email" | "json" | "code" | "multiline" | "text";
+  type ContentType = "image" | "color" | "url" | "email" | "json" | "code" | "multiline" | "text";
 
   function detectType(item: typeof listitems[0]): ContentType {
     if (item.thumbnail) return "image";
@@ -185,11 +164,7 @@
   function parseURL(v: string) {
     try {
       const u = new URL(v);
-      return {
-        hostname: u.hostname,
-        path: u.pathname + u.search + u.hash,
-        display: u.hostname.replace(/^www\./, ""),
-      };
+      return { hostname: u.hostname, path: u.pathname + u.search + u.hash, display: u.hostname.replace(/^www\./, "") };
     } catch { return null; }
   }
 
@@ -227,14 +202,8 @@
   }
 
   function textStats(v: string) {
-    const lines = v.split("\n");
     const words = v.trim().split(/\s+/).filter(Boolean).length;
-    return { lines: lines.length, words, chars: v.length };
-  }
-
-  function parseEmail(v: string) {
-    const [local, domain] = v.split("@");
-    return { local, domain };
+    return { lines: v.split("\n").length, words, chars: v.length };
   }
 
   function getFooterMeta(item: typeof listitems[0], type: ContentType): string[] {
@@ -246,7 +215,7 @@
       }
       case "json": {
         const s = jsonStats(v);
-        return [s.type, `${s.keys} ${s.type === "array" ? "items" : "keys"}`, `depth ${s.depth}`, `${v.length} chars`];
+        return [s.type, `${s.keys} ${s.type === "array" ? "items" : "keys"}`, `depth ${s.depth}`];
       }
       case "multiline":
       case "text": {
@@ -258,13 +227,13 @@
       case "url": {
         const parsed = parseURL(v);
         const ytId = youtubeVideoId(v);
-        const parts = parsed ? [parsed.display].filter(Boolean) : [];
+        const parts = parsed ? [parsed.display] : [];
         if (ytId) parts.push("youtube");
         return parts;
       }
       case "email": {
-        const p = parseEmail(v);
-        return [p.local, p.domain];
+        const [local, domain] = v.split("@");
+        return [local, domain];
       }
       case "color":
         return [v];
@@ -275,6 +244,7 @@
 </script>
 
 <div class="clipboard">
+  <!-- Left: scrollable item list -->
   <div class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -283,23 +253,20 @@
         class="result-item"
         class:active={index === $activeIndex}
         class:pinned={item.pinned}
-        data-active={index === $activeIndex}
         on:mouseenter={() => activeIndex.set(index)}
         on:click={() => handleClick(item)}
         on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
       >
-        <div class="type-icon">
+        <!-- Type icon / thumbnail -->
+        <div class="item-icon">
           {#if item.thumbnail}
             <img class="icon-thumb" src={item.thumbnail} alt="" />
           {:else if getValidColor(item.name)}
             <div class="icon-swatch" style:background-color={getValidColor(item.name)}></div>
           {:else if isURL(item.name)}
-            {@const favicon = getUrlFavicon(item.name)}
+            {@const favicon = getUrlMeta(item.name)?.favicon}
             {#if favicon}
-              <img
-                class="icon-favicon"
-                src={favicon}
-                alt=""
+              <img class="icon-favicon" src={favicon} alt=""
                 on:error={(e) => {
                   const img = e.target as HTMLImageElement;
                   img.style.display = "none";
@@ -318,14 +285,23 @@
             <div class="icon-pill icon-code">&lt;/&gt;</div>
           {/if}
         </div>
+
+        <!-- Name + description -->
         <div class="item-body">
-          <span class="item-name">{truncate(item.name, 22)}</span>
+          <span class="item-name">{truncate(item.name, 26)}</span>
+          {#if item.description}
+            <span class="item-desc">{truncate(item.description, 30)}</span>
+          {/if}
         </div>
 
+        {#if item.pinned}
+          <div class="pin-indicator" title="pinned"></div>
+        {/if}
       </div>
     {/each}
   </div>
 
+  <!-- Right: preview panel -->
   <div class="info-panel">
     {#if activeItem}
       {#if contentType === "image" && activeItem.ocr_text}
@@ -362,32 +338,22 @@
           {@const ytId = youtubeVideoId(activeItem.name)}
           {#if parsed}
             <div class="url-card">
-              <div class="inner-url-card">
-              <div class="url-header">
-                {#if meta?.favicon}
-                  <img
-                    class="url-favicon"
-                    src={meta.favicon}
-                    alt=""
-                    on:error={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                {/if}
-                <span class="url-hostname">{parsed.display}</span>
-              </div>
-
-              <div class="url-full">{activeItem.name}</div>
-
-              <!-- svelte-ignore a11y_invalid_attribute -->
-              <a class="url-open" href={activeItem.name} target="_blank" rel="noopener">
-                open in browser
-              </a>
+              <div class="url-card-main">
+                <div class="url-header">
+                  {#if meta?.favicon}
+                    <img class="url-favicon" src={meta.favicon} alt=""
+                      on:error={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  {/if}
+                  <span class="url-hostname">{parsed.display}</span>
+                </div>
+                <div class="url-full">{activeItem.name}</div>
+                <!-- svelte-ignore a11y_invalid_attribute -->
+                <a class="url-open" href={activeItem.name} target="_blank" rel="noopener">open in browser ↗</a>
               </div>
               {#if meta?.thumbnail}
                 <div class="url-thumb-wrap">
-                  <img
-                    class="url-thumb"
-                    src={meta.thumbnail}
-                    alt="thumbnail"
+                  <img class="url-thumb" src={meta.thumbnail} alt="thumbnail"
                     on:error={(e) => {
                       const img = e.target as HTMLImageElement;
                       if (img.parentElement) img.parentElement.style.display = "none";
@@ -395,7 +361,6 @@
                   />
                 </div>
               {/if}
-
             </div>
           {/if}
 
@@ -407,83 +372,76 @@
           </div>
 
         {:else if contentType === "json"}
-          <div class="json-container">
-            <pre class="json-preview">{prettyJSON(activeItem.name)}</pre>
+          <div class="scroll-container">
+            <pre class="code-block json-block">{prettyJSON(activeItem.name)}</pre>
           </div>
 
         {:else if contentType === "code"}
-          <div class="code-container">
-            <pre class="code-preview">{activeItem.name}</pre>
-          </div>
-
-        {:else if contentType === "multiline"}
-          <div class="multiline-container">
-            <div class="text-preview">{activeItem.name}</div>
+          <div class="scroll-container">
+            <pre class="code-block">{activeItem.name}</pre>
           </div>
 
         {:else}
-          <div class="text-container">
-            <div class="text-preview">{activeItem.name}</div>
+          <div class="scroll-container">
+            <div class="text-block">{activeItem.name}</div>
           </div>
         {/if}
 
       </div>
 
+      <!-- Footer: type badge + stats + timestamp -->
       <div class="metadata">
         <span class="type-badge type-{contentType}">{contentType}</span>
-        {#each footerMeta as meta}
-          <span class="stat-chip">{meta}</span>
+        {#each footerMeta as chip}
+          <span class="stat-chip">{chip}</span>
         {/each}
         <span class="timestamp">{formatTimestamp(activeItem.description)}</span>
       </div>
+    {:else}
+      <div class="empty-state">select an item to preview</div>
     {/if}
   </div>
 </div>
 
 <style>
+  /* ── Layout ──────────────────────────────────────────── */
   .clipboard {
     display: flex;
     height: 100%;
     color: #eee;
   }
 
+  /* ── Left list ───────────────────────────────────────── */
   .result-list {
-    flex: 0 0 224px;
-    border-right: 1px solid #333;
+    flex: 0 0 230px;
+    border-right: 1px solid #2a2a2a;
     overflow-y: auto;
-    padding: 14px 10px;
+    padding: 10px 8px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .result-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 9px;
+    padding: 7px 9px;
     border-radius: var(--q-item-border-radius);
     cursor: pointer;
-    border: 2px solid transparent;
+    border: 1.5px solid transparent;
+    min-height: 44px;
   }
 
-  .result-item.pinned {
-    border-color: rgba(168, 85, 247, 0.45);
-  }
+  .result-item.pinned        { border-color: rgba(168, 85, 247, 0.35); }
+  .result-item.active        { background: var(--q-active-bg-color); border-color: var(--q-active-border-color); }
+  .result-item.pinned.active { border-color: rgba(192, 132, 252, 0.75); }
 
-  .result-item.active {
-    background: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
-  }
-
-  .result-item.pinned.active {
-    border-color: rgba(192, 132, 252, 0.8);
-  }
-
-  .type-icon {
+  /* Icon cell */
+  .item-icon {
     flex-shrink: 0;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 7px;
     overflow: hidden;
     display: flex;
@@ -497,7 +455,6 @@
     object-fit: cover;
   }
 
-  /* Blue tint: shift hue toward blue, boost saturation */
   .icon-favicon {
     width: 18px;
     height: 18px;
@@ -513,29 +470,56 @@
 
   .icon-pill {
     font-size: 0.6rem;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
     padding: 2px 5px;
     border-radius: 5px;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
     font-weight: 600;
     text-transform: uppercase;
+    white-space: nowrap;
   }
   .icon-url   { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
   .icon-email { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
   .icon-json  { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
   .icon-code  { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
 
-  .item-body { flex: 1; min-width: 0; }
+  /* Text cell */
+  .item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
 
   .item-name {
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
   }
 
+  .item-desc {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.72rem;
+    color: #666;
+    line-height: 1.3;
+  }
+
+  /* Pin dot */
+  .pin-indicator {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(168, 85, 247, 0.7);
+  }
+
+  /* ── Right panel ─────────────────────────────────────── */
   .info-panel {
     flex: 1;
     display: flex;
@@ -605,6 +589,43 @@
     border-color: #333;
   }
 
+  /* Shared scroll container for text/code/json */
+  .scroll-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .text-block {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #ffb5bc;
+    font-size: 0.95rem;
+    overflow: auto;
+    line-height: 1.6;
+  }
+
+  .code-block {
+    flex: 1;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    color: #facc15;
+    background: #181818;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    padding: 14px;
+    overflow: auto;
+    margin: 0;
+    white-space: pre;
+    line-height: 1.6;
+  }
+
+  .json-block { color: #fb923c; }
+
   .color-hero {
     display: flex;
     flex-direction: column;
@@ -613,16 +634,16 @@
   }
 
   .checkerboard {
-    width: 200px;
-    height: 200px;
-    border-radius: 111px;
+    width: 190px;
+    height: 190px;
+    border-radius: 50%;
     background-image:
       linear-gradient(45deg, #222 25%, transparent 25%),
       linear-gradient(-45deg, #222 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, #222 75%),
       linear-gradient(-45deg, transparent 75%, #222 75%);
     background-size: 20px 20px;
-    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
     background-color: #111;
     overflow: hidden;
     border: 1px solid #333;
@@ -631,7 +652,7 @@
   .main-swatch { width: 100%; height: 100%; }
 
   .color-value {
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
     font-size: 1.1rem;
     background: #222;
     padding: 8px 18px;
@@ -640,33 +661,30 @@
     border: 1px solid #333;
   }
 
+  /* URL card */
   .url-card {
     width: 100%;
     display: flex;
     flex-direction: row;
+    gap: 0;
     background: #181818;
     border: 1px solid #2e2e2e;
     border-radius: 14px;
-    padding: 20px;
+    overflow: hidden;
   }
 
-  .inner-url-card {
+  .url-card-main {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    max-height: 100%;
-    padding: 12px 12px 20px;
-    gap: 12px;
+    gap: 10px;
+    padding: 20px;
+    overflow: hidden;
   }
 
   .url-thumb-wrap {
-    position: relative;
-    width: 40%;
-    border-radius: 10px;
-    overflow: hidden;
+    flex: 0 0 40%;
     background: #111;
-    aspect-ratio: 16 / 9;
-    flex-shrink: 0;
   }
 
   .url-thumb {
@@ -676,26 +694,12 @@
     display: block;
   }
 
-  .yt-play-badge {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2.5rem;
-    color: #fff;
-    background: radial-gradient(circle, rgba(0,0,0,0.55) 36%, transparent 70%);
-    pointer-events: none;
-    opacity: 0.85;
-  }
-
   .url-header {
     display: flex;
     align-items: center;
     gap: 10px;
   }
 
-  /* Blue tint on preview favicon too */
   .url-favicon {
     width: 20px;
     height: 20px;
@@ -713,7 +717,7 @@
     font-size: 0.78rem;
     color: #60a5fa;
     word-break: break-all;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
     opacity: 0.8;
   }
 
@@ -721,13 +725,13 @@
     font-size: 0.78rem;
     color: #fff;
     text-decoration: underline;
-    opacity: 0.6;
+    opacity: 0.5;
     align-self: flex-start;
   }
   .url-open:hover { opacity: 1; }
 
+  /* Email card */
   .email-card {
-    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -735,127 +739,71 @@
     background: #181818;
     border: 1px solid #2e2e2e;
     border-radius: 14px;
-    padding: 28px 20px;
+    padding: 32px 24px;
+    width: 100%;
   }
 
-  .email-icon { font-size: 2.2rem; opacity: 0.3; }
-
+  .email-icon    { font-size: 2rem; opacity: 0.25; }
   .email-address {
     font-size: 1rem;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
     color: #c084fc;
     word-break: break-all;
     text-align: center;
   }
 
-  .json-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .json-preview {
+  /* Empty state */
+  .empty-state {
     flex: 1;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.78rem;
-    color: #fb923c;
-    background: #181818;
-    border: 1px solid #2e2e2e;
-    border-radius: 10px;
-    padding: 14px;
-    overflow: auto;
-    margin: 0;
-    white-space: pre;
-    line-height: 1.6;
-  }
-
-  .code-container {
-    width: 100%;
-    height: 100%;
     display: flex;
-    flex-direction: column;
-    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: #444;
   }
 
-  .code-preview {
-    flex: 1;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.78rem;
-    color: #facc15;
-    background: #181818;
-    border: 1px solid #2e2e2e;
-    border-radius: 10px;
-    padding: 14px;
-    overflow: auto;
-    margin: 0;
-    white-space: pre;
-    line-height: 1.6;
-  }
-
-  .multiline-container,
-  .text-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .text-preview {
-    flex: 1;
-    white-space: pre-wrap;
-    word-break: break-word;
-    <!-- font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace; -->
-    color: #ffb5bc;
-    font-size: 0.95rem;
-    overflow: auto;
-  }
-
+  /* ── Footer ──────────────────────────────────────────── */
   .metadata {
-    padding: 8px 16px;
-    border-top: 1px solid #2a2a2a;
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-shrink: 0;
+    padding: 7px 14px;
+    border-top: 1px solid #222;
     flex-wrap: wrap;
+    flex-shrink: 0;
   }
 
   .type-badge {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     padding: 2px 8px;
     border-radius: 6px;
     text-transform: capitalize;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    margin-right: 2px;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
   }
-
-  .type-badge.type-text      { background: #2a2a2a; color: #888;    border: 1px solid #3a3a3a; }
-  .type-badge.type-multiline { background: #2a2a2a; color: #888;    border: 1px solid #3a3a3a; }
-  .type-badge.type-image     { background: #1a2a1a; color: #6a9;    border: 1px solid #2a3a2a; }
-  .type-badge.type-color     { background: #2a1a2a; color: #a6a;    border: 1px solid #3a2a3a; }
+  .type-badge.type-text      { background: #252525; color: #777; border: 1px solid #333; }
+  .type-badge.type-multiline { background: #252525; color: #777; border: 1px solid #333; }
+  .type-badge.type-image     { background: #1a2a1a; color: #6a9; border: 1px solid #2a3a2a; }
+  .type-badge.type-color     { background: #2a1a2a; color: #a6a; border: 1px solid #3a2a3a; }
   .type-badge.type-url       { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
   .type-badge.type-email     { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
   .type-badge.type-json      { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
   .type-badge.type-code      { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
 
   .stat-chip {
-    font-size: 0.72rem;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.7rem;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
     background: #1e1e1e;
-    border: 1px solid #2e2e2e;
-    color: #666;
-    padding: 2px 8px;
+    border: 1px solid #2a2a2a;
+    color: #555;
+    padding: 2px 7px;
     border-radius: 5px;
   }
 
   .timestamp {
     margin-left: auto;
-    font-size: 0.78rem;
-    opacity: 0.35;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-size: 0.75rem;
+    opacity: 0.3;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', monospace;
     white-space: nowrap;
   }
 </style>
