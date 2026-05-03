@@ -16,7 +16,8 @@ use usage_tracker::UsageHistory;
 
 use commands::{
     cancel_rofi, clear_clipboard_history, exec_shell, execute, get_config, get_groq_api_key,
-    get_theme, read_note, save_capture, save_config, save_groq_api_key, search, write_note,
+    get_theme, read_note, save_capture, save_config, save_groq_api_key, search, start_drag,
+    write_note,
 };
 use lazy_static::lazy_static;
 use std::sync::{
@@ -146,6 +147,7 @@ pub fn run() {
             get_groq_api_key,
             save_groq_api_key,
             cancel_rofi,
+            start_drag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

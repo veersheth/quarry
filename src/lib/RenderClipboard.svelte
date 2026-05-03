@@ -849,6 +849,7 @@
     font-family: var(--q-mono);
     font-size: 0.78rem;
     color: #fb923c;
+    user-select: text;
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
     border-radius: 10px;
@@ -872,6 +873,7 @@
     font-family: var(--q-mono);
     font-size: 0.78rem;
     color: #facc15;
+    user-select: text;
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
     border-radius: 10px;
@@ -895,6 +897,7 @@
     flex: 1;
     white-space: pre-wrap;
     word-break: break-word;
+    user-select: text;
     <!-- font-family: var(--q-mono); -->
     color: #ffb5bc;
     font-size: 0.95rem;

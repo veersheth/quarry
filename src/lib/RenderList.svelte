@@ -1,15 +1,11 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
   function iconSrc(icon: string): string {
     return icon.startsWith("/") ? convertFileSrc(icon) : icon;
-  }
-
-  function handleClick(item: ResultItem) {
-    runItemAction(item);
   }
 
   export let listitems: {
@@ -18,6 +14,7 @@
     description?: string;
     icon?: string;
     pinned?: boolean;
+    draggable_path?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
@@ -32,11 +29,7 @@
   }
 </script>
 
-<svelte:window
-  on:mousemove={() => {
-    mouseHasMoved = true;
-  }}
-/>
+<svelte:window on:mousemove={() => { mouseHasMoved = true; }} />
 
 <div class="result-list">
   {#each listitems as item, index}
@@ -51,14 +44,27 @@
       on:mouseenter={() => {
         if (mouseHasMoved) activeIndex.set(index);
       }}
-      on:click={() => handleClick(item)}
+      on:click={() => runItemAction(item)}
       on:contextmenu={(e) => {
         e.preventDefault();
         onContextMenu?.(e, item);
       }}
+      on:dragstart|preventDefault
     >
       {#if item.icon}
-        <img class="item-icon" src={iconSrc(item.icon)} alt="" />
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <img
+          class="item-icon"
+          class:drag-source={!!item.draggable_path}
+          src={iconSrc(item.icon)}
+          alt=""
+          draggable="false"
+          on:mousedown|preventDefault={(e) => {
+            if (!item.draggable_path || e.button !== 0) return;
+            invoke("start_drag", { path: item.draggable_path }).catch(console.error);
+          }}
+          on:click={(e) => { if (item.draggable_path) e.stopPropagation(); }}
+        />
       {/if}
       <div class="item-text">
         <span class="item-name">{item.name}</span>
@@ -120,6 +126,14 @@
     flex-shrink: 0;
     object-fit: contain;
     object-position: center;
+  }
+
+  img.item-icon.drag-source {
+    cursor: grab;
+  }
+
+  img.item-icon.drag-source:active {
+    cursor: grabbing;
   }
 
   .item-text {

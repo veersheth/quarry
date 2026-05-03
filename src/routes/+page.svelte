@@ -331,6 +331,10 @@
 </main>
 
 <style>
+  :global(body) {
+    user-select: none;
+  }
+
   :global(:root) {
     --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
     --q-mono: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace;

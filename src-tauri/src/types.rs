@@ -30,6 +30,7 @@ pub struct ResultItem {
     pub ocr_text: Option<String>,
     pub pinned: bool,
     pub group: Option<String>,
+    pub draggable_path: Option<String>,
 }
 
 impl ResultItem {
@@ -43,6 +44,7 @@ impl ResultItem {
             ocr_text: None,
             pinned: false,
             group: None,
+            draggable_path: None,
         }
     }
 
@@ -73,6 +75,11 @@ impl ResultItem {
 
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
+        self
+    }
+
+    pub fn draggable_path(mut self, p: impl Into<String>) -> Self {
+        self.draggable_path = Some(p.into());
         self
     }
 }

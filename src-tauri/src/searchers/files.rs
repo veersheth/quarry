@@ -288,9 +288,13 @@ impl FileSearcher {
             },
         ));
 
-        ResultItem::new(name, actions)
-            .description(path_str)
-            .icon(icon)
+        let mut item = ResultItem::new(name, actions)
+            .description(path_str.clone())
+            .icon(icon);
+        if !path.is_dir() {
+            item = item.draggable_path(path_str);
+        }
+        item
     }
 }
 

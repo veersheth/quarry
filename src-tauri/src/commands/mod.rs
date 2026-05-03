@@ -1,6 +1,7 @@
 use regex::Regex;
 use base64::{engine::general_purpose, Engine};
 use once_cell::sync::Lazy;
+use tauri::Manager;
 use std::sync::atomic::Ordering;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -277,6 +278,43 @@ pub fn cancel_rofi(response_socket: String) -> Result<(), String> {
         let _ = stream.write_all(b"\n");
     }
     Ok(())
+}
+
+// ---------------------------------------------------------
+// DRAG COMMAND
+// ---------------------------------------------------------
+
+#[tauri::command]
+pub async fn start_drag(window: tauri::WebviewWindow, path: String) -> Result<(), String> {
+    let win = window.clone();
+    let win_cb = window.clone();
+
+    window
+        .app_handle()
+        .run_on_main_thread(move || {
+            // Drop always-on-top so the drop target is reachable
+            let _ = win.set_always_on_top(false);
+
+            let item = drag::DragItem::Files(vec![std::path::PathBuf::from(&path)]);
+            let image = drag::Image::Raw(
+                include_bytes!("../../../static/icons/file.png").to_vec(),
+            );
+            if let Ok(gtk_win) = win.gtk_window() {
+                let _ = drag::start_drag(
+                    &gtk_win,
+                    item,
+                    image,
+                    move |result, _| match result {
+                        drag::DragResult::Dropped => { let _ = win_cb.hide(); }
+                        _ => { let _ = win_cb.set_always_on_top(true); }
+                    },
+                    Default::default(),
+                );
+            } else {
+                let _ = win.set_always_on_top(true);
+            }
+        })
+        .map_err(|e: tauri::Error| e.to_string())
 }
 
 // ---------------------------------------------------------
