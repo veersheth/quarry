@@ -478,35 +478,14 @@
     flex-shrink: 0;
   }
 
-  .toast-dot.success {
-    background: #4ade80;
-  }
-  .toast-dot.error {
-    background: #f87171;
-  }
-  .toast-dot.info {
-    background: #60a5fa;
-  }
+  .toast-dot.success { background: #4ade80; }
 
-  .toast.error {
-    border-color: rgba(248, 113, 113, 0.2);
-  }
+  .toast-dot.error { background: #f87171; }
 
-  .toast.info {
-    border-color: rgba(96, 165, 250, 0.2);
-  }
+  .toast-dot.info { background: #60a5fa; }
 
-  :global(::-webkit-scrollbar) {
-    width: 3px;
-  }
-  :global(::-webkit-scrollbar-track) {
-    background: transparent;
-  }
-  :global(::-webkit-scrollbar-thumb) {
-    background: var(--q-pin-border);
-    border-radius: 99px;
-  }
-  :global(::-webkit-scrollbar-thumb:hover) {
-    background: var(--q-pin-border-active);
-  }
+  .toast.error { border-color: rgba(248, 113, 113, 0.2); }
+
+  .toast.info { border-color: rgba(96, 165, 250, 0.2); }
+
 </style>
