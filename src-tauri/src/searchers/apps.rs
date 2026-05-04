@@ -15,10 +15,16 @@ fn clean_exec_field(exec: &str) -> String {
         .join(" ")
 }
 
-// Returns the absolute filesystem path; the frontend converts it to an asset:// URL.
 fn resolve_icon(icon_name: &str) -> Option<String> {
     let path = freedesktop_icons::lookup(icon_name).with_size(64).find()?;
     path.to_str().map(|s| s.to_string())
+}
+
+#[derive(Clone)]
+struct AppAction {
+    name: String,
+    exec: String,
+    icon: Option<String>,
 }
 
 #[derive(Clone)]
@@ -27,6 +33,7 @@ struct CachedApp {
     exec: String,
     description: Option<String>,
     icon: Option<String>,
+    app_actions: Vec<AppAction>,
 }
 
 static APP_CACHE: Lazy<RwLock<Vec<CachedApp>>> = Lazy::new(|| RwLock::new(build_app_list()));
@@ -38,16 +45,15 @@ fn build_app_list() -> Vec<CachedApp> {
         .entries(Some(&locales))
         .collect::<Vec<_>>();
 
-    for entry in entries {
+    for entry in &entries {
         if entry.no_display() || entry.hidden() {
             continue;
         }
 
-        let name = entry
-            .name(&locales)
-            .or_else(|| entry.name::<&str>(&[]))
-            .unwrap_or("Unknown".into())
-            .to_string();
+        let name = match entry.name(&locales).or_else(|| entry.name::<&str>(&[])) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
 
         let exec = match entry.exec() {
             Some(e) => clean_exec_field(&e),
@@ -61,18 +67,32 @@ fn build_app_list() -> Vec<CachedApp> {
 
         let icon = entry.icon().and_then(|i| resolve_icon(&i));
 
-        apps.push(CachedApp { name, exec, description, icon });
+        let app_actions: Vec<AppAction> = entry
+            .actions()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|action_id| {
+                let name = entry.action_entry(action_id, "Name")?.to_string();
+                let exec_raw = entry.action_entry(action_id, "Exec")?;
+                let exec = clean_exec_field(exec_raw);
+                let action_icon = entry
+                    .action_entry(action_id, "Icon")
+                    .and_then(resolve_icon)
+                    .or_else(|| icon.clone());
+                Some(AppAction { name, exec, icon: action_icon })
+            })
+            .collect();
+
+        apps.push(CachedApp { name, exec, description, icon, app_actions });
     }
 
     apps
 }
 
-/// Call at startup to build APP_CACHE eagerly in a background thread.
 pub fn warm() {
     let _ = APP_CACHE.read().map(|g| g.len());
 }
 
-/// Rebuild APP_CACHE from disk (picks up newly installed apps).
 pub fn reload() {
     if let Ok(mut cache) = APP_CACHE.write() {
         *cache = build_app_list();
@@ -81,25 +101,41 @@ pub fn reload() {
 
 pub struct AppSearcher;
 
-fn build_result_item(cached_app: &CachedApp) -> ResultItem {
-    let parts: Vec<&str> = cached_app.exec.split_whitespace().collect();
+fn launch_actions(exec: &str) -> Vec<Action> {
+    let parts: Vec<&str> = exec.split_whitespace().collect();
+    let executable = parts.first().copied().unwrap_or("").to_string();
+    let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
+    vec![Action::new("Launch", ActionData::LaunchApp { executable, args })]
+}
+
+fn build_result_item(app: &CachedApp) -> ResultItem {
+    let parts: Vec<&str> = app.exec.split_whitespace().collect();
     let executable = parts.first().copied().unwrap_or("").to_string();
     let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
 
-    let actions = vec![
+    let mut actions = vec![
         Action::new("Launch", ActionData::LaunchApp { executable: executable.clone(), args }),
-        Action::new("Run as Administrator", ActionData::ShellCommand {
-            command: format!("pkexec {}", cached_app.exec),
-        }),
-        Action::new("Copy Command", ActionData::CopyToClipboard { text: cached_app.exec.clone() }),
-        Action::new("Copy Executable Path", ActionData::CopyToClipboard { text: executable }),
     ];
 
-    let mut item = ResultItem::new(cached_app.name.clone(), actions);
-    if let Some(desc) = &cached_app.description { item = item.description(desc.clone()); }
-    if let Some(icon) = &cached_app.icon { item = item.icon(icon.clone()); }
+    for app_action in &app.app_actions {
+        let mut launch = launch_actions(&app_action.exec);
+        let mut a = launch.remove(0);
+        a = Action::new(app_action.name.clone(), a.data);
+        actions.push(a);
+    }
+
+    actions.push(Action::new("Run as Administrator", ActionData::ShellCommand {
+        command: format!("pkexec {}", app.exec),
+    }));
+    actions.push(Action::new("Copy Command", ActionData::CopyToClipboard { text: app.exec.clone() }));
+    actions.push(Action::new("Copy Executable Path", ActionData::CopyToClipboard { text: executable }));
+
+    let mut item = ResultItem::new(app.name.clone(), actions);
+    if let Some(desc) = &app.description { item = item.description(desc.clone()); }
+    if let Some(icon) = &app.icon { item = item.icon(icon.clone()); }
     item
 }
+
 
 fn fuzzy_score_app(matcher: &SkimMatcherV2, app: &CachedApp, query: &str) -> i64 {
     let name_score = matcher.fuzzy_match(&app.name, query).unwrap_or(0) * 2;
@@ -137,7 +173,9 @@ impl SearchProvider for AppSearcher {
                     })
                     .collect();
 
-                let mut remaining: Vec<ResultItem> = name_map.into_values().map(build_result_item).collect();
+                let mut remaining: Vec<ResultItem> = name_map.into_values()
+                    .map(build_result_item)
+                    .collect();
                 remaining.sort_unstable_by(|a, b| a.name.cmp(&b.name));
                 results.extend(remaining);
 
@@ -157,7 +195,11 @@ impl SearchProvider for AppSearcher {
             })
             .collect();
         scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-        let results = scored.into_iter().map(|(app, _)| build_result_item(app)).collect();
+
+        let mut results: Vec<ResultItem> = scored
+            .iter()
+            .map(|(app, _)| build_result_item(app))
+            .collect();
 
         SearchResult { results, result_type: ResultType::List }
     }
