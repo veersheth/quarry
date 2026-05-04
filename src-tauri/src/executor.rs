@@ -384,6 +384,12 @@ fn run_custom_function(
             }
             std::fs::remove_file(&params[0]).map_err(|e| e.to_string())
         }
+        "trash_file" => {
+            if params.is_empty() {
+                return Err("trash_file requires a path".into());
+            }
+            trash::delete(&params[0]).map_err(|e| e.to_string())
+        }
         "ocr_screenshot" => {
             if params.is_empty() {
                 return Err("ocr_screenshot requires a path".into());

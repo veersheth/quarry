@@ -272,6 +272,15 @@ impl FileSearcher {
             ));
         }
 
+        // Move to Trash
+        actions.push(Action::new(
+            "Move to Trash",
+            ActionData::RunFunction {
+                function_name: "trash_file".into(),
+                params: vec![path_str.clone()],
+            },
+        ));
+
         // Copy full path
         actions.push(Action::new(
             "Copy Path",
