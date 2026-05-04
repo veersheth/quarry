@@ -180,6 +180,9 @@ pub fn execute(
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
         ActionData::RunFunction { function_name, .. } if function_name == "copy_clipboard_image" => "copied",
+        ActionData::RunFunction { function_name, .. } if function_name == "trash_file" => "toasted:Moved to trash",
+        ActionData::RunFunction { function_name, .. } if function_name == "pin" => "toasted:Pinned",
+        ActionData::RunFunction { function_name, .. } if function_name == "unpin" => "toasted:Unpinned",
         _ => "launched",
     };
 

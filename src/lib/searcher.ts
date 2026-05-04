@@ -18,6 +18,8 @@ export async function execute(action_id: string, name: string, currentQuery: str
       // action manages its own UI (e.g. show_modal) — keep window visible
     } else if (result === "error") {
       addToast("Something went wrong", "error");
+    } else if (result.startsWith("toasted:")) {
+      addToast(result.slice("toasted:".length));
     } else {
       await getCurrentWindow().hide();
     }
