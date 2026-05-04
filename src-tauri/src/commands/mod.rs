@@ -15,6 +15,7 @@ use crate::searchers::camera::CameraSearcher;
 use crate::searchers::settings::SettingsSearcher;
 use crate::searchers::windows_switcher::WindowSwitcher;
 use crate::searchers::screenshots::ScreenshotsSearcher;
+use crate::searchers::shortcuts::ShortcutsSearcher;
 use crate::searchers::timer::TimerSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
@@ -84,6 +85,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.windows, "windows", WindowSwitcher);
     push!(v, &t.timer, "timer", TimerSearcher);
     push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
+    push!(v, &t.shortcuts,   "shortcuts",   ShortcutsSearcher);
 
     // Detect raw pasted color values without requiring the "color" prefix.
     push!(
@@ -180,6 +182,7 @@ pub fn execute(
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
         ActionData::RunFunction { function_name, .. } if function_name == "copy_clipboard_image" => "copied",
+        ActionData::RunFunction { function_name, .. } if function_name.starts_with("copy_") => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "trash_file" => "toasted:Moved to trash",
         ActionData::RunFunction { function_name, .. } if function_name == "pin" => "toasted:Pinned",
         ActionData::RunFunction { function_name, .. } if function_name == "unpin" => "toasted:Unpinned",

@@ -15,6 +15,7 @@ use crate::searchers::{
     math::MathSearcher,
     settings::SettingsSearcher,
     shell::ShellSearcher,
+    shortcuts::ShortcutsSearcher,
     system::SystemSearcher,
     web_searchers::WebSearcher,
     SearchProvider,
@@ -64,14 +65,17 @@ impl SearchProvider for DefaultSearcher {
         let app_handle = app.clone();
         let q_owned = q.to_string();
 
-        let ((app_results, sys_results), (file_results, bookmark_results)) = rayon::join(
+        let ((app_results, sys_results), (file_results, (bookmark_results, shortcut_results))) = rayon::join(
             || rayon::join(
                 || AppSearcher.search(&q_owned, &app_handle).results,
                 || SystemSearcher.search(&q_owned, &app_handle).results,
             ),
             || rayon::join(
                 || FileSearcher.search(&q_owned, &app_handle).results,
-                || BookmarksSearcher.search(&q_owned, &app_handle).results,
+                || rayon::join(
+                    || BookmarksSearcher.search(&q_owned, &app_handle).results,
+                    || ShortcutsSearcher.search(&q_owned, &app_handle).results,
+                ),
             ),
         );
 
@@ -113,6 +117,17 @@ impl SearchProvider for DefaultSearcher {
         scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
 
         let mut seen_names: HashSet<String> = HashSet::new();
+
+        // Shortcuts float to the top unconditionally when they match
+        let mut top_shortcuts: Vec<ResultItem> = shortcut_results
+            .into_iter()
+            .filter(|item| {
+                let score = Self::score_item(item, q);
+                score > 0 && seen_names.insert(item.name.to_lowercase())
+            })
+            .take(3)
+            .collect();
+
         let mut combined: Vec<ResultItem> = scored
             .into_iter()
             .filter_map(|(item, _)| {
@@ -163,8 +178,9 @@ impl SearchProvider for DefaultSearcher {
             }
         }
 
+        top_shortcuts.extend(combined);
         SearchResult {
-            results: combined,
+            results: top_shortcuts,
             result_type: ResultType::List,
         }
     }

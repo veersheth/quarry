@@ -113,17 +113,6 @@ impl SearchProvider for SystemSearcher {
             })
             .collect();
 
-        candidates.push(
-            ResultItem::new(
-                "Reload Quarry",
-                vec![Action::new("Reload", ActionData::RunFunction {
-                    function_name: "reload_quarry".into(),
-                    params: vec![],
-                })],
-            )
-            .description("Rebuild file index, refresh app list, reload styles")
-            .icon("icons/system/reboot.png"),
-        );
 
         let results = if q.is_empty() {
             candidates

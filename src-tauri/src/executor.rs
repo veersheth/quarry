@@ -390,6 +390,63 @@ fn run_custom_function(
             }
             trash::delete(&params[0]).map_err(|e| e.to_string())
         }
+        "open_latest_download" => {
+            let dir = dirs::download_dir().ok_or("Downloads directory not found")?;
+            let newest = latest_in_dir(&dir).ok_or("Downloads folder is empty")?;
+            open_url(&format!("file://{}", newest.to_string_lossy()), app)
+        }
+        "show_latest_download" => {
+            let dir = dirs::download_dir().ok_or("Downloads directory not found")?;
+            let newest = latest_in_dir(&dir).ok_or("Downloads folder is empty")?;
+            open_selecting(&newest)
+        }
+        "open_latest_screenshot" => {
+            let newest = [
+                dirs::picture_dir().map(|p| p.join("Screenshots")),
+                dirs::picture_dir(),
+                dirs::home_dir().map(|p| p.join("Screenshots")),
+            ]
+            .into_iter().flatten()
+            .filter(|p| p.is_dir())
+            .find_map(|dir| latest_in_dir(&dir))
+            .ok_or("No screenshots found")?;
+            open_url(&format!("file://{}", newest.to_string_lossy()), app)
+        }
+        "copy_date" => {
+            let s = chrono::Local::now().format("%Y-%m-%d").to_string();
+            copy_to_clipboard(&s, app)
+        }
+        "copy_time" => {
+            let s = chrono::Local::now().format("%H:%M:%S").to_string();
+            copy_to_clipboard(&s, app)
+        }
+        "copy_datetime" => {
+            let s = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%z").to_string();
+            copy_to_clipboard(&s, app)
+        }
+        "copy_local_ip" => {
+            let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+            socket.connect("8.8.8.8:80").map_err(|e| e.to_string())?;
+            let ip = socket.local_addr().map_err(|e| e.to_string())?.ip().to_string();
+            copy_to_clipboard(&ip, app)
+        }
+        "copy_hostname" => {
+            let hostname = std::fs::read_to_string("/etc/hostname")
+                .map(|s| s.trim().to_string())
+                .or_else(|_| {
+                    std::process::Command::new("hostname")
+                        .output()
+                        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                        .map_err(|e| e.to_string())
+                })?;
+            copy_to_clipboard(&hostname, app)
+        }
+        "copy_username" => {
+            let user = std::env::var("USER")
+                .or_else(|_| std::env::var("LOGNAME"))
+                .map_err(|_| "USER environment variable not set".to_string())?;
+            copy_to_clipboard(&user, app)
+        }
         "ocr_screenshot" => {
             if params.is_empty() {
                 return Err("ocr_screenshot requires a path".into());
@@ -406,6 +463,64 @@ fn run_custom_function(
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
+}
+
+/// Open a file manager with `path` selected/highlighted.
+/// Detects the default file manager via xdg-mime, then $FILE_MANAGER,
+/// then tries known managers, finally falls back to opening the parent folder.
+fn open_selecting(path: &std::path::Path) -> Result<(), String> {
+    let path_str = path.to_string_lossy().to_string();
+    let parent   = path.parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| path_str.clone());
+
+    // Detect the default file manager registered for directories
+    let desktop = Command::new("xdg-mime")
+        .args(["query", "default", "inode/directory"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+
+    let spawned = if desktop.contains("nautilus") {
+        Command::new("nautilus").args(["--select", &path_str]).spawn().is_ok()
+    } else if desktop.contains("dolphin") {
+        Command::new("dolphin").args(["--select", &path_str]).spawn().is_ok()
+    } else if desktop.contains("nemo") {
+        Command::new("nemo").args(["--no-desktop", &path_str]).spawn().is_ok()
+    } else if desktop.contains("thunar") {
+        Command::new("thunar").arg(&parent).spawn().is_ok()
+    } else if desktop.contains("pcmanfm") {
+        Command::new("pcmanfm").arg(&parent).spawn().is_ok()
+    } else if let Ok(fm) = std::env::var("FILE_MANAGER") {
+        // User-defined override
+        Command::new(&fm).arg(&path_str).spawn().is_ok()
+    } else {
+        // No detection — try common managers in order
+        Command::new("nautilus").args(["--select", &path_str]).spawn().is_ok()
+        || Command::new("dolphin").args(["--select", &path_str]).spawn().is_ok()
+        || Command::new("nemo").args(["--no-desktop", &path_str]).spawn().is_ok()
+    };
+
+    if spawned { return Ok(()); }
+
+    // Final fallback: open the parent directory
+    Command::new("xdg-open").arg(&parent).spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+fn latest_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    std::fs::read_dir(dir).ok()?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .max_by_key(|e| {
+            e.metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        })
+        .map(|e| e.path())
 }
 
 fn rofi_select(name: &str, response_socket: &str) -> Result<(), String> {

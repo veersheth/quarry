@@ -171,6 +171,7 @@ pub struct TriggerConfig {
     pub windows:      String,
     pub timer:        String,
     pub screenshots:  String,
+    pub shortcuts:    String,
 }
 
 impl Default for TriggerConfig {
@@ -197,6 +198,7 @@ impl Default for TriggerConfig {
             windows:      r"^wm\s*(.*)$".into(),
             timer:        r"^timer\s*(.*)$".into(),
             screenshots:  r"^ss\s*(.*)$".into(),
+            shortcuts:    r"^q\s*(.*)$".into(),
         }
     }
 }
@@ -320,6 +322,7 @@ apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
 ai           = '^ai\s+(.*)$'
 time         = '^time in\s(.*)$'
+shortcuts    = '^q\s*(.*)$'
 
 [screenshots]
 # path = "~/Pictures/Screenshots"   # uncomment to override the default
