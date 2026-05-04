@@ -30,21 +30,23 @@ fn all_shortcuts() -> Vec<ResultItem> {
     items.push(item(
         "Reload Quarry",
         "Rebuild file index, refresh app list, reload styles",
-        "icons/system/reboot.png",
+        "icon-transparent.png",
         func("reload_quarry", vec![]),
     ));
     items.push(item(
         "Open Quarry Settings",
         "Open the quarry settings window",
-        "icons/system/reboot.png",
+        "icon-transparent.png",
         func("open_settings", vec![]),
     ));
     if let Some(cfg) = dirs::config_dir() {
-        items.push(folder_item(
+        let mut it = folder_item(
             "Open Quarry Config Folder",
             "Open ~/.config/quarry in your file manager",
             cfg.join("quarry"),
-        ));
+        );
+        it.icon = Some("icon-transparent.png".into());
+        items.push(it);
     }
 
     // ── Trash ─────────────────────────────────────────────────────────────
