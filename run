@@ -1,4 +1,68 @@
 #!/usr/bin/env bash
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+CMD="${1:-dev}"
+die() { echo "error: $*" >&2; exit 1; }
+nix_run() {
+    if [ -n "$IN_NIX_SHELL" ]; then
+        bash -c "$1"
+    else
+        nix-shell --run "$1"
+    fi
+}
+RELEASE="$SCRIPT_DIR/src-tauri/target/release"
+case "$CMD" in
+  dev)
+    nix_run "pnpm tauri dev"
+    ;;
+  build)
+    echo "--> building quarry"
+    nix_run "pnpm tauri build --no-bundle"
+    echo "--> building quarry-toggle + quarry-rofi"
+    nix_run "cargo build --release --manifest-path src-tauri/Cargo.toml --bin quarry-toggle --bin quarry-rofi"
+    echo ""
+    echo "built:"
+    echo " - $RELEASE/quarry"
+    echo " - $RELEASE/quarry-toggle"
+    echo " - $RELEASE/quarry-rofi"
+    echo ""
+    ;;
+  toggle|show|hide|ping|note)
+    BIN="$RELEASE/quarry-toggle"
+    [ -f "$BIN" ] || BIN="$HOME/.local/bin/quarry-toggle"
+    [ -f "$BIN" ] || die "quarry-toggle not found :( './run build'"
+    "$BIN" "$CMD"
+    ;;
+  settings)
+    BIN="$RELEASE/quarry"
+    [ -f "$BIN" ] || BIN="$HOME/.local/bin/quarry"
+    [ -f "$BIN" ] || die "quarry not found :( './run build' first"
+    "$BIN" settings &
+    ;;
+  rofi)
+    shift
+    BIN="$RELEASE/quarry-rofi"
+    [ -f "$BIN" ] || BIN="$HOME/.local/bin/quarry-rofi"
+    [ -f "$BIN" ] || die "quarry-rofi not found :( './run build'"
+    "$BIN" "$@"
+    ;;
+  help|--help|-h)
+    cat <<HELP
+usage: ./run [command]
+  dev          start dev server (default)
+  build        build release binaries (quarry, quarry-toggle, quarry-rofi)
+  toggle       toggle launcher window
+  show / hide  show or hide launcher window
+  note         toggle notepad window
+  settings     open settings window
+  ping         check if quarry is running
+HELP
+    ;;
+  *)
+    echo "unknown command: $CMD"
+    echo "run './run help' for usage"
+    exit 1
+    ;;
+esac
 
-echo running quarry
-nix-shell --run "pnpm tauri dev"
