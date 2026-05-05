@@ -48,13 +48,12 @@ pub trait SearchProvider {
 }
 
 fn fuzzy_score(matcher: &SkimMatcherV2, item: &ResultItem, query: &str) -> i64 {
-    let combined = format!(
-        "{} {}",
-        item.name,
-        item.description.as_deref().unwrap_or(""),
-    );
-    let combined_score = matcher.fuzzy_match(&combined, query).unwrap_or(0);
-    let name_score = matcher.fuzzy_match(&item.name, query)
+    let q = query.to_lowercase();
+    let name = item.name.to_lowercase();
+    let desc = item.description.as_deref().unwrap_or("").to_lowercase();
+    let combined = format!("{} {}", name, desc);
+    let combined_score = matcher.fuzzy_match(&combined, &q).unwrap_or(0);
+    let name_score = matcher.fuzzy_match(&name, &q)
         .map(|s| s * 2)
         .unwrap_or(0);
     combined_score.max(name_score)

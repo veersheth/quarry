@@ -138,9 +138,10 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
 
 
 fn fuzzy_score_app(matcher: &SkimMatcherV2, app: &CachedApp, query: &str) -> i64 {
-    let name_score = matcher.fuzzy_match(&app.name, query).unwrap_or(0) * 2;
+    let q = query.to_lowercase();
+    let name_score = matcher.fuzzy_match(&app.name.to_lowercase(), &q).unwrap_or(0) * 2;
     let desc_score = app.description.as_deref()
-        .and_then(|d| matcher.fuzzy_match(d, query))
+        .and_then(|d| matcher.fuzzy_match(&d.to_lowercase(), &q))
         .unwrap_or(0);
     name_score.max(desc_score)
 }
