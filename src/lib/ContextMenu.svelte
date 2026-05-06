@@ -20,12 +20,30 @@
       )
     : item.actions;
   $: activeIdx = $contextMenu.activeIndex;
-  $: menuH = (searchQ ? 52 : 24) + filteredActions.length * 52;
+  const MAX_MENU_H = 360;
+  $: menuH = Math.min((searchQ ? 52 : 24) + filteredActions.length * 52, MAX_MENU_H);
 
   $: cx = Math.max(8, Math.min(x, window.innerWidth - MENU_W - 8));
   $: cy = Math.max(8, Math.min(y, window.innerHeight - menuH - 8));
 
   let menuEl: HTMLDivElement;
+  let listEl: HTMLDivElement;
+  let isScrollable = false;
+
+  $: if (listEl && activeIdx !== undefined) {
+    const active = listEl.querySelector(".ctx-item.active") as HTMLElement | null;
+    active?.scrollIntoView({ block: "nearest" });
+  }
+
+  function onListScroll() {
+    if (!listEl) return;
+    isScrollable = listEl.scrollHeight > listEl.clientHeight &&
+      listEl.scrollTop < listEl.scrollHeight - listEl.clientHeight - 2;
+  }
+
+  $: if (listEl) {
+    setTimeout(() => onListScroll(), 0);
+  }
 
   function handleMousedown(e: MouseEvent) {
     if (menuEl && !menuEl.contains(e.target as Node)) {
@@ -57,6 +75,8 @@
     </div>
   {/if}
 
+  <div class="ctx-list-wrap">
+  <div class="ctx-list" bind:this={listEl} on:scroll={onListScroll}>
   {#each filteredActions as action, i (action.id)}
     <!-- svelte-ignore a11y_interactive_supports_focus -->
     <div
@@ -74,6 +94,11 @@
   {#if filteredActions.length === 0}
     <div class="ctx-empty">no match</div>
   {/if}
+  </div>
+  {#if isScrollable}
+    <div class="ctx-fade"></div>
+  {/if}
+  </div>
 
   {#if !searchQ}
     <div class="ctx-hint">type to filter</div>
@@ -141,6 +166,27 @@
     opacity: 0.22;
     color: var(--q-font-color, #fff);
     text-align: center;
+  }
+
+  .ctx-list-wrap {
+    position: relative;
+  }
+
+  .ctx-list {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .ctx-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, var(--q-overlay));
+    pointer-events: none;
+    border-radius: 0 0 8px 8px;
   }
 
   .ctx-item {

@@ -78,11 +78,19 @@ impl SearchProvider for DefaultSearcher {
         let app_clone = app.clone();
         let q_owned = q.to_string();
 
+        // Snapshot the current sequence so we can abort if a newer query arrives.
+        let my_seq = crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed);
+
         // Kick off the file search immediately in a rayon thread so it runs
         // concurrently while we compute and emit the fast in-memory results.
         let (file_tx, file_rx) = mpsc::channel::<Vec<ResultItem>>();
         let q_for_file = q_owned.clone();
         rayon::spawn(move || {
+            // Don't bother if a newer search is already queued.
+            if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
+                let _ = file_tx.send(vec![]);
+                return;
+            }
             let results = FileSearcher.search(&q_for_file, &app_clone).results;
             let _ = file_tx.send(results);
         });
@@ -129,6 +137,13 @@ impl SearchProvider for DefaultSearcher {
                 query: q.to_string(),
                 results: fast_shortcuts,
             });
+        }
+
+        // If a newer query already arrived while we were computing fast results,
+        // bail out now — the command handler will discard this result anyway,
+        // and blocking on file_rx would only waste rayon threads.
+        if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
+            return SearchResult { results: vec![], result_type: ResultType::List };
         }
 
         // Wait for file results (likely already done or nearly done).

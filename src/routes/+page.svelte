@@ -44,6 +44,7 @@
   let isLoading = false;
   let modal: ModalPayload | null = null;
   let resultsEl: HTMLDivElement;
+  let searchRaf: number;
 
   // Rofi mode: bypass backend search, filter items locally
   let rofiMode = false;
@@ -213,20 +214,23 @@
       activeIndex.set(0);
     } else {
       isLoading = true;
-      search($query)
-        .then((res) => {
-          if (res === null) return;
-          resultItems.set(res.results);
-          resultType.set(res.result_type);
-          activeIndex.set(0);
-        })
-        .catch((err) => {
-          console.error("Search error:", err);
-          resultItems.set([]);
-        })
-        .finally(() => {
-          isLoading = false;
-        });
+      cancelAnimationFrame(searchRaf);
+      searchRaf = requestAnimationFrame(() => {
+        search($query)
+          .then((res) => {
+            if (res === null) return;
+            resultItems.set(res.results);
+            resultType.set(res.result_type);
+            activeIndex.set(0);
+          })
+          .catch((err) => {
+            console.error("Search error:", err);
+            resultItems.set([]);
+          })
+          .finally(() => {
+            isLoading = false;
+          });
+      });
     }
   }
 </script>
