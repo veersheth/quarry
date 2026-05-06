@@ -184,7 +184,7 @@ pub fn execute(
         ActionData::RunFunction { function_name, .. } if function_name == "copy_clipboard_image" => "copied",
         ActionData::RunFunction { function_name, .. } if function_name.starts_with("copy_") => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "trash_file" => "toasted:Moved to trash",
-        ActionData::RunFunction { function_name, .. } if function_name == "pin" => "toasted:Pinned",
+        ActionData::RunFunction { function_name, .. } if function_name == "pin" || function_name == "pin_clipboard_image" => "toasted:Pinned",
         ActionData::RunFunction { function_name, .. } if function_name == "unpin" => "toasted:Unpinned",
         _ => "launched",
     };

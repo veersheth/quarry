@@ -190,6 +190,19 @@ impl ClipboardManager {
         })
     }
 
+    /// Returns all fields needed to build a pin payload, looked up by hash.
+    pub fn get_image_for_pin(&self, hash: u64) -> Option<(String, String, u32, u32)> {
+        let hist = self.history.lock().ok()?;
+        hist.iter().find_map(|e| {
+            if let ClipboardContent::Image { full, thumbnail, width, height, hash: h, .. } = &e.content {
+                if *h == hash {
+                    return Some((full.clone(), thumbnail.clone(), *width, *height));
+                }
+            }
+            None
+        })
+    }
+
     pub fn remove_by_timestamp(&self, timestamp: u64) {
         if let Ok(mut hist) = self.history.lock() {
             hist.retain(|e| e.timestamp != timestamp);
@@ -348,6 +361,16 @@ impl ClipboardManager {
 
     pub fn get_history(&self) -> Vec<ClipboardEntry> {
         self.history.lock().map(|h| h.clone()).unwrap_or_default()
+    }
+
+    /// Call `f` with a borrow of the history, avoiding any clone.
+    /// Callers should not clone the `full` image field — use `get_full_image` instead.
+    pub fn with_history<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[ClipboardEntry]) -> R,
+    {
+        let hist = self.history.lock().unwrap_or_else(|e| e.into_inner());
+        f(&hist)
     }
 
     pub fn clear_history(&self) {

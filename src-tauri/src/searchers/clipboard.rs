@@ -71,70 +71,70 @@ impl SearchProvider for ClipboardSearcher {
 }
 
 fn build_results(query: &str) -> SearchResult {
+    let text_pins = crate::PINS.get("clipboard");
+    let pinned_texts: std::collections::HashSet<&str> =
+        text_pins.iter().map(|p| p.payload.as_str()).collect();
 
-        let text_pins = crate::PINS.get("clipboard");
-        let pinned_texts: std::collections::HashSet<&str> =
-            text_pins.iter().map(|p| p.payload.as_str()).collect();
+    let image_pins = crate::PINS.get("clipboard_image");
+    let pinned_hashes: std::collections::HashSet<u64> = image_pins
+        .iter()
+        .filter_map(|p| p.name.parse::<u64>().ok())
+        .collect();
 
-        let image_pins = crate::PINS.get("clipboard_image");
-        let pinned_hashes: std::collections::HashSet<u64> = image_pins
-            .iter()
-            .filter_map(|p| p.name.parse::<u64>().ok())
-            .collect();
+    let mut results: Vec<ResultItem> = Vec::new();
 
-        let history = CLIPBOARD_MANAGER.get_history();
+    // Prepend pinned entries on empty query (survive history eviction)
+    if query.is_empty() {
+        for pin in &text_pins {
+            results.push(
+                ResultItem::new(
+                    pin.payload.clone(),
+                    vec![
+                        Action::new("Copy", ActionData::CopyToClipboard { text: pin.payload.clone() }),
+                        Action::new("Unpin", ActionData::RunFunction {
+                            function_name: "unpin".into(),
+                            params: vec!["clipboard".into(), pin.name.clone()],
+                        }),
+                    ],
+                )
+                .description("pinned".to_string())
+                .pinned(),
+            );
+        }
 
-        let mut results: Vec<ResultItem> = Vec::new();
-
-        // Prepend pinned entries on empty query (survive history eviction)
-        if query.is_empty() {
-            for pin in &text_pins {
+        for pin in &image_pins {
+            if let Ok(img) = serde_json::from_str::<serde_json::Value>(&pin.payload) {
+                let full = img["full"].as_str().unwrap_or("").to_string();
+                let thumbnail = img["thumbnail"].as_str().unwrap_or("").to_string();
+                let width = img["width"].as_u64().unwrap_or(0) as u32;
+                let height = img["height"].as_u64().unwrap_or(0) as u32;
                 results.push(
                     ResultItem::new(
-                        pin.payload.clone(),
+                        format!("Image {}×{}", width, height),
                         vec![
-                            Action::new("Copy", ActionData::CopyToClipboard { text: pin.payload.clone() }),
+                            Action::new("Copy", ActionData::CopyImageToClipboard {
+                                base64_png: full,
+                                width,
+                                height,
+                            }),
                             Action::new("Unpin", ActionData::RunFunction {
                                 function_name: "unpin".into(),
-                                params: vec!["clipboard".into(), pin.name.clone()],
+                                params: vec!["clipboard_image".into(), pin.name.clone()],
                             }),
                         ],
                     )
                     .description("pinned".to_string())
+                    .thumbnail(thumbnail)
                     .pinned(),
                 );
             }
-
-            for pin in &image_pins {
-                if let Ok(img) = serde_json::from_str::<serde_json::Value>(&pin.payload) {
-                    let full = img["full"].as_str().unwrap_or("").to_string();
-                    let thumbnail = img["thumbnail"].as_str().unwrap_or("").to_string();
-                    let width = img["width"].as_u64().unwrap_or(0) as u32;
-                    let height = img["height"].as_u64().unwrap_or(0) as u32;
-                    results.push(
-                        ResultItem::new(
-                            format!("Image {}×{}", width, height),
-                            vec![
-                                Action::new("Copy", ActionData::CopyImageToClipboard {
-                                    base64_png: full,
-                                    width,
-                                    height,
-                                }),
-                                Action::new("Unpin", ActionData::RunFunction {
-                                    function_name: "unpin".into(),
-                                    params: vec!["clipboard_image".into(), pin.name.clone()],
-                                }),
-                            ],
-                        )
-                        .description("pinned".to_string())
-                        .thumbnail(thumbnail)
-                        .pinned(),
-                    );
-                }
-            }
         }
+    }
 
-        let history_items = history
+    // Build history items while holding the lock — no full-image clone needed.
+    // The `full` field is intentionally not accessed; copy actions reference by hash.
+    CLIPBOARD_MANAGER.with_history(|history| {
+        let history_items: Vec<ResultItem> = history
             .iter()
             .filter(|entry| {
                 if query.is_empty() {
@@ -143,7 +143,7 @@ fn build_results(query: &str) -> SearchResult {
                         ClipboardContent::Image { hash, .. } => !pinned_hashes.contains(hash),
                     };
                 }
-                entry.display_text().to_lowercase().contains(&query)
+                entry.display_text().to_lowercase().contains(query)
             })
             .map(|entry| match &entry.content {
                 ClipboardContent::Text { value } => {
@@ -183,7 +183,7 @@ fn build_results(query: &str) -> SearchResult {
                     item
                 }
 
-                ClipboardContent::Image { thumbnail, full, width, height, ocr_text, hash } => {
+                ClipboardContent::Image { thumbnail, width, height, ocr_text, hash, .. } => {
                     let hash_str = hash.to_string();
                     let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
                     let pin_action = if is_pinned {
@@ -192,16 +192,10 @@ fn build_results(query: &str) -> SearchResult {
                             params: vec!["clipboard_image".into(), hash_str.clone()],
                         })
                     } else {
-                        let payload = serde_json::json!({
-                            "full": full,
-                            "thumbnail": thumbnail,
-                            "width": width,
-                            "height": height,
-                        })
-                        .to_string();
+                        // Full image is fetched lazily at pin time, not here.
                         Action::new("Pin", ActionData::RunFunction {
-                            function_name: "pin".into(),
-                            params: vec!["clipboard_image".into(), hash_str.clone(), payload],
+                            function_name: "pin_clipboard_image".into(),
+                            params: vec![hash_str.clone()],
                         })
                     };
 
@@ -234,9 +228,10 @@ fn build_results(query: &str) -> SearchResult {
                     }
                     item
                 }
-            });
-
+            })
+            .collect();
         results.extend(history_items);
+    });
 
     SearchResult {
         results,

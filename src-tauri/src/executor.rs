@@ -372,6 +372,24 @@ fn run_custom_function(
                 .ok_or("Image not found in clipboard history")?;
             copy_image_to_clipboard(&full, width, height)
         }
+        "pin_clipboard_image" => {
+            let hash = params.first().and_then(|s| s.parse::<u64>().ok())
+                .ok_or("pin_clipboard_image requires a hash")?;
+            let (full, thumbnail, width, height) = crate::CLIPBOARD_MANAGER
+                .get_image_for_pin(hash)
+                .ok_or("Image not found in clipboard history")?;
+            let payload = serde_json::json!({
+                "full": full,
+                "thumbnail": thumbnail,
+                "width": width,
+                "height": height,
+            }).to_string();
+            crate::PINS.add("clipboard_image", crate::pins::PinEntry {
+                name: hash.to_string(),
+                payload,
+            });
+            Ok(())
+        }
         "delete_clipboard_entry" => {
             let ts = params.first().and_then(|s| s.parse::<u64>().ok())
                 .ok_or("delete_clipboard_entry requires a timestamp")?;
