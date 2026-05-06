@@ -165,6 +165,13 @@ fn all_shortcuts() -> Vec<ResultItem> {
         shell("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0"),
     ));
 
+    items.push(item(
+        "Toggle Pink Noise",
+        "Play or stop pink noise for focus and masking background sounds",
+        "icons/system/power.png",
+        func("toggle_pink_noise", vec![]),
+    ));
+
     // ── Network ───────────────────────────────────────────────────────────
     items.push(item(
         "Toggle WiFi",

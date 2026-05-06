@@ -1,4 +1,6 @@
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::Arc;
 
 use base64::{engine::general_purpose, Engine};
 use serde::Serialize;
@@ -341,6 +343,10 @@ fn run_custom_function(
             });
             Ok(())
         }
+        "toggle_pink_noise" => {
+            toggle_pink_noise();
+            Ok(())
+        }
         "cancel_timer" => {
             let id: u64 = params.first()
                 .and_then(|s| s.parse().ok())
@@ -599,4 +605,77 @@ fn play_beep() {
     let source = SamplesBuffer::new(1, sample_rate, samples);
     sink.append(source);
     sink.sleep_until_end();
+}
+
+// Shared flag: true = pink noise should be playing.
+static PINK_NOISE_RUNNING: AtomicBool = AtomicBool::new(false);
+
+pub fn toggle_pink_noise() {
+    // If already running, signal it to stop.
+    if PINK_NOISE_RUNNING.compare_exchange(true, false, AtomicOrdering::SeqCst, AtomicOrdering::SeqCst).is_ok() {
+        return;
+    }
+    // Not running — start it.
+    PINK_NOISE_RUNNING.store(true, AtomicOrdering::SeqCst);
+    std::thread::spawn(|| {
+        play_pink_noise();
+        PINK_NOISE_RUNNING.store(false, AtomicOrdering::SeqCst);
+    });
+}
+
+fn play_pink_noise() {
+    use rodio::{buffer::SamplesBuffer, OutputStream, Sink};
+
+    let Ok((_stream, handle)) = OutputStream::try_default() else { return };
+    let Ok(sink) = Sink::try_new(&handle) else { return };
+
+    let sample_rate: u32 = 44100;
+    let chunk_secs = 2u32;
+    let chunk_len = (sample_rate * chunk_secs) as usize;
+
+    // Voss-McCartney pink noise: sum of white noise sources updated at 1/2^k rate.
+    let mut b = [0.0f32; 7];
+    let mut rng_state: u64 = 0x853c49e6748fea9b;
+
+    let white = |state: &mut u64| -> f32 {
+        *state ^= *state << 13;
+        *state ^= *state >> 7;
+        *state ^= *state << 17;
+        (*state as i64 as f32) / (i64::MAX as f32)
+    };
+
+    let running = Arc::new(AtomicBool::new(true));
+    // Mirror the global flag locally so we can detect stop without Arc overhead.
+    loop {
+        if !PINK_NOISE_RUNNING.load(AtomicOrdering::Relaxed) {
+            break;
+        }
+
+        let mut samples = Vec::with_capacity(chunk_len);
+        for i in 0..chunk_len {
+            // Update one row of the Voss table per sample.
+            let row = i.trailing_zeros() as usize;
+            if row < b.len() {
+                b[row] = white(&mut rng_state);
+            }
+            let pink: f32 = b.iter().sum::<f32>() / b.len() as f32;
+            samples.push(pink * 0.18);
+        }
+
+        let source = SamplesBuffer::new(1, sample_rate, samples);
+        sink.append(source);
+
+        // Wait until this chunk is consumed before generating the next,
+        // so we don't buffer unboundedly.
+        while sink.len() > 1 {
+            if !PINK_NOISE_RUNNING.load(AtomicOrdering::Relaxed) {
+                sink.stop();
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+
+    sink.stop();
+    drop(running);
 }
