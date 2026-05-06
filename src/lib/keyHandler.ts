@@ -108,7 +108,7 @@ export function handleKeydown(
     return;
   }
 
-  if (event.key === "," && event.ctrlKey) {
+  if (event.key === "r" && event.shiftKey && event.ctrlKey) {
     event.preventDefault();
     invoke("exec_func", { name: "reload_quarry", params: [] as string[] }).catch(console.error);
     return;

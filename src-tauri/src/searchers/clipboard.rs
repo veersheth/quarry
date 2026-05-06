@@ -164,6 +164,7 @@ fn build_results(query: &str) -> SearchResult {
                         Action::new("Copy", ActionData::CopyToClipboard { text: value.clone() }),
                     ];
                     actions.extend(path_actions);
+                    actions.extend(transform_actions(value));
                     actions.extend([
                         pin_action,
                         Action::new("Delete", ActionData::RunFunction {
@@ -275,6 +276,68 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
     } else {
         (None, vec![])
     }
+}
+
+fn title_case(s: &str) -> String {
+    s.split_whitespace()
+        .map(|word| {
+            let mut c = word.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().to_string() + c.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn transform_actions(value: &str) -> Vec<Action> {
+    use base64::{engine::general_purpose, Engine};
+
+    let mut actions: Vec<Action> = Vec::new();
+
+    let upper = value.to_uppercase();
+    if upper != value {
+        actions.push(Action::new("Uppercase", ActionData::CopyToClipboard { text: upper }));
+    }
+
+    let lower = value.to_lowercase();
+    if lower != value {
+        actions.push(Action::new("Lowercase", ActionData::CopyToClipboard { text: lower }));
+    }
+
+    let trimmed = value.trim().to_string();
+    if trimmed != value {
+        actions.push(Action::new("Trim whitespace", ActionData::CopyToClipboard { text: trimmed }));
+    }
+
+    let titled = title_case(value);
+    if titled != value {
+        actions.push(Action::new("Title Case", ActionData::CopyToClipboard { text: titled }));
+    }
+
+    let encoded = urlencoding::encode(value).to_string();
+    if encoded != value {
+        actions.push(Action::new("URL encode", ActionData::CopyToClipboard { text: encoded }));
+    }
+
+    if let Ok(decoded) = urlencoding::decode(value) {
+        let decoded = decoded.into_owned();
+        if decoded != value {
+            actions.push(Action::new("URL decode", ActionData::CopyToClipboard { text: decoded }));
+        }
+    }
+
+    let b64 = general_purpose::STANDARD.encode(value.as_bytes());
+    actions.push(Action::new("Base64 encode", ActionData::CopyToClipboard { text: b64 }));
+
+    if let Ok(decoded) = general_purpose::STANDARD.decode(value.trim().as_bytes()) {
+        if let Ok(s) = String::from_utf8(decoded) {
+            actions.push(Action::new("Base64 decode", ActionData::CopyToClipboard { text: s }));
+        }
+    }
+
+    actions
 }
 
 fn format_timestamp(ts: u64) -> String {
