@@ -43,7 +43,6 @@
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
   let modal: ModalPayload | null = null;
-  let searchTimeout: ReturnType<typeof setTimeout>;
   let resultsEl: HTMLDivElement;
 
   // Rofi mode: bypass backend search, filter items locally
@@ -182,11 +181,25 @@
       },
     );
 
+    // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
+    // arrive before the file search completes — apply immediately if still relevant.
+    const unlistenFast = await listen<{ query: string; results: import("../stores/search").ResultItem[] }>(
+      "quarry-fast",
+      ({ payload }) => {
+        if (!rofiMode && payload.query === $query.trim()) {
+          resultItems.set(payload.results);
+          resultType.set("List");
+          activeIndex.set(0);
+        }
+      },
+    );
+
     return () => {
       unlisten.then((fn) => fn());
       unlistenModal();
       unlistenRofiSocket();
       unlistenRofi();
+      unlistenFast();
       window.removeEventListener(
         "open-context-menu-at-active",
         handleOpenAtActive,
@@ -200,23 +213,20 @@
       activeIndex.set(0);
     } else {
       isLoading = true;
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        search($query)
-          .then((res) => {
-            if (res === null) return;
-            resultItems.set(res.results);
-            resultType.set(res.result_type);
-            activeIndex.set(0);
-          })
-          .catch((err) => {
-            console.error("Search error:", err);
-            resultItems.set([]);
-          })
-          .finally(() => {
-            isLoading = false;
-          });
-      }, 100);
+      search($query)
+        .then((res) => {
+          if (res === null) return;
+          resultItems.set(res.results);
+          resultType.set(res.result_type);
+          activeIndex.set(0);
+        })
+        .catch((err) => {
+          console.error("Search error:", err);
+          resultItems.set([]);
+        })
+        .finally(() => {
+          isLoading = false;
+        });
     }
   }
 </script>

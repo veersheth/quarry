@@ -164,9 +164,10 @@ impl FileSearcher {
         // Fast path: query the in-memory index
         if let Ok(idx) = FILE_INDEX.read() {
             if !idx.entries.is_empty() {
+                use rayon::prelude::*;
                 let mut hits: Vec<(PathBuf, i64, u64)> = idx
                     .entries
-                    .iter()
+                    .par_iter()
                     .filter_map(|(path, mtime)| {
                         Self::score(query_words, path)
                             .map(|s| (path.clone(), s, *mtime))

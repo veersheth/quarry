@@ -208,6 +208,11 @@ pub fn exec_shell(command: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn exec_func(name: String, params: Vec<String>, app: tauri::AppHandle) -> Result<(), String> {
+    executor::execute_action(crate::types::ActionData::RunFunction { function_name: name, params }, &app)
+}
+
+#[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
     CONFIG.read().unwrap().theme.clone()
 }

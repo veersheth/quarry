@@ -3,6 +3,7 @@ import type { ResultItem } from "../stores/search";
 import { execute } from "./searcher";
 import { get } from "svelte/store";
 import { tick } from "svelte";
+import { invoke } from "@tauri-apps/api/core";
 import { query, resultType, aiSubmitQuery, contextMenu, closeContextMenu } from "../stores/search";
 
 function deleteWordFromEnd(str: string): string {
@@ -97,9 +98,6 @@ export function handleKeydown(
     return;
   }
 
-  // --- Normal mode ---
-
-  // Don't steal focus back to search bar when AI is showing
   if (!isAiMode && searchInput && document.activeElement !== searchInput) {
     searchInput.focus();
   }
@@ -107,6 +105,12 @@ export function handleKeydown(
   if (event.key === "Escape") {
     event.preventDefault();
     appWindow?.hide();
+    return;
+  }
+
+  if (event.key === "," && event.ctrlKey) {
+    event.preventDefault();
+    invoke("exec_func", { name: "reload_quarry", params: [] as string[] }).catch(console.error);
     return;
   }
 
@@ -136,8 +140,8 @@ export function handleKeydown(
     return;
   }
 
-  // Open context menu for active item with alt/ctrl k
-  if (event.key === "k" && (event.altKey || event.ctrlKey)) {
+  // open context menu for active item with ctrl k
+  if (event.key === "k" && event.ctrlKey) {
     event.preventDefault();
     const items = get(resultItems);
     const idx = get(activeIndex);

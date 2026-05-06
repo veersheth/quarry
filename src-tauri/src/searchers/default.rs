@@ -1,9 +1,11 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Serialize;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use std::collections::HashSet;
+use std::sync::mpsc;
 use rayon;
 
 use crate::searchers::{
@@ -23,12 +25,17 @@ use crate::searchers::{
 
 use crate::types::{ResultItem, ResultType, SearchResult};
 
-// Matches: "100 USD EUR", "100 USD to EUR", "USD EUR", "USD to EUR"
 static CURRENCY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(\d[\d,.]*)?\s*([a-z]{3})\s+(?:to\s+)?([a-z]{3})$").unwrap()
 });
 
 static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
+
+#[derive(Serialize, Clone)]
+struct FastPartial {
+    query: String,
+    results: Vec<ResultItem>,
+}
 
 pub struct DefaultSearcher;
 
@@ -48,6 +55,13 @@ impl DefaultSearcher {
             .unwrap_or(0);
         combined_score.max(name_score)
     }
+
+    fn score_and_filter(items: Vec<ResultItem>, q: &str) -> Vec<(ResultItem, i64)> {
+        items.into_iter().filter_map(|item| {
+            let score = Self::score_item(&item, q);
+            if score > 0 { Some((item, score)) } else { None }
+        }).collect()
+    }
 }
 
 impl SearchProvider for DefaultSearcher {
@@ -61,29 +75,73 @@ impl SearchProvider for DefaultSearcher {
             };
         }
 
-        let app_handle = app.clone();
+        let app_clone = app.clone();
         let q_owned = q.to_string();
 
-        let ((app_results, sys_results), (file_results, (bookmark_results, shortcut_results))) = rayon::join(
+        // Kick off the file search immediately in a rayon thread so it runs
+        // concurrently while we compute and emit the fast in-memory results.
+        let (file_tx, file_rx) = mpsc::channel::<Vec<ResultItem>>();
+        let q_for_file = q_owned.clone();
+        rayon::spawn(move || {
+            let results = FileSearcher.search(&q_for_file, &app_clone).results;
+            let _ = file_tx.send(results);
+        });
+
+        // Fast in-memory searchers — run in parallel, finish in ~2ms.
+        let ((app_results, sys_results), (bookmark_results, shortcut_results)) = rayon::join(
             || rayon::join(
-                || AppSearcher.search(&q_owned, &app_handle).results,
-                || SystemSearcher.search(&q_owned, &app_handle).results,
+                || AppSearcher.search(&q_owned, app).results,
+                || SystemSearcher.search(&q_owned, app).results,
             ),
             || rayon::join(
-                || FileSearcher.search(&q_owned, &app_handle).results,
-                || rayon::join(
-                    || BookmarksSearcher.search(&q_owned, &app_handle).results,
-                    || ShortcutsSearcher.search(&q_owned, &app_handle).results,
-                ),
+                || BookmarksSearcher.search(&q_owned, app).results,
+                || ShortcutsSearcher.search(&q_owned, app).results,
             ),
         );
 
+        // Build and emit partial results so the frontend can show something
+        // immediately while the file search is still running.
+        {
+            let mut fast_scored: Vec<(ResultItem, i64)> = Vec::new();
+            fast_scored.extend(Self::score_and_filter(app_results.clone(), q));
+            fast_scored.extend(Self::score_and_filter(sys_results.clone(), q));
+            fast_scored.extend(Self::score_and_filter(bookmark_results.clone(), q));
+            fast_scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+            let mut fast_seen: HashSet<String> = HashSet::new();
+            let mut fast_shortcuts: Vec<ResultItem> = shortcut_results.iter()
+                .filter(|i| {
+                    Self::score_item(i, q) > 0 && fast_seen.insert(i.name.to_lowercase())
+                })
+                .take(3)
+                .cloned()
+                .collect();
+
+            let fast_rest: Vec<ResultItem> = fast_scored.into_iter()
+                .filter_map(|(item, _)| {
+                    if fast_seen.insert(item.name.to_lowercase()) { Some(item) } else { None }
+                })
+                .collect();
+
+            fast_shortcuts.extend(fast_rest);
+
+            let _ = app.emit("quarry-fast", FastPartial {
+                query: q.to_string(),
+                results: fast_shortcuts,
+            });
+        }
+
+        // Wait for file results (likely already done or nearly done).
+        let file_results = file_rx.recv().unwrap_or_default();
+
+        // Settings (only for longer queries).
         let settings_results = if q.len() >= 3 {
-            SettingsSearcher.search(&q_owned, &app_handle).results
+            SettingsSearcher.search(&q_owned, app).results
         } else {
             vec![]
         };
 
+        // Score and combine all results.
         let mut scored: Vec<(ResultItem, i64)> = Vec::new();
         for item in app_results {
             let score = Self::score_item(&item, q);
@@ -117,7 +175,6 @@ impl SearchProvider for DefaultSearcher {
 
         let mut seen_names: HashSet<String> = HashSet::new();
 
-        // Shortcuts float to the top unconditionally when they match
         let mut top_shortcuts: Vec<ResultItem> = shortcut_results
             .into_iter()
             .filter(|item| {
@@ -143,7 +200,6 @@ impl SearchProvider for DefaultSearcher {
         res.truncate(2);
         combined.extend(res);
 
-        // Bare currency query: "100 INR USD", "100 inr to usd", "gbp eur", etc.
         if CURRENCY_RE.is_match(q) {
             let mut res = CurrencySearcher.search(q, app).results;
             res.truncate(1);
