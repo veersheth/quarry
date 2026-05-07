@@ -15,9 +15,9 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    cancel_rofi, clear_clipboard_history, exec_func, exec_shell, execute, get_config,
-    get_groq_api_key, get_theme, read_note, save_capture, save_config, save_groq_api_key,
-    search, start_drag, write_note,
+    cancel_rofi, clear_clipboard_history, exec_func, exec_shell, execute, get_ai_prefix,
+    get_config, get_groq_api_key, get_theme, read_note, save_capture, save_config,
+    save_groq_api_key, search, start_drag, write_note,
 };
 use lazy_static::lazy_static;
 use std::sync::{
@@ -140,6 +140,7 @@ pub fn run() {
             clear_clipboard_history,
             get_theme,
             get_config,
+            get_ai_prefix,
             save_config,
             read_note,
             write_note,

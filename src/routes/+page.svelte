@@ -42,6 +42,7 @@
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
+  let aiPrefix = "ai ";
   let modal: ModalPayload | null = null;
   let resultsEl: HTMLDivElement;
   let searchRaf: number;
@@ -145,6 +146,7 @@
     forceRepaint();
     appWindow = getCurrentWindow();
     await refresh();
+    invoke<string>("get_ai_prefix").then((p) => { aiPrefix = p; }).catch(() => {});
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) {
         refresh();
@@ -241,7 +243,7 @@
 
 <svelte:window
   on:keydown={(e) =>
-    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow)}
+    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow, aiPrefix)}
 />
 
 <main class="container">

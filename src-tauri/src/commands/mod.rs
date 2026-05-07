@@ -218,6 +218,18 @@ pub fn get_theme() -> config::ThemeConfig {
 }
 
 #[tauri::command]
+pub fn get_ai_prefix() -> String {
+    let pattern = CONFIG.read().unwrap().triggers.ai.clone();
+    // Strip leading ^ and take everything before the first capture group
+    let inner = pattern.trim_start_matches('^');
+    let cap_start = inner.find('(').unwrap_or(inner.len());
+    inner[..cap_start]
+        .replace("\\s+", " ")
+        .replace("\\s*", "")
+        .replace("\\s", " ")
+}
+
+#[tauri::command]
 pub fn get_config() -> config::Config {
     CONFIG.read().unwrap().clone()
 }

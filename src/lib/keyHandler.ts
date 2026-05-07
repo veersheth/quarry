@@ -25,7 +25,8 @@ export function handleKeydown(
   searchInput: HTMLInputElement,
   activeIndex: Writable<number>,
   resultItems: Writable<ResultItem[]>,
-  appWindow: any
+  appWindow: any,
+  aiPrefix: string = "ai ",
 ) {
   const isAiMode = get(resultType) === "Ai";
   const menu = get(contextMenu);
@@ -117,7 +118,7 @@ export function handleKeydown(
   if (isAiMode) {
     if (event.key === "Enter") {
       event.preventDefault();
-      const q = get(query).replace(/^ai\s+/i, "").trim();
+      const q = get(query).slice(aiPrefix.length).trim();
       if (q) aiSubmitQuery.set(q);
     }
   }
@@ -146,6 +147,19 @@ export function handleKeydown(
     return;
   }
 
+  if (event.key === "Tab") {
+    event.preventDefault();
+    const current = get(query);
+    const bare = isAiMode
+      ? current.slice(aiPrefix.length).trim()
+      : current.trim();
+    if (bare) {
+      if (!isAiMode) query.set(aiPrefix + bare);
+      tick().then(() => { aiSubmitQuery.set(bare); });
+    }
+    return;
+  }
+
   // open context menu for active item with ctrl k
   if (event.key === "k" && event.ctrlKey) {
     event.preventDefault();
@@ -162,7 +176,7 @@ export function handleKeydown(
   const items = get(resultItems);
   if (!items || items.length === 0) return;
 
-  if (["ArrowDown", "ArrowUp", "Tab", "Enter"].includes(event.key) ||
+  if (["ArrowDown", "ArrowUp", "Enter"].includes(event.key) ||
     (event.key === "n" && event.ctrlKey) ||
     (event.key === "p" && event.ctrlKey) ||
     (event.altKey && ["1", "2", "3", "4"].includes(event.key))) {
@@ -172,9 +186,7 @@ export function handleKeydown(
   activeIndex.update((index) => {
     if (event.key === "ArrowDown") return Math.min(index + 1, items.length - 1);
     if (event.key === "ArrowUp") return Math.max(index - 1, 0);
-    if (event.key === "Tab" && !event.shiftKey) return Math.min(index + 1, items.length - 1);
-    if (event.key === "Tab" && event.shiftKey) return Math.max(index - 1, 0);
-    if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length - 1);
+if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length - 1);
     if (event.key === "p" && event.ctrlKey) return Math.max(index - 1, 0);
     if (event.key === "Enter") { runItemAction(items[index]); return index; }
     if (event.key === "1" && event.altKey) return items.length > 0 ? 0 : index;
