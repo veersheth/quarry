@@ -147,6 +147,7 @@ fn fuzzy_score_app(matcher: &SkimMatcherV2, app: &CachedApp, query: &str) -> i64
 }
 
 impl SearchProvider for AppSearcher {
+    fn name(&self) -> String { "apps".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let guard = APP_CACHE.read().unwrap_or_else(|e| e.into_inner());
 
@@ -180,11 +181,11 @@ impl SearchProvider for AppSearcher {
                 remaining.sort_unstable_by(|a, b| a.name.cmp(&b.name));
                 results.extend(remaining);
 
-                return SearchResult { results, result_type: ResultType::List };
+                return SearchResult { results, result_type: ResultType::List, ..Default::default() };
             }
 
             let results = guard.iter().map(build_result_item).collect();
-            return SearchResult { results, result_type: ResultType::List };
+            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
         }
 
         let matcher = SkimMatcherV2::default().ignore_case();
@@ -202,6 +203,6 @@ impl SearchProvider for AppSearcher {
             .map(|(app, _)| build_result_item(app))
             .collect();
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

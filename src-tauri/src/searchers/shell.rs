@@ -5,6 +5,7 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 pub struct ShellSearcher;
 
 impl SearchProvider for ShellSearcher {
+    fn name(&self) -> String { "shell".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let cmd = query.trim();
 
@@ -23,6 +24,7 @@ impl SearchProvider for ShellSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }

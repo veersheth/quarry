@@ -96,6 +96,7 @@ impl BookmarksSearcher {
 }
 
 impl SearchProvider for BookmarksSearcher {
+    fn name(&self) -> String { "bookmarks".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let query = query.trim();
 
@@ -107,7 +108,8 @@ impl SearchProvider for BookmarksSearcher {
                         .icon("icons/bookmark.png")
                 ],
                 result_type: ResultType::List,
-            },
+                            ..Default::default()
+},
         };
 
         if query.is_empty() {
@@ -119,12 +121,14 @@ impl SearchProvider for BookmarksSearcher {
                             .icon("icons/bookmark.png")
                     ],
                     result_type: ResultType::List,
-                };
+                                    ..Default::default()
+};
             }
             return SearchResult {
                 results: bookmarks.iter().map(bookmark_to_item).collect(),
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         let parts: Vec<&str> = query.splitn(2, ' ').collect();
@@ -141,14 +145,16 @@ impl SearchProvider for BookmarksSearcher {
                     .icon("icons/bookmark.png")
                 ],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         let candidates: Vec<ResultItem> = bookmarks.iter().map(bookmark_to_item).collect();
         SearchResult {
             results: self.fuzzy_filter(candidates, query),
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }
 

@@ -167,7 +167,8 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
             let search_result = SearchResult {
                 results,
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
 
             show_window(app_handle);
             app_handle.emit("quarry-rofi-socket", &response_socket).ok();

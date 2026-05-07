@@ -198,6 +198,7 @@ fn all_shortcuts() -> Vec<ResultItem> {
 }
 
 impl SearchProvider for ShortcutsSearcher {
+    fn name(&self) -> String { "shortcuts".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         let results = if q.is_empty() {
@@ -205,6 +206,6 @@ impl SearchProvider for ShortcutsSearcher {
         } else {
             self.fuzzy_filter(all_shortcuts(), q)
         };
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

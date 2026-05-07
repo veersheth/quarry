@@ -29,6 +29,7 @@ pub fn warm() {
 }
 
 impl SearchProvider for ClipboardSearcher {
+    fn name(&self) -> String { "clipboard".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let query = query.trim().to_lowercase();
 
@@ -42,7 +43,8 @@ impl SearchProvider for ClipboardSearcher {
                     })],
                 )],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         // Serve from cache for empty queries when neither history nor pins changed.
@@ -237,7 +239,8 @@ fn build_results(query: &str) -> SearchResult {
     SearchResult {
         results,
         result_type: ResultType::Clipboard,
-    }
+            ..Default::default()
+}
 }
 
 fn resolve_path(value: &str) -> Option<std::path::PathBuf> {

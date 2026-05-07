@@ -340,13 +340,15 @@ fn is_script(path: &Path) -> bool {
 }
 
 impl SearchProvider for FileSearcher {
+    fn name(&self) -> String { "files".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         if trimmed.ends_with('/') {
@@ -371,7 +373,8 @@ impl SearchProvider for FileSearcher {
                 return SearchResult {
                     results,
                     result_type: ResultType::List,
-                };
+                                    ..Default::default()
+};
             }
         }
 
@@ -386,12 +389,14 @@ impl SearchProvider for FileSearcher {
                     return SearchResult {
                         results,
                         result_type: ResultType::List,
-                    };
+                                            ..Default::default()
+};
                 } else {
                     return SearchResult {
                         results: vec![Self::path_to_result(explicit)],
                         result_type: ResultType::List,
-                    };
+                                            ..Default::default()
+};
                 }
             }
         }
@@ -421,7 +426,8 @@ impl SearchProvider for FileSearcher {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         let candidates = if let Some(base) = search_base_hint {
@@ -465,7 +471,8 @@ impl SearchProvider for FileSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }
 

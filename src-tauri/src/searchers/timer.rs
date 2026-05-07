@@ -96,6 +96,7 @@ pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
 pub struct TimerSearcher;
 
 impl SearchProvider for TimerSearcher {
+    fn name(&self) -> String { "timer".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let mut results: Vec<ResultItem> = vec![];
 
@@ -148,6 +149,6 @@ impl SearchProvider for TimerSearcher {
             );
         }
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

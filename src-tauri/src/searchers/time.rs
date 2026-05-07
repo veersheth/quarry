@@ -362,6 +362,7 @@ fn find_matches(q: &str) -> Vec<TzMatch> {
 }
 
 impl SearchProvider for TimeSearcher {
+    fn name(&self) -> String { "time".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
@@ -386,7 +387,7 @@ impl SearchProvider for TimeSearcher {
                     .map(|m| tz_result(&m, false)),
             );
 
-            return SearchResult { results, result_type: ResultType::List };
+            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
         }
 
         let matches = find_matches(q);
@@ -395,6 +396,6 @@ impl SearchProvider for TimeSearcher {
             tz_result(m, is_pinned)
         }).collect();
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

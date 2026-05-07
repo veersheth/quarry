@@ -28,6 +28,7 @@ use crate::types::{ResultItem, SearchResult};
 
 pub trait SearchProvider {
     fn search(&self, query: &str, app: &AppHandle) -> SearchResult;
+    fn name(&self) -> String { String::new() }
 
     fn fuzzy_filter(&self, items: Vec<ResultItem>, query: &str) -> Vec<ResultItem> {
         if query.is_empty() {

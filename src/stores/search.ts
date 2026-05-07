@@ -20,6 +20,7 @@ export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard
 export type SearchResult = {
   results: ResultItem[];
   result_type: ResultType;
+  searcher?: string;
 };
 
 export type ContextMenuState = {
@@ -36,6 +37,7 @@ export const resultItems = writable<ResultItem[]>([]);
 export const resultType = writable<ResultType>("List");
 export const activeIndex = writable(0);
 export const aiSubmitQuery = writable<string>("");
+export const searcherName = writable<string>("");
 
 export const contextMenu = writable<ContextMenuState>({
   open: false,

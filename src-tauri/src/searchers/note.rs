@@ -4,6 +4,7 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 pub struct NoteSearcher;
 
 impl SearchProvider for NoteSearcher {
+    fn name(&self) -> String { "note".to_string() }
     fn search(&self, _query: &str, _app: &tauri::AppHandle) -> SearchResult {
         SearchResult {
             results: vec![
@@ -14,6 +15,7 @@ impl SearchProvider for NoteSearcher {
                 .description("Open floating scratch note"),
             ],
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }

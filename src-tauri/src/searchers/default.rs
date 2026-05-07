@@ -72,7 +72,8 @@ impl SearchProvider for DefaultSearcher {
             return SearchResult {
                 results: AppSearcher.search(q, app).results,
                 result_type: ResultType::Home,
-            };
+                            ..Default::default()
+};
         }
 
         let app_clone = app.clone();
@@ -143,7 +144,7 @@ impl SearchProvider for DefaultSearcher {
         // bail out now — the command handler will discard this result anyway,
         // and blocking on file_rx would only waste rayon threads.
         if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
-            return SearchResult { results: vec![], result_type: ResultType::List };
+            return SearchResult { results: vec![], result_type: ResultType::List, ..Default::default() };
         }
 
         // Wait for file results (likely already done or nearly done).
@@ -252,6 +253,7 @@ impl SearchProvider for DefaultSearcher {
         SearchResult {
             results: top_shortcuts,
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }

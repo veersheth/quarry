@@ -16,6 +16,7 @@
     contextMenu,
     openContextMenu,
     closeContextMenu,
+    searcherName,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
@@ -227,6 +228,7 @@
             if (res === null) return;
             resultItems.set(res.results);
             resultType.set(res.result_type);
+            searcherName.set(res.searcher ?? "");
             activeIndex.set(0);
           })
           .catch((err) => {
@@ -248,16 +250,21 @@
 
 <main class="container">
   <div class="panel">
-    <!-- svelte-ignore a11y_autofocus -->
-    <input
-      type="text"
-      placeholder="quarry..."
-      bind:value={$query}
-      bind:this={searchInput}
-      autofocus
-      class="search"
-      class:loading={isLoading}
-    />
+    <div class="search-bar">
+      {#if $searcherName}
+        <span class="searcher-badge">{$searcherName}</span>
+      {/if}
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        type="text"
+        placeholder="quarry..."
+        bind:value={$query}
+        bind:this={searchInput}
+        autofocus
+        class="search"
+        class:loading={isLoading}
+      />
+    </div>
     <div
       class="results"
       class:loading-overlay={isLoading}
@@ -419,20 +426,39 @@
     min-height: 0;
   }
 
-  .search {
-    width: 100%;
-    display: block;
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 0 20px;
-    margin: 0;
+    height: 56px;
+    flex-shrink: 0;
     margin-bottom: 8px;
-    box-sizing: border-box;
+    border-bottom: 1px solid var(--q-divider);
+  }
+
+  .searcher-badge {
+    font-size: 0.72rem;
+    font-family: var(--q-mono);
+    padding: 3px 9px;
+    border-radius: 6px;
+    background: var(--q-surface-subtle);
+    border: 1px solid var(--q-border-medium);
+    color: var(--q-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+  }
+
+  .search {
+    flex: 1;
+    min-width: 0;
     border: none;
     outline: none;
     background: none;
-    height: 56px;
-    flex-shrink: 0;
+    height: 100%;
+    padding: 0;
     transition: opacity 0.15s ease;
-    border-bottom: 1px solid var(--q-divider);
   }
 
   .search.loading {

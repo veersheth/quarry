@@ -104,6 +104,14 @@ pub enum ResultType {
 pub struct SearchResult {
     pub results: Vec<ResultItem>,
     pub result_type: ResultType,
+    #[serde(default)]
+    pub searcher: String,
+}
+
+impl Default for SearchResult {
+    fn default() -> Self {
+        Self { results: vec![], result_type: ResultType::List, searcher: String::new() }
+    }
 }
 
 #[derive(Debug, Clone)]

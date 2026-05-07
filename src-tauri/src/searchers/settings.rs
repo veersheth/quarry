@@ -70,6 +70,7 @@ pub fn reload() {
 pub struct SettingsSearcher;
 
 impl SearchProvider for SettingsSearcher {
+    fn name(&self) -> String { "settings".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let guard = SETTINGS_CACHE.read().unwrap_or_else(|e| e.into_inner());
 
@@ -120,6 +121,6 @@ impl SearchProvider for SettingsSearcher {
             self.fuzzy_filter(candidates, query)
         };
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

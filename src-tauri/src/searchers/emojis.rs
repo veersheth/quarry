@@ -128,6 +128,7 @@ fn make_emoji_item(emoji: &emojis::Emoji, is_pinned: bool) -> ResultItem {
 // ---------------------------------------------------------------------------
 
 impl SearchProvider for EmojiSearcher {
+    fn name(&self) -> String { "emojis".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim().to_lowercase();
 
@@ -154,7 +155,7 @@ impl SearchProvider for EmojiSearcher {
                 .chain(ALL_SYMBOLS.iter().cloned())
                 .collect();
 
-            return SearchResult { results, result_type: ResultType::Grid };
+            return SearchResult { results, result_type: ResultType::Grid, ..Default::default() };
         }
 
         // Non-empty query: filter emojis via emojis::iter() (static, supports shortcodes),
@@ -175,6 +176,6 @@ impl SearchProvider for EmojiSearcher {
             .cloned();
 
         let results = emoji_results.chain(symbol_results).collect();
-        SearchResult { results, result_type: ResultType::Grid }
+        SearchResult { results, result_type: ResultType::Grid, ..Default::default() }
     }
 }

@@ -129,7 +129,9 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
                 let rest = caps.get(1).map_or("", |m| m.as_str());
-                result = Some(searcher.search(rest, &app));
+                let mut r = searcher.search(rest, &app);
+                r.searcher = searcher.name().to_string();
+                result = Some(r);
                 break;
             }
         }
