@@ -140,6 +140,12 @@ export function handleKeydown(
     return;
   }
 
+  if (event.key === "u" && event.ctrlKey) {
+    event.preventDefault();
+    query.set("");
+    return;
+  }
+
   // open context menu for active item with ctrl k
   if (event.key === "k" && event.ctrlKey) {
     event.preventDefault();

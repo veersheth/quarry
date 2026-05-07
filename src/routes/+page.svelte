@@ -208,6 +208,10 @@
     };
   });
 
+  $: if ($resultItems) {
+    if (resultsEl) resultsEl.scrollTop = 0;
+  }
+
   $: if ($query !== undefined) {
     if (rofiMode) {
       filterRofiItems($query);
