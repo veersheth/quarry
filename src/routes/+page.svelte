@@ -147,7 +147,11 @@
     forceRepaint();
     appWindow = getCurrentWindow();
     await refresh();
-    invoke<string>("get_ai_prefix").then((p) => { aiPrefix = p; }).catch(() => {});
+    invoke<string>("get_ai_prefix")
+      .then((p) => {
+        aiPrefix = p;
+      })
+      .catch(() => {});
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) {
         refresh();
@@ -187,16 +191,16 @@
 
     // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
     // arrive before the file search completes — apply immediately if still relevant.
-    const unlistenFast = await listen<{ query: string; results: import("../stores/search").ResultItem[] }>(
-      "quarry-fast",
-      ({ payload }) => {
-        if (!rofiMode && payload.query === $query.trim()) {
-          resultItems.set(payload.results);
-          resultType.set("List");
-          activeIndex.set(0);
-        }
-      },
-    );
+    const unlistenFast = await listen<{
+      query: string;
+      results: import("../stores/search").ResultItem[];
+    }>("quarry-fast", ({ payload }) => {
+      if (!rofiMode && payload.query === $query.trim()) {
+        resultItems.set(payload.results);
+        resultType.set("List");
+        activeIndex.set(0);
+      }
+    });
 
     return () => {
       unlisten.then((fn) => fn());
@@ -245,15 +249,19 @@
 
 <svelte:window
   on:keydown={(e) =>
-    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow, aiPrefix)}
+    handleKeydown(
+      e,
+      searchInput,
+      activeIndex,
+      resultItems,
+      appWindow,
+      aiPrefix,
+    )}
 />
 
 <main class="container">
   <div class="panel">
-    <div class="search-bar">
-      {#if $searcherName}
-        <span class="searcher-badge">{$searcherName}</span>
-      {/if}
+    <div class="search-bar" class:searcher-active={!!$searcherName}>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
@@ -264,6 +272,9 @@
         class="search"
         class:loading={isLoading}
       />
+      {#if $searcherName}
+        <span class="searcher-badge">{$searcherName}</span>
+      {/if}
     </div>
     <div
       class="results"
@@ -363,7 +374,8 @@
   }
 
   :global(:root) {
-    --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
+    --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji",
+      sans-serif;
     --q-mono: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace;
 
     --q-surface: rgba(5, 5, 5, 0.8);
@@ -435,6 +447,27 @@
     flex-shrink: 0;
     margin-bottom: 8px;
     border-bottom: 1px solid var(--q-divider);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .search-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      270deg,
+      rgba(120, 160, 255, 0.12) 0%,
+      transparent 95%
+    );
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .search-bar.searcher-active::before {
+    opacity: 1;
   }
 
   .searcher-badge {
@@ -442,9 +475,9 @@
     font-family: var(--q-mono);
     padding: 3px 9px;
     border-radius: 6px;
-    background: var(--q-surface-subtle);
     border: 1px solid var(--q-border-medium);
-    color: var(--q-text-muted);
+    border-color: rgba(120, 160, 255, 0.42);
+    color: rgba(120, 160, 255, 0.92);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.03em;
@@ -528,14 +561,23 @@
     flex-shrink: 0;
   }
 
-  .toast-dot.success { background: #4ade80; }
+  .toast-dot.success {
+    background: #4ade80;
+  }
 
-  .toast-dot.error { background: #f87171; }
+  .toast-dot.error {
+    background: #f87171;
+  }
 
-  .toast-dot.info { background: #60a5fa; }
+  .toast-dot.info {
+    background: #60a5fa;
+  }
 
-  .toast.error { border-color: rgba(248, 113, 113, 0.2); }
+  .toast.error {
+    border-color: rgba(248, 113, 113, 0.2);
+  }
 
-  .toast.info { border-color: rgba(96, 165, 250, 0.2); }
-
+  .toast.info {
+    border-color: rgba(96, 165, 250, 0.2);
+  }
 </style>
