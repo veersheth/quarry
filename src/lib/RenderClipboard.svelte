@@ -385,6 +385,8 @@
             <div class="icon-pill icon-json">{"{}"}</div>
           {:else if isCode(item.name)}
             <div class="icon-pill icon-code">&lt;/&gt;</div>
+          {:else}
+            <div class="icon-pill icon-text">Aa</div>
           {/if}
         </div>
         <div class="item-body">
@@ -608,6 +610,7 @@
   .icon-email  { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
   .icon-json   { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
   .icon-code   { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
+  .icon-text   { background: #1e1e1e; color: #888;    border: 1px solid #2e2e2e; text-transform: none; }
   .icon-img {
     width: 20px;
     height: 20px;
