@@ -40,6 +40,12 @@
     buttons?: ModalButton[];
   }
 
+  function searcherHue(name: string): number {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+    return h % 360;
+  }
+
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
@@ -261,7 +267,7 @@
 
 <main class="container">
   <div class="panel">
-    <div class="search-bar" class:searcher-active={!!$searcherName}>
+    <div class="search-bar" class:searcher-active={!!$searcherName} style={$searcherName ? `--searcher-hue: ${searcherHue($searcherName)}` : ""}>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
@@ -457,7 +463,7 @@
     inset: 0;
     background: linear-gradient(
       270deg,
-      rgba(120, 160, 255, 0.12) 0%,
+      hsla(var(--searcher-hue, 220), 75%, 65%, 0.12) 0%,
       transparent 95%
     );
 
@@ -476,8 +482,8 @@
     padding: 3px 9px;
     border-radius: 6px;
     border: 1px solid var(--q-border-medium);
-    border-color: rgba(120, 160, 255, 0.42);
-    color: rgba(120, 160, 255, 0.92);
+    border-color: hsla(var(--searcher-hue, 220), 75%, 65%, 0.42);
+    color: hsla(var(--searcher-hue, 220), 75%, 72%, 0.92);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.03em;
