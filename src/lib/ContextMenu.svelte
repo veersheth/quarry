@@ -12,6 +12,7 @@
   export let onClose: () => void;
 
   const MENU_W = 220;
+  const GRID_THRESHOLD = 6;
 
   $: searchQ = $contextMenu.searchQuery ?? "";
   $: filteredActions = searchQ
@@ -20,30 +21,16 @@
       )
     : item.actions;
   $: activeIdx = $contextMenu.activeIndex;
-  const MAX_MENU_H = 360;
-  $: menuH = Math.min((searchQ ? 52 : 24) + filteredActions.length * 52, MAX_MENU_H);
-
-  $: cx = Math.max(8, Math.min(x, window.innerWidth - MENU_W - 8));
-  $: cy = Math.max(8, Math.min(y, window.innerHeight - menuH - 8));
+  $: isGrid = filteredActions.length > GRID_THRESHOLD;
+  $: cols = isGrid ? 2 : 1;
+  $: effectiveW = MENU_W * cols;
 
   let menuEl: HTMLDivElement;
   let listEl: HTMLDivElement;
-  let isScrollable = false;
+  let menuActualH = 0;
 
-  $: if (listEl && activeIdx !== undefined) {
-    const active = listEl.querySelector(".ctx-item.active") as HTMLElement | null;
-    active?.scrollIntoView({ block: "nearest" });
-  }
-
-  function onListScroll() {
-    if (!listEl) return;
-    isScrollable = listEl.scrollHeight > listEl.clientHeight &&
-      listEl.scrollTop < listEl.scrollHeight - listEl.clientHeight - 2;
-  }
-
-  $: if (listEl) {
-    setTimeout(() => onListScroll(), 0);
-  }
+  $: cx = Math.max(8, Math.min(x, window.innerWidth - effectiveW - 8));
+  $: cy = Math.max(8, Math.min(y, window.innerHeight - (menuActualH || 300) - 8));
 
   function handleMousedown(e: MouseEvent) {
     if (menuEl && !menuEl.contains(e.target as Node)) {
@@ -61,6 +48,7 @@
 
 <div
   bind:this={menuEl}
+  bind:clientHeight={menuActualH}
   class="ctx-menu"
   style="left: {cx}px; top: {cy}px"
   in:scale={{ duration: 160, start: 0.88, opacity: 0, easing: cubicOut }}
@@ -76,7 +64,12 @@
   {/if}
 
   <div class="ctx-list-wrap">
-  <div class="ctx-list" bind:this={listEl} on:scroll={onListScroll}>
+  <div
+    class="ctx-list"
+    class:grid-mode={isGrid}
+    bind:this={listEl}
+    style={isGrid ? `grid-template-rows: repeat(${Math.ceil(filteredActions.length / 2)}, auto)` : ""}
+  >
   {#each filteredActions as action, i (action.id)}
     <!-- svelte-ignore a11y_interactive_supports_focus -->
     <div
@@ -95,9 +88,6 @@
     <div class="ctx-empty">no match</div>
   {/if}
   </div>
-  {#if isScrollable}
-    <div class="ctx-fade"></div>
-  {/if}
   </div>
 
   {#if !searchQ}
@@ -111,7 +101,7 @@
     margin: 4px 20px;
     z-index: 500;
     min-width: 200px;
-    max-width: 280px;
+    max-width: 560px;
     font-family: var(--q-sans);
     background: var(--q-overlay);
     border: 2px solid var(--q-border-strong);
@@ -119,7 +109,6 @@
     box-shadow: 0 0px 20px 5px rgba(0, 0, 0, 0.9);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(16px);
-    overflow: hidden;
   }
 
   .ctx-search-display {
@@ -173,20 +162,13 @@
   }
 
   .ctx-list {
-    max-height: 300px;
-    overflow-y: auto;
-    scrollbar-width: none;
+    overflow: visible;
   }
 
-  .ctx-fade {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 48px;
-    background: linear-gradient(to bottom, transparent, var(--q-overlay));
-    pointer-events: none;
-    border-radius: 0 0 8px 8px;
+  .ctx-list.grid-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: column;
   }
 
   .ctx-item {
