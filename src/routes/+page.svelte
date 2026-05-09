@@ -17,6 +17,7 @@
     openContextMenu,
     closeContextMenu,
     searcherName,
+    mouseHasMoved,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
@@ -160,6 +161,7 @@
       .catch(() => {});
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) {
+        mouseHasMoved.set(false);
         refresh();
       } else if (rofiMode) {
         cancelRofi();
@@ -263,6 +265,7 @@
       appWindow,
       aiPrefix,
     )}
+  on:pointermove={(e) => { if (e.movementX !== 0 || e.movementY !== 0) mouseHasMoved.set(true); }}
 />
 
 <main class="container">

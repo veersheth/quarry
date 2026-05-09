@@ -32,6 +32,8 @@ export type ContextMenuState = {
   searchQuery: string;
 };
 
+export const mouseHasMoved = writable(false);
+
 export const query = writable("");
 export const resultItems = writable<ResultItem[]>([]);
 export const resultType = writable<ResultType>("List");

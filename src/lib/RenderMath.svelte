@@ -1,6 +1,7 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
   import type { ResultItem } from "../stores/search";
+  import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
   function handleClick(item: ResultItem) {
@@ -35,7 +36,7 @@
       class="result-item"
       class:active={index === $activeIndex}
       data-active={index === $activeIndex}
-      on:mouseenter={() => activeIndex.set(index)}
+      on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
       on:click={() => handleClick(item)}
       on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >

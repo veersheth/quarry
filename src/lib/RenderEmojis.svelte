@@ -1,5 +1,6 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
   export let listitems: {
@@ -24,10 +25,9 @@
   $: featuredOffset = 0;
   $: allOffset = featured.length;
 
-  let mouseHasMoved = false;
   $: {
     listitems;
-    mouseHasMoved = false;
+    mouseHasMoved.set(false);
   }
 
   function handleClick(item: ResultItem) {
@@ -35,11 +35,6 @@
   }
 </script>
 
-<svelte:window
-  on:mousemove={() => {
-    mouseHasMoved = true;
-  }}
-/>
 
 <div class="emoji-layout">
   {#if featured.length > 0}
@@ -53,7 +48,7 @@
           class:pinned={item.pinned}
           data-active={featuredOffset + i === $activeIndex}
           on:mouseenter={() => {
-            if (mouseHasMoved) activeIndex.set(featuredOffset + i);
+            if ($mouseHasMoved) activeIndex.set(featuredOffset + i);
           }}
           on:click={() => handleClick(item)}
           on:contextmenu={(e) => {
@@ -78,7 +73,7 @@
         class:pinned={item.pinned}
         data-active={allOffset + i === $activeIndex}
         on:mouseenter={() => {
-          if (mouseHasMoved) activeIndex.set(allOffset + i);
+          if ($mouseHasMoved) activeIndex.set(allOffset + i);
         }}
         on:click={() => handleClick(item)}
         on:contextmenu={(e) => {

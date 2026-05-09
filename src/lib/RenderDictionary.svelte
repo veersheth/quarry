@@ -1,5 +1,6 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import { mouseHasMoved } from "../stores/search";
 
   export let listitems: {
     name: string;
@@ -17,7 +18,7 @@
     <div
       class="result-item"
       class:active={index === $activeIndex}
-      on:mouseenter={() => activeIndex.set(index)}
+      on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
     >
       <span class="item-name">{item.name}</span>
       {#if item.description}

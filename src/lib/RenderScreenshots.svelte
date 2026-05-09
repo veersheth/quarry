@@ -2,7 +2,7 @@
   import { writable, get, type Writable } from "svelte/store";
   import { runItemAction } from "./keyHandler";
   import { execute } from "./searcher";
-  import { query } from "../stores/search";
+  import { query, mouseHasMoved } from "../stores/search";
   import type { ResultItem } from "../stores/search";
 
   export let listitems: {
@@ -44,7 +44,7 @@
         class="grid-item"
         class:active={index === $activeIndex}
         data-active={index === $activeIndex ? "true" : undefined}
-        on:mouseenter={() => activeIndex.set(index)}
+        on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
         on:click={() => runItemAction(item as unknown as ResultItem)}
         on:contextmenu={(e) => {
           e.preventDefault();

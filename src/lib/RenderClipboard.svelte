@@ -2,6 +2,7 @@
   import { writable, type Writable } from "svelte/store";
   import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
+  import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
   function iconSrc(icon: string): string {
@@ -343,7 +344,7 @@
         class:active={index === $activeIndex}
         class:pinned={item.pinned}
         data-active={index === $activeIndex}
-        on:mouseenter={() => activeIndex.set(index)}
+        on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
         on:click={() => handleClick(item)}
         on:contextmenu={(e) => {
           e.preventDefault();
