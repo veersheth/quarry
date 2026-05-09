@@ -18,6 +18,9 @@
     closeContextMenu,
     searcherName,
     mouseHasMoved,
+    modalStore,
+    openModal,
+    closeModal,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
@@ -31,16 +34,6 @@
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import Modal from "$lib/Modal.svelte";
 
-  interface ModalButton {
-    label: string;
-    kind?: string;
-    shell?: string;
-  }
-  interface ModalPayload {
-    body: string;
-    buttons?: ModalButton[];
-  }
-
   function searcherHue(name: string): number {
     let h = 0;
     for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
@@ -51,7 +44,6 @@
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
   let aiPrefix = "ai ";
-  let modal: ModalPayload | null = null;
   let resultsEl: HTMLDivElement;
   let searchRaf: number;
 
@@ -170,10 +162,10 @@
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
-    const unlistenModal = await listen<ModalPayload>(
+    const unlistenModal = await listen<{ body: string; buttons?: { label: string; kind?: string; shell?: string }[] }>(
       "quarry-modal",
       (event) => {
-        modal = event.payload;
+        openModal(event.payload.body, event.payload.buttons);
       },
     );
 
@@ -351,14 +343,8 @@
     />
   {/if}
 
-  {#if modal !== null}
-    <Modal
-      body={modal.body}
-      buttons={modal.buttons}
-      onClose={() => {
-        modal = null;
-      }}
-    />
+  {#if $modalStore.open}
+    <Modal />
   {/if}
 
   <!-- Toasts -->

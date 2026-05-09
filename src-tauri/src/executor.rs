@@ -328,7 +328,7 @@ fn run_custom_function(
                     let _ = win.set_focus();
                 }
                 let body = if label.is_empty() {
-                    format!("## Timer finished\nYour **{}** timer has expired.",
+                    format!("Timer finished\n\nYour **{}** timer has expired.",
                         crate::searchers::timer::format_duration(secs))
                 } else {
                     format!("## {}\nYour **{}** timer has expired.",

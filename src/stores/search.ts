@@ -34,6 +34,23 @@ export type ContextMenuState = {
 
 export const mouseHasMoved = writable(false);
 
+export type ModalButton = { label: string; kind?: string; shell?: string };
+export type ModalStoreState = {
+  open: boolean;
+  body: string;
+  buttons: ModalButton[];
+  activeIndex: number;
+};
+export const modalStore = writable<ModalStoreState>({
+  open: false, body: "", buttons: [], activeIndex: 0,
+});
+export function openModal(body: string, buttons: ModalButton[] = [{ label: "Dismiss" }]) {
+  modalStore.set({ open: true, body, buttons, activeIndex: 0 });
+}
+export function closeModal() {
+  modalStore.update(s => ({ ...s, open: false }));
+}
+
 export const query = writable("");
 export const resultItems = writable<ResultItem[]>([]);
 export const resultType = writable<ResultType>("List");
