@@ -46,6 +46,7 @@
   let aiPrefix = "ai ";
   let resultsEl: HTMLDivElement;
   let searchRaf: number;
+  let uiScale = 1.0;
 
   // Rofi mode: bypass backend search, filter items locally
   let rofiMode = false;
@@ -162,6 +163,11 @@
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
+    const blockZoom = (e: WheelEvent) => {
+      if (e.ctrlKey) e.preventDefault();
+    };
+    window.addEventListener("wheel", blockZoom, { passive: false });
+
     const unlistenModal = await listen<{ body: string; buttons?: { label: string; kind?: string; shell?: string }[] }>(
       "quarry-modal",
       (event) => {
@@ -208,10 +214,8 @@
       unlistenRofiSocket();
       unlistenRofi();
       unlistenFast();
-      window.removeEventListener(
-        "open-context-menu-at-active",
-        handleOpenAtActive,
-      );
+      window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
+      window.removeEventListener("wheel", blockZoom);
     };
   });
 
@@ -248,19 +252,20 @@
 </script>
 
 <svelte:window
-  on:keydown={(e) =>
-    handleKeydown(
-      e,
-      searchInput,
-      activeIndex,
-      resultItems,
-      appWindow,
-      aiPrefix,
-    )}
+  on:keydown={(e) => {
+    if (e.ctrlKey && (e.key === "-" || e.key === "=" || e.key === "+" || e.key === "0")) {
+      e.preventDefault();
+      if (e.key === "-") uiScale = Math.max(0.6, parseFloat((uiScale - 0.05).toFixed(2)));
+      else if (e.key === "=" || e.key === "+") uiScale = Math.min(2.0, parseFloat((uiScale + 0.05).toFixed(2)));
+      else if (e.key === "0") uiScale = 1.0;
+      return;
+    }
+    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow, aiPrefix);
+  }}
   on:pointermove={(e) => { if (e.movementX !== 0 || e.movementY !== 0) mouseHasMoved.set(true); }}
 />
 
-<main class="container">
+<main class="container" style="zoom: {uiScale}">
   <div class="panel">
     <div class="search-bar" class:searcher-active={!!$searcherName} style={$searcherName ? `--searcher-hue: ${searcherHue($searcherName)}` : ""}>
       <!-- svelte-ignore a11y_autofocus -->
@@ -364,8 +369,16 @@
 </main>
 
 <style>
-  :global(body) {
-    user-select: none;
+  :global(*) {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    touch-action: pan-x pan-y;
+  }
+
+  :global(input),
+  :global(textarea) {
+    -webkit-user-select: text !important;
+    user-select: text !important;
   }
 
   :global(:root) {

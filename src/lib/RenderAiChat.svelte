@@ -36,6 +36,14 @@
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let isTimeout = false;
   let lastTokens: number | null = null;
+  let copied = false;
+
+  async function copyResult() {
+    if (!response) return;
+    await navigator.clipboard.writeText(response);
+    copied = true;
+    setTimeout(() => (copied = false), 1800);
+  }
 
   // Animation state
   type GlowState = "idle" | "loading" | "streaming" | "success" | "error" | "settling";
@@ -361,6 +369,11 @@
           {#if lastTokens !== null}
             <span class="usage">{lastTokens} tokens</span>
           {/if}
+          {#if response && !loading}
+            <button class="copy-btn" class:copied on:click={copyResult}>
+              {copied ? "Copied" : "Copy"}
+            </button>
+          {/if}
           <a
             href={MODEL.dashboard}
             target="_blank"
@@ -375,7 +388,7 @@
 
 <style>
   .outer {
-    height: 99%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     font-size: 1rem;
@@ -434,13 +447,17 @@
 
   .ai-wrap {
     position: relative;
-    margin: 20px;
+    flex: 1;
+    min-height: 0;
+    margin: 20px 20px 0;
     padding: 1.5px;
     border-radius: 14px;
     background: rgba(128,128,128,0.06);
     transition:
       background       0.6s cubic-bezier(0.22,1,0.36,1),
       box-shadow       0.6s cubic-bezier(0.22,1,0.36,1);
+    display: flex;
+    flex-direction: column;
   }
 
   /* ── Conic border ring ────────────────────────────── */
@@ -548,10 +565,13 @@
   .inner {
     border-radius: 12px;
     padding: 16px 18px;
-    max-height: 400px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     position: relative;
     z-index: 1;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
 
   .inner.shake {
@@ -644,14 +664,38 @@
 
   /* ── Footer ───────────────────────────────────────── */
   .footer {
-    padding: 12px 16px 16px;
+    padding: 12px 16px;
     display: flex;
     gap: 10px;
     align-items: center;
     justify-content: space-between;
     font-size: 0.78rem;
-    opacity: 0.55;
+    opacity: 0.7;
     border-top: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+
+  .copy-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .copy-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.9);
+  }
+
+  .copy-btn.copied {
+    background: rgba(99,102,241,0.18);
+    border-color: rgba(99,102,241,0.4);
+    color: #a5b4fc;
   }
 
   .footer-right {
