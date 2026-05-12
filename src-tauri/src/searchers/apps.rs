@@ -124,8 +124,23 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
         actions.push(a);
     }
 
-    actions.push(Action::new("Run as Administrator", ActionData::ShellCommand {
-        command: format!("pkexec {}", app.exec),
+    actions.push(Action::new("Run as Administrator", ActionData::LaunchApp {
+        executable: "pkexec".to_string(),
+        args: {
+            let display   = std::env::var("DISPLAY").unwrap_or_default();
+            let wayland   = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
+            let xdg_rt    = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
+            let path      = std::env::var("PATH").unwrap_or_default();
+            let mut a = vec![
+                "env".to_string(),
+                format!("DISPLAY={}", display),
+                format!("WAYLAND_DISPLAY={}", wayland),
+                format!("XDG_RUNTIME_DIR={}", xdg_rt),
+                format!("PATH={}", path),
+            ];
+            a.extend(app.exec.split_whitespace().map(|s| s.to_string()));
+            a
+        },
     }));
     actions.push(Action::new("Copy Command", ActionData::CopyToClipboard { text: app.exec.clone() }));
     actions.push(Action::new("Copy Executable Path", ActionData::CopyToClipboard { text: executable }));
