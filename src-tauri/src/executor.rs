@@ -188,23 +188,42 @@ fn open_in_terminal(path: &str) -> Result<(), String> {
 
     #[cfg(target_os = "linux")]
     {
-        let launched = [
-            ("gnome-terminal", vec!["--working-directory".to_string(), path.to_string()]),
-            ("kitty",          vec!["--directory".to_string(),         path.to_string()]),
-            ("alacritty",      vec!["--working-directory".to_string(), path.to_string()]),
-            ("xfce4-terminal", vec!["--working-directory".to_string(), path.to_string()]),
-            ("xterm",          vec!["-e".to_string(), format!("cd {path:?} && bash")]),
-        ];
-        let mut ok = false;
-        for (term, args) in &launched {
-            if Command::new(term).args(args).spawn().is_ok() {
-                ok = true;
-                break;
+        use std::os::unix::process::CommandExt;
+        let spawn = |binary: &str, args: &[&str]| {
+            Command::new(binary)
+                .args(args)
+                .process_group(0)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .is_ok()
+        };
+
+        // POSIX-safe single-quote the path for the cd fallback command
+        let quoted = format!("'{}'", path.replace('\'', "'\\''"));
+        let cd_cmd = format!("cd {} && exec ${{SHELL:-bash}}", quoted);
+
+        // Respect $TERMINAL first (consistent with run_script)
+        if let Ok(term) = std::env::var("TERMINAL") {
+            if !term.is_empty() && spawn(&term, &["-e", "sh", "-c", &cd_cmd]) {
+                return Ok(());
             }
         }
-        if !ok {
-            return Err("No supported terminal emulator found".to_string());
-        }
+
+        // Modern freedesktop standard
+        if spawn("xdg-terminal-exec", &["--working-directory", path]) { return Ok(()); }
+
+        // Known terminals with native working-directory support
+        if spawn("ghostty",        &[&format!("--working-directory={}", path)])  { return Ok(()); }
+        if spawn("wezterm",        &["start", "--cwd", path])                    { return Ok(()); }
+        if spawn("gnome-terminal", &["--working-directory", path])               { return Ok(()); }
+        if spawn("kitty",          &["--directory", path])                       { return Ok(()); }
+        if spawn("alacritty",      &["--working-directory", path])               { return Ok(()); }
+        if spawn("xfce4-terminal", &["--working-directory", path])               { return Ok(()); }
+        if spawn("xterm",          &["-e", "sh", "-c", &cd_cmd])                 { return Ok(()); }
+
+        return Err("No terminal found. Set the $TERMINAL environment variable.".to_string());
     }
 
     #[cfg(target_os = "windows")]

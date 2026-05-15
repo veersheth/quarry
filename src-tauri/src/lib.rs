@@ -1,14 +1,14 @@
-pub mod commands;
-pub mod executor;
-pub mod windows;
 mod action_registry;
 mod clipboard_manager;
+pub mod commands;
 mod config;
+pub mod executor;
 mod ipc_server;
 pub mod pins;
 mod searchers;
 mod types;
 mod usage_tracker;
+pub mod windows;
 
 use action_registry::ActionRegistry;
 use clipboard_manager::ClipboardManager;
@@ -20,14 +20,11 @@ use commands::{
     save_groq_api_key, search, start_drag, write_note,
 };
 use lazy_static::lazy_static;
-use std::sync::{
-    atomic::AtomicU64,
-    RwLock,
-};
+use std::sync::{atomic::AtomicU64, RwLock};
 use tauri::{
-    Manager,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
+    Manager,
 };
 
 // ---------------------------------------------------------
@@ -67,7 +64,9 @@ pub fn run() {
     std::thread::spawn(|| crate::searchers::apps::warm());
     std::thread::spawn(|| crate::searchers::emojis::warm());
     std::thread::spawn(|| crate::searchers::clipboard::warm());
-    std::thread::spawn(|| { let _ = &*crate::commands::TRIGGERS; });
+    std::thread::spawn(|| {
+        let _ = &*crate::commands::TRIGGERS;
+    });
     crate::searchers::files::start_file_index();
 
     tauri::Builder::default()
@@ -77,41 +76,49 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // A second instance was launched — dispatch to the running app.
             match args.get(1).map(|s| s.as_str()) {
-                Some("notepad")  => ipc_server::toggle_note_window(app),
+                Some("notepad") => ipc_server::toggle_note_window(app),
                 Some("settings") => ipc_server::toggle_settings_window(app),
-                _                => ipc_server::toggle_window(app),
+                _ => ipc_server::toggle_window(app),
             }
         }))
         .setup(|app| {
             let app_handle = app.handle().clone();
             ipc_server::start_ipc_server(app_handle);
 
-            let toggle   = MenuItem::with_id(app, "toggle",   "Toggle Launcher", true, None::<&str>)?;
-            let note     = MenuItem::with_id(app, "note",     "Notepad",         true, None::<&str>)?;
-            let settings = MenuItem::with_id(app, "settings", "Settings",        true, None::<&str>)?;
-            let sep      = PredefinedMenuItem::separator(app)?;
-            let quit     = MenuItem::with_id(app, "quit",     "Quit",            true, None::<&str>)?;
-            let menu     = Menu::with_items(app, &[&toggle, &note, &settings, &sep, &quit])?;
+            let toggle = MenuItem::with_id(app, "toggle", "Toggle Launcher", true, None::<&str>)?;
+            let note = MenuItem::with_id(app, "note", "Notepad", true, None::<&str>)?;
+            let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+            let sep = PredefinedMenuItem::separator(app)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&toggle, &note, &settings, &sep, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "toggle"   => ipc_server::toggle_window(app),
-                    "note"     => {
+                    "toggle" => ipc_server::toggle_window(app),
+                    "note" => {
                         if let Some(w) = app.get_webview_window("note") {
-                            if w.is_visible().unwrap_or(false) { let _ = w.hide(); }
-                            else { let _ = w.show(); let _ = w.set_focus(); }
+                            if w.is_visible().unwrap_or(false) {
+                                let _ = w.hide();
+                            } else {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
                         }
                     }
                     "settings" => {
                         if let Some(w) = app.get_webview_window("settings") {
-                            if w.is_visible().unwrap_or(false) { let _ = w.hide(); }
-                            else { let _ = w.show(); let _ = w.set_focus(); }
+                            if w.is_visible().unwrap_or(false) {
+                                let _ = w.hide();
+                            } else {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
                         }
                     }
-                    "quit"     => app.exit(0),
-                    _          => {}
+                    "quit" => app.exit(0),
+                    _ => {}
                 })
                 .build(app)?;
 
@@ -124,9 +131,9 @@ pub fn run() {
             if let Ok(matches) = app.cli().matches() {
                 if let Some(sub) = matches.subcommand {
                     match sub.name.as_str() {
-                        "notepad"  => ipc_server::toggle_note_window(app.handle()),
+                        "notepad" => ipc_server::toggle_note_window(app.handle()),
                         "settings" => ipc_server::toggle_settings_window(app.handle()),
-                        _          => {}
+                        _ => {}
                     }
                 }
             }

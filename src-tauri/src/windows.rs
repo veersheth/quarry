@@ -1,13 +1,17 @@
 use tauri::{Emitter, Manager};
 
 pub fn setup_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let (w, h) = crate::CONFIG.read()
+        .map(|c| (c.window.width as f64, c.window.height as f64))
+        .unwrap_or((780.0, 520.0));
+
     let webview = tauri::WebviewWindowBuilder::new(
         app,
         "main",
         tauri::WebviewUrl::App("".into()),
     )
     .title("quarry")
-    .inner_size(1200.0, 700.0)
+    .inner_size(w, h)
     .decorations(false)
     .transparent(true)
     .resizable(false)

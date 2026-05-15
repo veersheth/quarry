@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub struct Config {
     pub triggers:      TriggerConfig,
     pub theme:         ThemeConfig,
+    pub window:        WindowConfig,
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
     pub screenshots:   ScreenshotsConfig,
@@ -20,11 +21,29 @@ impl Default for Config {
         Self {
             triggers:      TriggerConfig::default(),
             theme:         ThemeConfig::default(),
+            window:        WindowConfig::default(),
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
             screenshots:   ScreenshotsConfig::default(),
             groq_api_key:  String::new(),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Window
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WindowConfig {
+    pub width:  u32,
+    pub height: u32,
+}
+
+impl Default for WindowConfig {
+    fn default() -> Self {
+        Self { width: 1200, height: 700 }
     }
 }
 
@@ -291,6 +310,10 @@ const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry
 # Every key is optional. Remove or comment out any line to keep the default.
 
 # groq_api_key = ""   # Add your Groq API key here to enable AI chat (ai <query>)
+
+# [window]
+# width  = 780   # launcher window width in pixels
+# height = 520   # launcher window height in pixels
 
 [theme]
 background_color    = "rgba(10, 10, 10, 1)"
