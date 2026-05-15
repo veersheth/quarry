@@ -17,10 +17,10 @@ use usage_tracker::UsageHistory;
 use commands::{
     cancel_rofi, clear_clipboard_history, exec_func, exec_shell, execute, get_ai_prefix,
     get_config, get_groq_api_key, get_theme, read_note, save_capture, save_config,
-    save_groq_api_key, search, start_drag, write_note,
+    save_groq_api_key, search, start_drag, take_pending_query, write_note,
 };
 use lazy_static::lazy_static;
-use std::sync::{atomic::AtomicU64, RwLock};
+use std::sync::{atomic::AtomicU64, Mutex, RwLock};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -32,6 +32,9 @@ use tauri::{
 // ---------------------------------------------------------
 
 pub(crate) static SEARCH_SEQ: AtomicU64 = AtomicU64::new(0);
+
+// Query to pre-fill on first window focus after launch with `quarry <query>`
+pub(crate) static PENDING_QUERY: Mutex<Option<String>> = Mutex::new(None);
 
 lazy_static! {
     pub static ref CONFIG: RwLock<config::Config> = {
@@ -75,10 +78,26 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // A second instance was launched — dispatch to the running app.
-            match args.get(1).map(|s| s.as_str()) {
-                Some("notepad") => ipc_server::toggle_note_window(app),
-                Some("settings") => ipc_server::toggle_settings_window(app),
-                _ => ipc_server::toggle_window(app),
+            let mut i = 1usize;
+            let mut handled = false;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--notepad" => { ipc_server::toggle_note_window(app); return; }
+                    "--config"  => { ipc_server::toggle_settings_window(app); return; }
+                    "--toggle"  => { ipc_server::toggle_window(app); return; }
+                    "--with" => {
+                        if let Some(q) = args.get(i + 1) {
+                            ipc_server::show_with_query(app, q);
+                            handled = true;
+                            i += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+            if !handled {
+                ipc_server::toggle_window(app);
             }
         }))
         .setup(|app| {
@@ -126,16 +145,20 @@ pub fn run() {
             windows::setup_note_window(app)?;
             windows::setup_settings_window(app)?;
 
-            // Handle CLI subcommands on first launch.
+            // Handle CLI flags on first launch.
             use tauri_plugin_cli::CliExt;
             if let Ok(matches) = app.cli().matches() {
-                if let Some(sub) = matches.subcommand {
-                    match sub.name.as_str() {
-                        "notepad" => ipc_server::toggle_note_window(app.handle()),
-                        "settings" => ipc_server::toggle_settings_window(app.handle()),
-                        _ => {}
+                let args = &matches.args;
+                if args.get("notepad").map(|a| a.occurrences > 0).unwrap_or(false) {
+                    ipc_server::toggle_note_window(app.handle());
+                } else if args.get("config").map(|a| a.occurrences > 0).unwrap_or(false) {
+                    ipc_server::toggle_settings_window(app.handle());
+                } else if let Some(q) = args.get("with").and_then(|a| a.value.as_str()) {
+                    if let Ok(mut slot) = PENDING_QUERY.lock() {
+                        *slot = Some(q.to_string());
                     }
                 }
+                // --toggle on first launch is a no-op: the window opens normally.
             }
 
             Ok(())
@@ -157,6 +180,7 @@ pub fn run() {
             cancel_rofi,
             start_drag,
             exec_func,
+            take_pending_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

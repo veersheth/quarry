@@ -213,6 +213,11 @@ pub fn exec_func(name: String, params: Vec<String>, app: tauri::AppHandle) -> Re
 }
 
 #[tauri::command]
+pub fn take_pending_query() -> Option<String> {
+    crate::PENDING_QUERY.lock().ok().and_then(|mut slot| slot.take())
+}
+
+#[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
     CONFIG.read().unwrap().theme.clone()
 }

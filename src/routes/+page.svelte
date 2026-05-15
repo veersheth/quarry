@@ -152,6 +152,11 @@
         aiPrefix = p;
       })
       .catch(() => {});
+
+    // use query from the commandline
+    invoke<string | null>("take_pending_query").then((q) => {
+      if (q) query.set(q);
+    }).catch(() => {});
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) {
         mouseHasMoved.set(false);
@@ -208,12 +213,19 @@
       }
     });
 
+    // Pre-fill query from a subsequent `quarry <query>` invocation.
+    const unlistenSetQuery = await listen<string>("quarry-set-query", ({ payload }) => {
+      query.set(payload);
+      searchInput?.focus();
+    });
+
     return () => {
       unlisten.then((fn) => fn());
       unlistenModal();
       unlistenRofiSocket();
       unlistenRofi();
       unlistenFast();
+      unlistenSetQuery();
       window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
       window.removeEventListener("wheel", blockZoom);
     };

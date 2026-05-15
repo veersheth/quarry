@@ -21,6 +21,7 @@ enum IpcCommand {
     Hide,
     Ping,
     ToggleNote,
+    ShowWithQuery { query: String },
     ShowRofi { items: Vec<RofiItem>, response_socket: String },
 }
 
@@ -138,6 +139,13 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 message: "Note window toggled".to_string(),
             }
         }
+        IpcCommand::ShowWithQuery { query } => {
+            show_with_query(app_handle, &query);
+            IpcResponse {
+                success: true,
+                message: format!("Shown with query: {}", query),
+            }
+        }
         IpcCommand::ShowRofi { items, response_socket } => {
             use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
@@ -177,6 +185,14 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
             IpcResponse { success: true, message: "Rofi shown".to_string() }
         }
     }
+}
+
+pub(crate) fn show_with_query(app_handle: &tauri::AppHandle, query: &str) {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    app_handle.emit("quarry-set-query", query).ok();
 }
 
 pub(crate) fn toggle_window(app_handle: &tauri::AppHandle) {

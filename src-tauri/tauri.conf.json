@@ -12,17 +12,25 @@
   "plugins": {
     "cli": {
       "description": "Quarry launcher",
-      "subcommands": {
-        "toggle": {
-          "description": "Toggle the main launcher window"
+      "args": [
+        {
+          "name": "toggle",
+          "description": "Toggle the launcher window"
         },
-        "notepad": {
+        {
+          "name": "notepad",
           "description": "Open the notepad window"
         },
-        "settings": {
+        {
+          "name": "config",
           "description": "Open the settings window"
+        },
+        {
+          "name": "with",
+          "description": "Pre-fill the search input with a query",
+          "takesValue": true
         }
-      }
+      ]
     }
   },
   "app": {
