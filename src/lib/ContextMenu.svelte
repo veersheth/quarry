@@ -179,7 +179,6 @@
     margin: 8px 6px;
     padding: 12px 14px;
     border-radius: 15px;
-    cursor: pointer;
     user-select: none;
     color: var(--q-font-color, #fff);
   }

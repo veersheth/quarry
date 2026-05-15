@@ -142,7 +142,6 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.07);
     color: rgba(255, 255, 255, 0.6);
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;

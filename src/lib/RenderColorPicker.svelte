@@ -366,7 +366,6 @@
   }
 
   .value-box {
-    cursor: pointer;
     color: white;
     margin-left: 24px;
     padding: 22px;

@@ -101,7 +101,6 @@
     border: 2px solid transparent;
     background: var(--q-surface-subtle);
     color: var(--q-text-secondary);
-    cursor: pointer;
     font-size: 0.9em;
     font-family: var(--q-sans);
     transition: all 0.1s ease;

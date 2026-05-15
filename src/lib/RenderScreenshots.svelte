@@ -104,7 +104,6 @@
     gap: 12px;
     padding: 12px;
     border-radius: var(--q-item-border-radius);
-    cursor: pointer;
     border: 1.5px solid transparent;
     transition: transform 120ms ease, background 80ms ease;
   }

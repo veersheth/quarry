@@ -124,7 +124,6 @@
     background: var(--q-surface);
     text-align: left;
     color: var(--q-text-secondary);
-    cursor: pointer;
     border: 2px solid transparent;
   }
 

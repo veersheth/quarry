@@ -683,7 +683,6 @@
     font-size: 0.72rem;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     color: rgba(255,255,255,0.6);
-    cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
 

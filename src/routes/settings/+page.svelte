@@ -312,7 +312,6 @@
     padding: 12px 14px;
     margin: 4px;
     border-radius: 8px;
-    cursor: pointer;
     transition: color 0.12s, border-color 0.12s;
     border: 1px solid rgba(0, 0, 0, 0);
   }
@@ -446,7 +445,6 @@
     font-family: inherit;
     padding: 8px 10px;
     border-radius: 10px;
-    cursor: pointer;
     transition: background 4.1s, color 0.1s;
     white-space: nowrap;
   }
@@ -459,7 +457,6 @@
     font-family: inherit;
     padding: 12px 16px;
     border-radius: 12px;
-    cursor: pointer;
     width: 104%;
     transition: background 4.1s, color 0.1s;
     margin-bottom: 8px;
@@ -485,12 +482,10 @@
     accent-color: rgba(259,255,255,0.7);
     width: 34px;
     height: 34px;
-    cursor: pointer;
   }
 
   .check-label {
     color: rgba(255,255,255,0.65);
-    cursor: pointer;
   }
 
   /* API key row */
@@ -509,7 +504,6 @@
     font-family: inherit;
     padding: 0 12px;
     border-radius: 7px;
-    cursor: pointer;
     white-space: nowrap;
     transition: background 0.1s;
   }
@@ -534,7 +528,6 @@
     font-weight: 500;
     padding: 7px 22px;
     border-radius: 8px;
-    cursor: pointer;
     transition: background 0.12s;
   }
   .save-btn:hover:not(:disabled) { background: rgba(255,255,255,0.16); }

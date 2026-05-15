@@ -549,7 +549,6 @@
     gap: 10px;
     padding: 8px 10px;
     border-radius: var(--q-item-border-radius);
-    cursor: pointer;
     border: 2px solid transparent;
   }
 
@@ -686,7 +685,6 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    cursor: pointer;
     letter-spacing: 0.03em;
   }
 

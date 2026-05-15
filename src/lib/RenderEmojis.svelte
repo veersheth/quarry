@@ -112,7 +112,6 @@
     height: 48px;
     border-radius: var(--q-item-border-radius);
     border: 1px solid var(--q-border-subtle);
-    cursor: pointer;
     flex-shrink: 0;
     transition: transform 100ms ease;
   }
@@ -159,7 +158,6 @@
     padding: 28px 16px;
     border-radius: var(--q-item-border-radius);
     border: 1px solid var(--q-border-subtle);
-    cursor: pointer;
     text-align: center;
     transition:
       transform 100ms ease,
