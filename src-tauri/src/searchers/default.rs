@@ -37,30 +37,103 @@ struct FastPartial {
     results: Vec<ResultItem>,
 }
 
+/// Source type for scoring — apps/shortcuts always beat files at equal fuzzy quality.
+#[derive(Clone, Copy)]
+enum Source {
+    App,
+    Shortcut,
+    System,
+    Bookmark,
+    File,
+}
+
 pub struct DefaultSearcher;
 
 impl DefaultSearcher {
-    pub fn new() -> Self {
-        Self
-    }
+    pub fn new() -> Self { Self }
 
-    fn score_item(item: &ResultItem, query: &str) -> i64 {
+    /// Score an item against a query, taking source type into account.
+    ///
+    /// Score = raw_skim × match_quality_multiplier × type_multiplier
+    ///
+    /// match_quality tiers (for name field):
+    ///   exact match        → 4.0×
+    ///   prefix match       → 2.5×  ("ghost" → "ghostty")
+    ///   word-start match   → 1.8×  ("chr" → "Google Chrome", "chrome" word starts with "chr")
+    ///   substring match    → 1.3×  ("file" somewhere in name)
+    ///   fuzzy-only         → 1.0×
+    ///
+    /// type multipliers:
+    ///   App 2.0, Shortcut 1.7, System 1.2, Bookmark 1.0, File 0.75
+    ///
+    /// This means "ghostty" (app, prefix match) will always beat "ghosts-yummy.txt"
+    /// (file, also prefix match) because 2.0 >> 0.75, and skim scores shorter/denser
+    /// matches higher anyway. Files only beat apps when their fuzzy score is dramatically
+    /// higher and the app has only a weak match.
+    fn score_item(item: &ResultItem, query: &str, source: Source) -> i64 {
         let q = query.to_lowercase();
         let name = item.name.to_lowercase();
         let desc = item.description.as_deref().unwrap_or("").to_lowercase();
-        let combined = format!("{} {}", name, desc);
-        let combined_score = MATCHER.fuzzy_match(&combined, &q).unwrap_or(0);
-        let name_score = MATCHER.fuzzy_match(&name, &q)
-            .map(|s| s * 2)
-            .unwrap_or(0);
-        combined_score.max(name_score)
+
+        let raw_name = MATCHER.fuzzy_match(&name, &q).unwrap_or(0);
+        let raw_desc = MATCHER.fuzzy_match(&desc, &q).unwrap_or(0);
+
+        if raw_name == 0 && raw_desc == 0 {
+            return 0;
+        }
+
+        // Name match quality — determines how "intentional" the match looks
+        let name_quality: f64 = if !q.is_empty() && raw_name > 0 {
+            if name == q {
+                4.0
+            } else if name.starts_with(&q) {
+                2.5
+            } else if name.split_whitespace().any(|w| w.starts_with(&q)) {
+                // word-start: "chr" matches the "Chrome" word in "Google Chrome"
+                1.8
+            } else if name.contains(&q) {
+                1.3
+            } else {
+                1.0 // scattered fuzzy
+            }
+        } else {
+            1.0
+        };
+
+        // Name counts double; desc is a tiebreaker only
+        let base = if raw_name > 0 {
+            (raw_name as f64 * name_quality * 2.0) as i64
+        } else {
+            raw_desc
+        };
+
+        let type_mult: f64 = match source {
+            Source::App      => 2.0,
+            Source::Shortcut => 1.7,
+            Source::System   => 1.2,
+            Source::Bookmark => 1.0,
+            Source::File     => 0.75,
+        };
+
+        (base as f64 * type_mult) as i64
     }
 
-    fn score_and_filter(items: Vec<ResultItem>, q: &str) -> Vec<(ResultItem, i64)> {
+    fn score_items(items: Vec<ResultItem>, query: &str, source: Source) -> Vec<(ResultItem, i64)> {
         items.into_iter().filter_map(|item| {
-            let score = Self::score_item(&item, q);
-            if score > 0 { Some((item, score)) } else { None }
+            let s = Self::score_item(&item, query, source);
+            if s > 0 { Some((item, s)) } else { None }
         }).collect()
+    }
+
+    /// Merge multiple scored lists: sort by score descending, deduplicate by name.
+    fn merge_scored(groups: Vec<Vec<(ResultItem, i64)>>, seen: &mut HashSet<String>) -> Vec<ResultItem> {
+        let mut flat: Vec<(ResultItem, i64)> = groups.into_iter().flatten().collect();
+        flat.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        flat.into_iter()
+            .filter_map(|(item, _)| {
+                if seen.insert(item.name.to_lowercase()) { Some(item) } else { None }
+            })
+            .collect()
     }
 }
 
@@ -72,22 +145,19 @@ impl SearchProvider for DefaultSearcher {
             return SearchResult {
                 results: AppSearcher.search(q, app).results,
                 result_type: ResultType::Home,
-                            ..Default::default()
-};
+                ..Default::default()
+            };
         }
 
         let app_clone = app.clone();
         let q_owned = q.to_string();
-
-        // Snapshot the current sequence so we can abort if a newer query arrives.
         let my_seq = crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed);
 
-        // Kick off the file search immediately in a rayon thread so it runs
-        // concurrently while we compute and emit the fast in-memory results.
+        // Kick off file search in a rayon thread immediately so it runs
+        // concurrently while we compute fast in-memory results.
         let (file_tx, file_rx) = mpsc::channel::<Vec<ResultItem>>();
         let q_for_file = q_owned.clone();
         rayon::spawn(move || {
-            // Don't bother if a newer search is already queued.
             if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
                 let _ = file_tx.send(vec![]);
                 return;
@@ -96,7 +166,7 @@ impl SearchProvider for DefaultSearcher {
             let _ = file_tx.send(results);
         });
 
-        // Fast in-memory searchers — run in parallel, finish in ~2ms.
+        // Fast in-memory searchers — parallel, finish in ~2ms
         let ((app_results, sys_results), (bookmark_results, shortcut_results)) = rayon::join(
             || rayon::join(
                 || AppSearcher.search(&q_owned, app).results,
@@ -108,114 +178,56 @@ impl SearchProvider for DefaultSearcher {
             ),
         );
 
-        // Build and emit partial results so the frontend can show something
-        // immediately while the file search is still running.
+        // Emit fast partial results with the same scoring as the final pass
         {
-            let mut fast_scored: Vec<(ResultItem, i64)> = Vec::new();
-            fast_scored.extend(Self::score_and_filter(app_results.clone(), q));
-            fast_scored.extend(Self::score_and_filter(sys_results.clone(), q));
-            fast_scored.extend(Self::score_and_filter(bookmark_results.clone(), q));
-            fast_scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-
-            let mut fast_seen: HashSet<String> = HashSet::new();
-            let mut fast_shortcuts: Vec<ResultItem> = shortcut_results.iter()
-                .filter(|i| {
-                    Self::score_item(i, q) > 0 && fast_seen.insert(i.name.to_lowercase())
-                })
-                .take(3)
-                .cloned()
-                .collect();
-
-            let fast_rest: Vec<ResultItem> = fast_scored.into_iter()
-                .filter_map(|(item, _)| {
-                    if fast_seen.insert(item.name.to_lowercase()) { Some(item) } else { None }
-                })
-                .collect();
-
-            fast_shortcuts.extend(fast_rest);
-
-            let _ = app.emit("quarry-fast", FastPartial {
-                query: q.to_string(),
-                results: fast_shortcuts,
-            });
+            let mut seen = HashSet::new();
+            let fast = Self::merge_scored(vec![
+                Self::score_items(app_results.clone(), q, Source::App),
+                Self::score_items(shortcut_results.clone(), q, Source::Shortcut),
+                Self::score_items(sys_results.clone(), q, Source::System),
+                Self::score_items(bookmark_results.clone(), q, Source::Bookmark),
+            ], &mut seen);
+            let _ = app.emit("quarry-fast", FastPartial { query: q.to_string(), results: fast });
         }
 
-        // If a newer query already arrived while we were computing fast results,
-        // bail out now — the command handler will discard this result anyway,
-        // and blocking on file_rx would only waste rayon threads.
         if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
             return SearchResult { results: vec![], result_type: ResultType::List, ..Default::default() };
         }
 
-        // Wait for file results (likely already done or nearly done).
         let file_results = file_rx.recv().unwrap_or_default();
 
-        // Settings (only for longer queries).
         let settings_results = if q.len() >= 3 {
-            SettingsSearcher.search(&q_owned, app).results
+            let mut s = Self::score_items(
+                SettingsSearcher.search(&q_owned, app).results, q, Source::System,
+            );
+            s.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+            s.truncate(3);
+            s
         } else {
             vec![]
         };
 
-        // Score and combine all results.
-        let mut scored: Vec<(ResultItem, i64)> = Vec::new();
-        for item in app_results {
-            let score = Self::score_item(&item, q);
-            if score > 0 { scored.push((item, score)); }
-        }
-        for item in sys_results {
-            let score = Self::score_item(&item, q);
-            if score > 0 { scored.push((item, score)); }
-        }
-        for item in file_results {
-            let score = Self::score_item(&item, q);
-            if score > 0 { scored.push((item, score)); }
-        }
-        for item in bookmark_results {
-            let score = Self::score_item(&item, q);
-            if score > 0 { scored.push((item, score)); }
-        }
+        // Merge all primary sources — score determines order, no hard-coded pinning
+        let mut seen = HashSet::new();
+        let mut combined = Self::merge_scored(vec![
+            Self::score_items(app_results, q, Source::App),
+            Self::score_items(shortcut_results, q, Source::Shortcut),
+            Self::score_items(sys_results, q, Source::System),
+            Self::score_items(bookmark_results, q, Source::Bookmark),
+            Self::score_items(file_results, q, Source::File),
+            settings_results,
+        ], &mut seen);
 
-        let mut settings_scored: Vec<(ResultItem, i64)> = settings_results
-            .into_iter()
-            .filter_map(|item| {
-                let score = Self::score_item(&item, q);
-                if score > 0 { Some((item, score)) } else { None }
-            })
-            .collect();
-        settings_scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-        settings_scored.truncate(3);
-        scored.extend(settings_scored);
-
-        scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-
-        let mut seen_names: HashSet<String> = HashSet::new();
-
-        let mut top_shortcuts: Vec<ResultItem> = shortcut_results
-            .into_iter()
-            .filter(|item| {
-                let score = Self::score_item(item, q);
-                score > 0 && seen_names.insert(item.name.to_lowercase())
-            })
-            .take(3)
-            .collect();
-
-        let mut combined: Vec<ResultItem> = scored
-            .into_iter()
-            .filter_map(|(item, _)| {
-                let key = item.name.to_lowercase();
-                if seen_names.insert(key) { Some(item) } else { None }
-            })
-            .collect();
-
+        // Supplementary results — appended after ranked items, not competing by score
         let mut emojis = EmojiSearcher.search(q, app).results;
         emojis.truncate(6);
         combined.extend(emojis);
 
-        let mut res = MathSearcher.search(q, app).results;
-        res.truncate(2);
-        combined.extend(res);
+        let mut math = MathSearcher.search(q, app).results;
+        math.truncate(2);
+        combined.extend(math);
 
+        // Currency result is so specific that if it matches we surface it first
         if CURRENCY_RE.is_match(q) {
             let mut res = CurrencySearcher.search(q, app).results;
             res.truncate(1);
@@ -234,13 +246,12 @@ impl SearchProvider for DefaultSearcher {
             let cfg_guard = crate::CONFIG.read().unwrap();
             let cfg = &*cfg_guard;
             let max = cfg.default_search.max_web_results;
-
             for name in &cfg.default_search.web_searches {
                 if let Some(ws) = cfg.web_searches.iter().find(|w| &w.name == name) {
                     let searcher = WebSearcher {
-                        name:         ws.name.clone(),
+                        name: ws.name.clone(),
                         url_template: ws.url.clone(),
-                        icon:         ws.icon.clone(),
+                        icon: ws.icon.clone(),
                     };
                     let mut results = searcher.search(q, app).results;
                     results.truncate(max);
@@ -249,11 +260,10 @@ impl SearchProvider for DefaultSearcher {
             }
         }
 
-        top_shortcuts.extend(combined);
         SearchResult {
-            results: top_shortcuts,
+            results: combined,
             result_type: ResultType::List,
-                    ..Default::default()
-}
+            ..Default::default()
+        }
     }
 }

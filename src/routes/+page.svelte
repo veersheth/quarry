@@ -139,12 +139,11 @@
   async function refresh() {
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
-    requestAnimationFrame(forceRepaint);
+    forceRepaint();
     searchInput?.select();
   }
 
   onMount(async () => {
-    forceRepaint();
     appWindow = getCurrentWindow();
     await refresh();
     invoke<string>("get_ai_prefix")

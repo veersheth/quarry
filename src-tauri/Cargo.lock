@@ -4185,6 +4185,8 @@ dependencies = [
  "freedesktop-desktop-entry",
  "freedesktop-icons",
  "fuzzy-matcher",
+ "gdk",
+ "gtk",
  "image",
  "lazy_static",
  "meval",

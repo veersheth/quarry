@@ -141,6 +141,7 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            windows::inject_gtk_theme();
             windows::setup_main_window(app)?;
             windows::setup_note_window(app)?;
             windows::setup_settings_window(app)?;

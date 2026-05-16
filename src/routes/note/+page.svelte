@@ -10,6 +10,7 @@
   let editor: ReturnType<typeof ink> | null = null;
   let vimMode = false;
   let docContent = "";
+  let uiScale = 1.0;
 
   interface Theme {
     background_color: string;
@@ -71,19 +72,14 @@
     createEditor(docContent);
   }
 
-  const RESIZE_DIRS: Record<string, string> = {
-    n: 'North', ne: 'NorthEast', e: 'East', se: 'SouthEast',
-    s: 'South', sw: 'SouthWest', w: 'West', nw: 'NorthWest',
-  };
-
-  function startResize(dir: string, e: MouseEvent) {
-    e.preventDefault();
-    getCurrentWindow().startResizeDragging(RESIZE_DIRS[dir] as any);
-  }
-
   function handleGlobalKeydown(e: KeyboardEvent) {
-    // In vim mode let CodeMirror own Escape (insert→normal transition).
-    // Hide the window only when vim mode is off.
+    if (e.ctrlKey && (e.key === "-" || e.key === "=" || e.key === "+" || e.key === "0")) {
+      e.preventDefault();
+      if (e.key === "-") uiScale = Math.max(0.6, parseFloat((uiScale - 0.05).toFixed(2)));
+      else if (e.key === "=" || e.key === "+") uiScale = Math.min(2.0, parseFloat((uiScale + 0.05).toFixed(2)));
+      else uiScale = 1.0;
+      return;
+    }
     if (e.key === "Escape" && !vimMode) {
       e.preventDefault();
       getCurrentWindow().hide();
@@ -106,7 +102,13 @@
     const files = e.dataTransfer?.files;
     if (!files?.length || !editor) return;
 
-    const imageTypes = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
+    const imageTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ];
     for (const file of Array.from(files)) {
       if (!imageTypes.includes(file.type)) continue;
       const path = (file as any).path as string | undefined;
@@ -140,19 +142,24 @@
 
 <svelte:window on:keydown={handleGlobalKeydown} />
 
-{#each ['n','ne','e','se','s','sw','w','nw'] as dir}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="resize-handle resize-{dir}" on:mousedown={(e) => startResize(dir, e)}></div>
-{/each}
-
-<main class="container" class:vim-mode={vimMode} on:drop={handleDrop} on:dragover={handleDragOver}>
-  <div class="editor-wrap" bind:this={editorEl}></div>
-  <div class="titlebar" data-tauri-drag-region>
-    <span class="title">QUARRY NOTEPAD</span>
-    <button class="vim-toggle" class:active={vimMode} on:click={toggleVim} title="Toggle Vim mode">
+<main
+  class="container"
+  class:vim-mode={vimMode}
+  style="zoom: {uiScale}"
+  on:drop={handleDrop}
+  on:dragover={handleDragOver}
+>
+  <div class="toolbar">
+    <button
+      class="vim-toggle"
+      class:active={vimMode}
+      on:click={toggleVim}
+      title="Toggle Vim mode"
+    >
       VIM
     </button>
   </div>
+  <div class="editor-wrap" bind:this={editorEl}></div>
 </main>
 
 <style>
@@ -168,11 +175,49 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: #1a1a1f;
+    background-color: #111114;
     color: white;
     overflow: hidden;
     box-sizing: border-box;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono",
+      monospace;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 7px 12px;
+    flex-shrink: 0;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .vim-toggle {
+    background: none;
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.2);
+    font-family: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono",
+      monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition:
+      color 0.1s,
+      border-color 0.1s;
+  }
+
+  .vim-toggle:hover {
+    color: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .vim-toggle.active {
+    color: #7ec8a4;
+    border-color: rgba(126, 200, 164, 0.35);
+    background: rgba(126, 200, 164, 0.06);
   }
 
   .editor-wrap {
@@ -192,43 +237,38 @@
   :global(.editor-wrap .cm-editor) {
     flex: 1;
     min-height: 0;
-    font-family:
-      Inter,
-      "Segoe UI",
-      "Adwaita Sans",
-      "Noto Color Emoji",
-      sans-serif;
-    font-size: var(--q-font-size, 16px);
-  }
-
-  :global(.vim-mode .cm-selectionBackground),
-  :global(.vim-mode .cm-focused .cm-selectionBackground) {
-    background: rgba(100, 160, 255, 0.35) !important;
-  }
-
-  :global(.editor-wrap .cm-content ::selection),
-  :global(.editor-wrap .cm-content *::selection) {
-    background: rgba(100, 160, 255, 0.4) !important;
-  }
-
-  /* Monospace everything when vim mode is active */
-  :global(.vim-mode .editor-wrap .cm-editor),
-  :global(.vim-mode .editor-wrap .cm-content),
-  :global(.vim-mode .editor-wrap .cm-line) {
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    font-family: Inter, "Segoe UI", "Adwaita Sans", sans-serif;
+    font-size: var(--q-font-size, 15px);
   }
 
   :global(.editor-wrap .cm-scroller) {
     overflow-y: auto !important;
-    padding: 20px;
     box-sizing: border-box;
-    line-height: 1.7;
+    padding: 1rem 1.75rem;
+    line-height: 1.75;
   }
 
   :global(.editor-wrap .cm-content) {
-    color: var(--q-font-color, rgba(226, 219, 197, 0.88));
+    color: var(--q-font-color, rgba(226, 219, 197, 0.82));
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  :global(.editor-wrap .cm-content ::selection),
+  :global(.editor-wrap .cm-content *::selection) {
+    background: rgba(100, 160, 255, 0.3) !important;
+  }
+
+  :global(.vim-mode .cm-selectionBackground),
+  :global(.vim-mode .cm-focused .cm-selectionBackground) {
+    background: rgba(100, 160, 255, 0.3) !important;
+  }
+
+  :global(.vim-mode .editor-wrap .cm-editor),
+  :global(.vim-mode .editor-wrap .cm-content),
+  :global(.vim-mode .editor-wrap .cm-line) {
+    font-family: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono",
+      monospace;
   }
 
   :global(.editor-wrap img) {
@@ -237,62 +277,4 @@
     margin: 4px 0;
     display: block;
   }
-
-  .titlebar {
-    display: flex;
-    align-items: center;
-    height: 36px;
-    padding: 0 14px;
-    flex-shrink: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.13);
-    background: rgba(255, 255, 255, 0.03);
-    user-select: none;
-    cursor: grab;
-  }
-
-  .title {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.2);
-    user-select: none;
-    flex: 1;
-  }
-
-  .vim-toggle {
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 3px;
-    color: rgba(255, 255, 255, 0.2);
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    padding: 2px 6px;
-    cursor: pointer;
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
-    flex-shrink: 0;
-  }
-
-  .vim-toggle:hover {
-    color: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.25);
-  }
-
-  .vim-toggle.active {
-    color: #7ec8a4;
-    border-color: #7ec8a4;
-    background: rgba(126, 200, 164, 0.08);
-  }
-
-  /* Resize handles */
-  .resize-handle { position: fixed; z-index: 9999; }
-  .resize-n  { top: 0;    left: 6px;   right: 6px;  height: 6px;  cursor: n-resize;  }
-  .resize-s  { bottom: 0; left: 6px;   right: 6px;  height: 6px;  cursor: s-resize;  }
-  .resize-e  { right: 0;  top: 6px;    bottom: 6px; width: 6px;   cursor: e-resize;  }
-  .resize-w  { left: 0;   top: 6px;    bottom: 6px; width: 6px;   cursor: w-resize;  }
-  .resize-ne { top: 0;    right: 0;    width: 10px; height: 10px; cursor: ne-resize; }
-  .resize-nw { top: 0;    left: 0;     width: 10px; height: 10px; cursor: nw-resize; }
-  .resize-se { bottom: 0; right: 0;    width: 10px; height: 10px; cursor: se-resize; }
-  .resize-sw { bottom: 0; left: 0;     width: 10px; height: 10px; cursor: sw-resize; }
 </style>
