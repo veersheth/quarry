@@ -16,8 +16,19 @@ fn clean_exec_field(exec: &str) -> String {
 }
 
 fn resolve_icon(icon_name: &str) -> Option<String> {
-    let path = freedesktop_icons::lookup(icon_name).with_size(64).find()?;
-    path.to_str().map(|s| s.to_string())
+    if icon_name.starts_with('/') {
+        return if std::path::Path::new(icon_name).exists() {
+            Some(icon_name.to_string())
+        } else {
+            None
+        };
+    }
+
+    freedesktop_icons::lookup(icon_name)
+        .with_size(64)
+        .with_theme("hicolor")
+        .find()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
 }
 
 #[derive(Clone)]
