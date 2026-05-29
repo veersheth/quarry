@@ -475,7 +475,7 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(
-      270deg,
+      90deg,
       hsla(var(--searcher-hue, 220), 75%, 65%, 0.12) 0%,
       transparent 95%
     );
