@@ -47,6 +47,15 @@ fn all_shortcuts() -> Vec<ResultItem> {
         );
         it.icon = Some("icon-transparent.png".into());
         items.push(it);
+
+        // Add shortcut to scripts directory
+        let mut scripts_it = folder_item(
+            "Open Scripts Folder",
+            "Open ~/.config/quarry/scripts - place executable scripts here",
+            cfg.join("quarry/scripts"),
+        );
+        scripts_it.icon = Some("icons/folder.png".into());
+        items.push(scripts_it);
     }
 
     // ── Trash ─────────────────────────────────────────────────────────────

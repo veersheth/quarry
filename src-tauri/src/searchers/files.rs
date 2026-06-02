@@ -3,6 +3,7 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use std::time::{Duration, SystemTime};
@@ -110,6 +111,12 @@ impl FileSearcher {
         if let Some(home) = dirs::home_dir() {
             paths.push(home);
         }
+
+        // Include the user scripts directory for script discovery
+        if let Some(scripts_dir) = get_user_scripts_dir() {
+            paths.push(scripts_dir);
+        }
+
         paths.dedup();
         paths
     }
@@ -308,10 +315,36 @@ impl FileSearcher {
     }
 }
 
+/// Gets the user scripts directory, creating it if it doesn't exist.
+fn get_user_scripts_dir() -> Option<PathBuf> {
+    let scripts_dir = dirs::home_dir()?
+        .join(".config/quarry/scripts");
+
+    // Create the directory if it doesn't exist
+    if !scripts_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&scripts_dir) {
+            eprintln!("Failed to create scripts directory: {}", e);
+            return None;
+        }
+    }
+
+    Some(scripts_dir)
+}
+
 /// Returns true if the file should be treated as a runnable script.
-/// Matches by extension first, then falls back to the executable bit on Unix.
+/// Only scripts in the user's ~/.config/quarry/scripts directory are allowed.
 fn is_script(path: &Path) -> bool {
     if path.is_dir() {
+        return false;
+    }
+
+    // Only allow scripts from the user scripts directory
+    let Some(scripts_dir) = get_user_scripts_dir() else {
+        return false;
+    };
+
+    // Check if the file is in the scripts directory
+    if !path.starts_with(&scripts_dir) {
         return false;
     }
 
