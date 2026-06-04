@@ -14,8 +14,8 @@
 
 <style>
   :global(:root) {
-    --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
-    --q-mono: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace;
+    --q-sans: var(--q-font-family, "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif);
+    --q-mono: var(--q-monospace-font-family, "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace);
   }
 
   .root {

@@ -107,6 +107,8 @@
     background_opacity: number;
     font_size: number;
     font_color: string;
+    font_family: string;
+    monospace_font_family: string;
     border_radius: number;
     border_color: string;
     border_thickness: number;
@@ -121,6 +123,8 @@
     root.setProperty("--q-bg-opacity", String(t.background_opacity));
     root.setProperty("--q-font-size", `${t.font_size}px`);
     root.setProperty("--q-font-color", t.font_color);
+    root.setProperty("--q-font-family", t.font_family);
+    root.setProperty("--q-monospace-font-family", t.monospace_font_family);
     root.setProperty("--q-border-radius", `${t.border_radius}px`);
     root.setProperty("--q-border-color", t.border_color);
     root.setProperty("--q-border-thickness", `${t.border_thickness}px`);
@@ -393,9 +397,8 @@
   }
 
   :global(:root) {
-    --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji",
-      sans-serif;
-    --q-mono: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace;
+    --q-sans: var(--q-font-family, "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif);
+    --q-mono: var(--q-monospace-font-family, "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace);
 
     --q-surface: rgba(5, 5, 5, 0.8);
     --q-surface-subtle: rgba(255, 255, 255, 0.08);
@@ -411,12 +414,12 @@
     --q-border-strong: rgba(255, 255, 255, 0.25);
     --q-border-dark: #333;
 
-    --q-text-secondary: rgba(255, 255, 255, 0.7);
-    --q-text-muted: rgba(255, 255, 255, 0.4);
-    --q-text-dim: #555;
-    --q-text-dim-active: #999;
-    --q-text-placeholder: #333;
-    --q-text-empty: #444;
+    --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 70%, transparent);
+    --q-text-muted: color-mix(in srgb, var(--q-font-color, #ffffff) 40%, transparent);
+    --q-text-dim: color-mix(in srgb, var(--q-font-color, #ffffff) 25%, transparent);
+    --q-text-dim-active: color-mix(in srgb, var(--q-font-color, #ffffff) 55%, transparent);
+    --q-text-placeholder: color-mix(in srgb, var(--q-font-color, #ffffff) 15%, transparent);
+    --q-text-empty: color-mix(in srgb, var(--q-font-color, #ffffff) 20%, transparent);
 
     --q-thumb-bg: #111;
     --q-pin-border: rgba(200, 220, 255, 0.25);
@@ -437,9 +440,9 @@
     overflow: hidden;
     color: var(--q-font-color, #ffffff);
     position: relative;
-    border-radius: 18px;
     border-style: inset;
-    border: 1px solid var(--q-border-strong);
+    border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
+    border-radius: var(--q-border-radius, 18px);
   }
 
   .container * {

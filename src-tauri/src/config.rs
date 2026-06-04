@@ -133,31 +133,35 @@ impl Default for DefaultSearchConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ThemeConfig {
-    pub background_color:    String,
-    pub background_opacity:  f32,
-    pub font_size:           u32,
-    pub font_color:          String,
-    pub border_radius:       u32,
-    pub border_color:        String,
-    pub border_thickness:    u32,
-    pub item_border_radius:  u32,
-    pub active_bg_color:     String,
-    pub active_border_color: String,
+    pub background_color:      String,
+    pub background_opacity:    f32,
+    pub font_size:             u32,
+    pub font_color:            String,
+    pub font_family:           String,
+    pub monospace_font_family: String,
+    pub border_radius:         u32,
+    pub border_color:          String,
+    pub border_thickness:      u32,
+    pub item_border_radius:    u32,
+    pub active_bg_color:       String,
+    pub active_border_color:   String,
 }
 
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
-            background_color:    "rgba(10, 10, 10, 1)".into(),
-            background_opacity:  1.0,
-            font_size:           14,
-            font_color:          "rgba(255, 255, 255, 1)".into(),
-            border_radius:       14,
-            border_color:        "rgba(255,255,255,0.35)".into(),
-            border_thickness:    1,
-            item_border_radius:  12,
-            active_bg_color:     "rgba(40, 40, 40, 1)".into(),
-            active_border_color: "rgba(255,255,255,0.1)".into(),
+            background_color:      "rgba(10, 10, 10, 1)".into(),
+            background_opacity:    1.0,
+            font_size:             14,
+            font_color:            "rgba(255, 255, 255, 1)".into(),
+            font_family:           "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif".into(),
+            monospace_font_family: "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace".into(),
+            border_radius:         14,
+            border_color:          "rgba(255,255,255,0.35)".into(),
+            border_thickness:      1,
+            item_border_radius:    12,
+            active_bg_color:       "rgba(40, 40, 40, 1)".into(),
+            active_border_color:   "rgba(255,255,255,0.1)".into(),
         }
     }
 }
@@ -316,16 +320,18 @@ const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry
 # height = 520   # launcher window height in pixels
 
 [theme]
-background_color    = "rgba(10, 10, 10, 1)"
-background_opacity  = 1.0
-font_size           = 14
-font_color          = "rgba(255, 255, 255, 1)"
-border_radius       = 14
-border_color        = "rgba(255,255,255,0.35)"
-border_thickness    = 1
-item_border_radius  = 12
-active_bg_color     = "rgba(40, 40, 40, 1)"
-active_border_color = "rgba(255,255,255,0.1)"
+background_color      = "rgba(10, 10, 10, 1)"
+background_opacity    = 1.0
+font_size             = 14
+font_color            = "rgba(255, 255, 255, 1)"
+font_family           = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+monospace_font_family = "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace"
+border_radius         = 14
+border_color          = "rgba(255,255,255,0.35)"
+border_thickness      = 1
+item_border_radius    = 12
+active_bg_color       = "rgba(40, 40, 40, 1)"
+active_border_color   = "rgba(255,255,255,0.1)"
 
 [triggers]
 camera       = '^cam$'
