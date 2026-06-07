@@ -145,7 +145,7 @@ fn build_results(query: &str) -> SearchResult {
                         ClipboardContent::Image { hash, .. } => !pinned_hashes.contains(hash),
                     };
                 }
-                entry.display_text().to_lowercase().contains(query)
+                crate::search_utils::smart_match(&entry.display_text(), query).is_some()
             })
             .map(|entry| match &entry.content {
                 ClipboardContent::Text { value } => {

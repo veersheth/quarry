@@ -5,6 +5,7 @@ mod config;
 pub mod executor;
 mod ipc_server;
 pub mod pins;
+mod search_utils;
 mod searchers;
 mod types;
 mod usage_tracker;

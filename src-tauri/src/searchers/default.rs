@@ -75,10 +75,15 @@ impl DefaultSearcher {
         let name = item.name.to_lowercase();
         let desc = item.description.as_deref().unwrap_or("").to_lowercase();
 
+        // Also try normalized matching for better results
+        let norm_name = crate::search_utils::normalize_text(&item.name);
+        let norm_query = crate::search_utils::normalize_text(query);
+
         let raw_name = MATCHER.fuzzy_match(&name, &q).unwrap_or(0);
         let raw_desc = MATCHER.fuzzy_match(&desc, &q).unwrap_or(0);
+        let raw_norm = MATCHER.fuzzy_match(&norm_name, &norm_query).unwrap_or(0);
 
-        if raw_name == 0 && raw_desc == 0 {
+        if raw_name == 0 && raw_desc == 0 && raw_norm == 0 {
             return 0;
         }
 
@@ -96,13 +101,28 @@ impl DefaultSearcher {
             } else {
                 1.0 // scattered fuzzy
             }
+        } else if !norm_query.is_empty() && raw_norm > 0 {
+            // Check normalized matches too
+            if norm_name == norm_query {
+                3.5 // slightly lower than exact original match
+            } else if norm_name.starts_with(&norm_query) {
+                2.2
+            } else if norm_name.split_whitespace().any(|w| w.starts_with(&norm_query)) {
+                1.6
+            } else if norm_name.contains(&norm_query) {
+                1.1
+            } else {
+                0.8 // normalized fuzzy gets lower priority
+            }
         } else {
             1.0
         };
 
         // Name counts double; desc is a tiebreaker only
-        let base = if raw_name > 0 {
-            (raw_name as f64 * name_quality * 2.0) as i64
+        // Use the best score from original or normalized matching
+        let best_name_score = raw_name.max(raw_norm);
+        let base = if best_name_score > 0 {
+            (best_name_score as f64 * name_quality * 2.0) as i64
         } else {
             raw_desc
         };
