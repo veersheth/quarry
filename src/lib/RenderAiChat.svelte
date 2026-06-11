@@ -7,6 +7,7 @@
   import rehypeSanitize from "rehype-sanitize";
   import rehypeStringify from "rehype-stringify";
   import { aiSubmitQuery } from "../stores/search";
+  import { addToast } from "../stores/toasts";
   import { onMount } from "svelte";
 
   const processor = unified()
@@ -42,6 +43,7 @@
     if (!response) return;
     await navigator.clipboard.writeText(response);
     copied = true;
+    addToast("AI response copied to clipboard", "success");
     setTimeout(() => (copied = false), 1800);
   }
 
@@ -572,6 +574,18 @@
     z-index: 1;
     user-select: text !important;
     -webkit-user-select: text !important;
+    cursor: text;
+  }
+
+  /* Enhanced text selection styling */
+  .inner :global(::selection) {
+    background: rgba(99,102,241,0.3);
+    color: inherit;
+  }
+
+  .inner :global(::-moz-selection) {
+    background: rgba(99,102,241,0.3);
+    color: inherit;
   }
 
   .inner.shake {
@@ -616,22 +630,30 @@
   }
 
   /* ── Markdown output ──────────────────────────────── */
-  .md :global(p)               { margin: 0 0 0.75rem; line-height: 1.65; }
+  .md {
+    cursor: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+  .md :global(p)               { margin: 0 0 0.75rem; line-height: 1.65; cursor: text; }
   .md :global(h1),
   .md :global(h2),
   .md :global(h3),
   .md :global(h4),
   .md :global(h5),
-  .md :global(h6)              { margin: 1rem 0 0.4rem; line-height: 1.3; font-weight: 600; }
+  .md :global(h6)              { margin: 1rem 0 0.4rem; line-height: 1.3; font-weight: 600; cursor: text; }
   .md :global(ul),
-  .md :global(ol)              { margin: 0 0 0.75rem 1.25rem; padding: 0; }
-  .md :global(li)              { margin-bottom: 0.25rem; line-height: 1.5; }
+  .md :global(ol)              { margin: 0 0 0.75rem 1.25rem; padding: 0; cursor: text; }
+  .md :global(li)              { margin-bottom: 0.25rem; line-height: 1.5; cursor: text; }
   .md :global(code) {
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     background: rgba(255,255,255,0.1);
     border-radius: 4px;
     padding: 0.1rem 0.3rem;
     font-size: 0.875em;
+    cursor: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
   .md :global(pre) {
     background: rgba(0,0,0,0.3);
@@ -639,8 +661,16 @@
     padding: 12px;
     overflow-x: auto;
     margin: 0 0 0.75rem;
+    cursor: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    position: relative;
   }
-  .md :global(pre code)        { background: none; padding: 0; font-size: 0.875em; }
+  .md :global(pre):hover {
+    background: rgba(0,0,0,0.4);
+    transition: background 0.15s ease;
+  }
+  .md :global(pre code)        { background: none; padding: 0; font-size: 0.875em; cursor: text; }
   .md :global(blockquote) {
     border-left: 3px solid #6366f1;
     margin: 0 0 0.75rem;
