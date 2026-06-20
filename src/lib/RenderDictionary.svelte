@@ -61,7 +61,7 @@
     .item-name {
       font-family: Georgia, serif;
       color: rgba(235, 214, 167, 1);
-      font-size: 2rem;
+      font-size: 2em;
     }
 
     .item-desc {
@@ -70,12 +70,12 @@
   }
 
   .item-name {
-    font-size: 1.1rem;
+    font-size: 1.1em;
     margin-bottom: 1rem;
   }
 
   .item-desc {
     opacity: 0.4;
-    font-size: 16px;
+    font-size: 1em;
   }
 </style>

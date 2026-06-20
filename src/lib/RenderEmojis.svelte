@@ -180,13 +180,13 @@
   }
 
   .emoji {
-    font-size: 2rem;
+    font-size: 2em;
     line-height: 1;
     margin-bottom: 6px;
   }
 
   .featured-item .emoji {
-    font-size: 1.5rem;
+    font-size: 1.5em;
     margin-bottom: 0;
   }
 </style>

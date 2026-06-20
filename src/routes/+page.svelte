@@ -493,7 +493,7 @@
   }
 
   .searcher-badge {
-    font-size: 0.72rem;
+    font-size: 0.80em;
     font-family: var(--q-mono);
     padding: 3px 9px;
     border-radius: 6px;
@@ -564,7 +564,7 @@
     gap: 10px;
     padding: 20px 30px 25px;
     border-radius: 999px;
-    font-size: 0.95rem;
+    font-size: 0.95em;
     letter-spacing: 0.01em;
     white-space: nowrap;
     z-index: 1000;

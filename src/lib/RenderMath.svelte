@@ -72,7 +72,7 @@
 
   .math-answer {
     background-color: var(--q-surface-subtle);
-    font-size: 46px;
+    font-size: 3em;
     color: var(--q-font-color);
     border-radius: 12px;
     width: 100%;
@@ -90,14 +90,14 @@
   }
 
   .math-query {
-    font-size: 18px;
+    font-size: 1.2em;
     letter-spacing: 0.2px;
     text-align: center;
     margin-bottom: 12px;
   }
 
   .math-desc {
-    font-size: 14px;
+    font-size: 0.93em;
     color: var(--q-text-muted);
     text-align: center;
   }

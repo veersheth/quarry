@@ -113,7 +113,7 @@
   }
 
   .result-item {
-    font-size: 1rem;
+    font-size: 1em;
     display: flex;
     align-items: center;
     width: auto;
@@ -161,7 +161,7 @@
     border-radius: 5px;
     background: hsl(var(--hue), 35%, 22%);
     color: hsl(var(--hue), 60%, 68%);
-    font-size: 0.65rem;
+    font-size: 0.65em;
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -217,7 +217,7 @@
   }
 
   .alt-hint {
-    font-size: 0.8rem;
+    font-size: 0.8em;
     opacity: 0.5;
     flex-shrink: 0;
     margin-left: 8px;

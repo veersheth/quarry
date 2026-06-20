@@ -393,7 +393,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    font-size: 1rem;
+    font-size: 1em;
   }
 
   .beam-rail {
@@ -608,7 +608,7 @@
   .error-badge {
     display: inline-flex;
     align-items: center;
-    font-size: 0.68rem;
+    font-size: 0.68em;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
@@ -621,7 +621,7 @@
   }
 
   .error-msg {
-    font-size: 0.8rem;
+    font-size: 0.8em;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     color: #fca5a5;
     margin: 0;
@@ -699,7 +699,7 @@
     gap: 10px;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.78rem;
+    font-size: 0.78em;
     opacity: 0.7;
     border-top: 1px solid rgba(255,255,255,0.08);
     flex-shrink: 0;
@@ -710,7 +710,7 @@
     border: 1px solid rgba(255,255,255,0.14);
     border-radius: 6px;
     padding: 3px 10px;
-    font-size: 0.72rem;
+    font-size: 0.72em;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     color: rgba(255,255,255,0.6);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -736,14 +736,14 @@
   .model {
     font-weight: 500;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.74rem;
+    font-size: 0.74em;
   }
 
   .link {
     text-decoration: none;
     color: #818cf8;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.74rem;
+    font-size: 0.74em;
   }
 
   .usage {
@@ -752,6 +752,6 @@
     border-radius: 20px;
     padding: 4px 10px;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.72rem;
+    font-size: 0.72em;
   }
 </style>

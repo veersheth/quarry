@@ -105,6 +105,7 @@
   onMount(async () => {
     appWindow = getCurrentWindow();
     config = await invoke<Config>("get_config");
+    document.documentElement.style.setProperty("--q-font-size", `${config.theme.font_size}px`);
   });
 
   function handleKeydown(e: KeyboardEvent) {
@@ -415,7 +416,7 @@
     background: #111113;
     color: rgba(255, 255, 255, 0.82);
     font-family: var(--q-sans);
-    font-size: 13px;
+    font-size: var(--q-font-size, 15px);
     overflow: hidden;
   }
 
@@ -435,7 +436,7 @@
     padding: 7px 14px 9px;
     border-radius: 6px 6px 0 0;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 1em;
     cursor: pointer;
     transition: color 0.1s;
     white-space: nowrap;
@@ -472,7 +473,7 @@
   .group { margin-bottom: 24px; }
 
   .group-label {
-    font-size: 11px;
+    font-size: 0.73em;
     font-weight: 500;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -492,7 +493,7 @@
     width: 168px;
     flex-shrink: 0;
     color: rgba(255, 255, 255, 0.42);
-    font-size: 13px;
+    font-size: 1em;
     line-height: 1.4;
   }
 
@@ -513,7 +514,7 @@
     padding: 6px 9px;
     color: rgba(255, 255, 255, 0.82);
     font-family: var(--q-mono);
-    font-size: 13px;
+    font-size: 1em;
     outline: none;
     transition: border-color 0.12s;
     min-width: 0;
@@ -550,7 +551,7 @@
 
   .mono-val {
     font-family: var(--q-mono);
-    font-size: 12px;
+    font-size: 0.8em;
     color: rgba(255, 255, 255, 0.32);
     width: 28px;
     text-align: right;
@@ -558,7 +559,7 @@
   }
 
   .unit {
-    font-size: 12px;
+    font-size: 0.8em;
     color: rgba(255, 255, 255, 0.22);
     flex-shrink: 0;
   }
@@ -569,7 +570,7 @@
   /* ── Hint ─────────────────────────────────────── */
   .hint {
     color: rgba(255, 255, 255, 0.25);
-    font-size: 12px;
+    font-size: 0.8em;
     line-height: 1.6;
     margin-bottom: 14px;
   }
@@ -581,7 +582,7 @@
     background: rgba(255, 255, 255, 0.07);
     padding: 1px 5px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 0.8em;
   }
 
   /* ── Triggers ─────────────────────────────────── */
@@ -589,7 +590,7 @@
 
   .trig-item { display: flex; flex-direction: column; gap: 4px; }
 
-  .trig-label { font-size: 12px; color: rgba(255, 255, 255, 0.35); }
+  .trig-label { font-size: 0.8em; color: rgba(255, 255, 255, 0.35); }
 
   /* ── Web searches ─────────────────────────────── */
   .ws-card {
@@ -611,7 +612,7 @@
     padding: 4px 0;
     color: rgba(255, 255, 255, 0.82);
     font-family: var(--q-sans);
-    font-size: 13px;
+    font-size: 1em;
     font-weight: 500;
     outline: none;
     transition: border-color 0.12s;
@@ -625,7 +626,7 @@
     border: 0.5px solid rgba(255, 80, 80, 0.2);
     color: rgba(255, 100, 100, 0.45);
     font-family: var(--q-sans);
-    font-size: 12px;
+    font-size: 0.8em;
     padding: 4px 9px;
     border-radius: 5px;
     cursor: pointer;
@@ -640,7 +641,7 @@
     border: 0.5px dashed rgba(255, 255, 255, 0.12);
     color: rgba(255, 255, 255, 0.35);
     font-family: var(--q-sans);
-    font-size: 13px;
+    font-size: 1em;
     padding: 9px;
     border-radius: 7px;
     width: 100%;
@@ -652,7 +653,7 @@
   .add-btn:hover { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.6); }
 
   .subsec {
-    font-size: 11px;
+    font-size: 0.73em;
     font-weight: 500;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -671,7 +672,7 @@
     flex-shrink: 0;
   }
 
-  .check-label { font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+  .check-label { font-size: 1em; color: rgba(255, 255, 255, 0.55); }
 
   /* ── General ──────────────────────────────────── */
   .toggle-btn {
@@ -679,7 +680,7 @@
     border: 0.5px solid rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.4);
     font-family: var(--q-mono);
-    font-size: 12px;
+    font-size: 0.8em;
     padding: 0 10px;
     height: 30px;
     border-radius: 6px;
@@ -706,7 +707,7 @@
     border: 0.5px solid rgba(255, 255, 255, 0.15);
     color: rgba(255, 255, 255, 0.8);
     font-family: var(--q-sans);
-    font-size: 13px;
+    font-size: 1em;
     font-weight: 500;
     padding: 6px 20px;
     border-radius: 7px;
@@ -737,7 +738,7 @@
     gap: 10px;
     padding: 10px 18px;
     border-radius: 999px;
-    font-size: 13px;
+    font-size: 1em;
     white-space: nowrap;
     color: rgba(255, 255, 255, 0.7);
     background: rgba(5, 5, 5, 0.6);

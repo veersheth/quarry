@@ -380,7 +380,7 @@
   }
 
   .value-content {
-    font-size: 16px;
+    font-size: 1.05em;
     font-weight: 500;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }

@@ -199,7 +199,7 @@
     color: rgba(255, 255, 255, 0.2);
     font-family: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono",
       monospace;
-    font-size: 10px;
+    font-size: 0.67em;
     font-weight: 600;
     letter-spacing: 0.1em;
     padding: 3px 8px;

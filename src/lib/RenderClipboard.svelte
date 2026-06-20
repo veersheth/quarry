@@ -597,7 +597,7 @@
   }
 
   .icon-pill {
-    font-size: 0.6rem;
+    font-size: 0.6em;
     font-family: var(--q-mono);
     padding: 2px 5px;
     border-radius: 5px;
@@ -624,7 +624,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.95rem;
+    font-size: 0.95em;
   }
 
   .info-panel {
@@ -659,7 +659,7 @@
     height: 100%;
     overflow-y: auto;
     padding: 16px 20px;
-    font-size: 0.85rem;
+    font-size: 0.85em;
     line-height: 1.7;
     color: var(--q-text-secondary);
     white-space: pre-wrap;
@@ -680,7 +680,7 @@
   .view-tab {
     flex: 1;
     padding: 5px 0;
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: var(--q-text-dim);
     background: transparent;
     border: 1px solid transparent;
@@ -723,7 +723,7 @@
 
   .color-value {
     font-family: var(--q-mono);
-    font-size: 1.1rem;
+    font-size: 1.1em;
     background: var(--q-surface-dark);
     padding: 8px 18px;
     border-radius: 12px;
@@ -774,7 +774,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
+    font-size: 2.5em;
     color: #fff;
     background: radial-gradient(circle, rgba(0,0,0,0.55) 36%, transparent 70%);
     pointer-events: none;
@@ -796,7 +796,7 @@
   }
 
   .url-hostname {
-    font-size: 1.05rem;
+    font-size: 1.05em;
     font-weight: 600;
     color: var(--q-font-color);
   }
@@ -810,7 +810,7 @@
   }
 
   .url-open {
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: #fff;
     text-decoration: underline;
     opacity: 0.6;
@@ -830,10 +830,10 @@
     padding: 28px 20px;
   }
 
-  .email-icon { font-size: 2.2rem; opacity: 0.3; }
+  .email-icon { font-size: 2.2em; opacity: 0.3; }
 
   .email-address {
-    font-size: 1rem;
+    font-size: 1em;
     font-family: var(--q-mono);
     color: #c084fc;
     word-break: break-all;
@@ -851,7 +851,7 @@
   .json-preview {
     flex: 1;
     font-family: var(--q-mono);
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: #fb923c;
     user-select: text !important;
     -webkit-user-select: text !important;
@@ -876,7 +876,7 @@
   .code-preview {
     flex: 1;
     font-family: var(--q-mono);
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: #facc15;
     user-select: text !important;
     -webkit-user-select: text !important;
@@ -907,7 +907,7 @@
     -webkit-user-select: text !important;
     <!-- font-family: var(--q-mono); -->
     color: #ffb5bc;
-    font-size: 0.95rem;
+    font-size: 0.95em;
     overflow: auto;
   }
 
@@ -922,7 +922,7 @@
   }
 
   .type-badge {
-    font-size: 0.72rem;
+    font-size: 0.72em;
     padding: 2px 8px;
     border-radius: 6px;
     text-transform: capitalize;
@@ -940,7 +940,7 @@
   .type-badge.type-code      { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
 
   .stat-chip {
-    font-size: 0.72rem;
+    font-size: 0.72em;
     font-family: var(--q-mono);
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
@@ -951,7 +951,7 @@
 
   .timestamp {
     margin-left: auto;
-    font-size: 0.78rem;
+    font-size: 0.78em;
     opacity: 0.35;
     font-family: var(--q-mono);
     white-space: nowrap;

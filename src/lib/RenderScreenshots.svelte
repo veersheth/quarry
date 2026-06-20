@@ -137,7 +137,7 @@
   }
 
   .thumb-placeholder {
-    font-size: 0.6rem;
+    font-size: 0.6em;
     color: var(--q-text-placeholder);
     letter-spacing: 0.1em;
   }
@@ -147,7 +147,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.75rem;
+    font-size: 0.75em;
     color: var(--q-text-dim);
     text-align: center;
   }
@@ -181,7 +181,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.85rem;
+    font-size: 0.85em;
     color: var(--q-text-empty);
     padding: 40px 0;
   }

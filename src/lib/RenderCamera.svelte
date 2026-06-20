@@ -146,7 +146,7 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    font-size: 11px;
+    font-size: 0.73em;
     font-weight: 600;
     letter-spacing: 0.02em;
   }
@@ -180,7 +180,7 @@
   }
   .error {
     color: rgba(255, 255, 255, 0.4);
-    font-size: 13px;
+    font-size: 0.87em;
     margin: auto;
   }
 </style>
