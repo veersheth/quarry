@@ -1,9 +1,36 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
+
+  // Cache of hash → resolved data URL for clipboard image thumbnails
+  let thumbnails: Record<string, string> = {};
+
+  function imageHash(item: { thumbnail?: string }): string | null {
+    return item.thumbnail?.startsWith("hash:") ? item.thumbnail.slice(5) : null;
+  }
+
+  function thumbSrc(item: { thumbnail?: string }): string | null {
+    const hash = imageHash(item);
+    if (hash) return thumbnails[hash] ?? null;
+    return item.thumbnail ?? null;
+  }
+
+  // Fetch thumbnails for any image items not yet in cache
+  $: {
+    for (const item of listitems) {
+      const hash = imageHash(item);
+      if (hash && !thumbnails[hash]) {
+        invoke<string | null>("get_clipboard_thumbnail", { hash })
+          .then((data) => {
+            if (data) thumbnails = { ...thumbnails, [hash]: data };
+          })
+          .catch(() => {});
+      }
+    }
+  }
 
   function iconSrc(icon: string): string {
     return icon.startsWith("/") ? convertFileSrc(icon) : icon;
@@ -24,7 +51,7 @@
     | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
-  $: activeColor = activeItem?.thumbnail
+  $: activeColor = (activeItem && (imageHash(activeItem) ? thumbnails[imageHash(activeItem)!] : activeItem.thumbnail))
     ? null
     : getValidColor(activeItem?.name);
   $: contentType = activeItem
@@ -172,7 +199,7 @@
     | "text";
 
   function detectType(item: (typeof listitems)[0]): ContentType {
-    if (item.thumbnail) return "image";
+    if (item.thumbnail) return "image"; // truthy for both "hash:..." and full data URLs
     const v = item.name?.trim() ?? "";
     if (getValidColor(v)) return "color";
     if (isURL(v)) return "url";
@@ -353,7 +380,7 @@
       >
         <div class="type-icon">
           {#if item.thumbnail}
-            <img class="icon-thumb" src={item.thumbnail} alt="" />
+            <img class="icon-thumb" src={thumbSrc(item) ?? ""} alt="" />
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
@@ -425,7 +452,7 @@
           {:else}
             <img
               class="image-preview"
-              src={activeItem.thumbnail}
+              src={thumbSrc(activeItem) ?? ""}
               alt={activeItem.name}
             />
           {/if}
@@ -515,7 +542,7 @@
         {/if}
       </div>
 
-      <div class="metadata">
+      <div class="footer">
         <span class="type-badge type-{contentType}">{contentType}</span>
         {#each footerMeta as meta}
           <span class="stat-chip">{meta}</span>
@@ -911,8 +938,9 @@
     overflow: auto;
   }
 
-  .metadata {
+  .footer {
     padding: 8px 16px;
+    font-size: 1.1rem;
     border-top: 1px solid var(--q-surface-dark);
     display: flex;
     align-items: center;

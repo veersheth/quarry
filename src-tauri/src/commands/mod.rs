@@ -250,6 +250,12 @@ pub fn save_config(config: config::Config) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_clipboard_thumbnail(hash: String) -> Option<String> {
+    let hash: u64 = hash.parse().ok()?;
+    CLIPBOARD_MANAGER.get_thumbnail(hash)
+}
+
+#[tauri::command]
 pub fn clear_clipboard_history() -> Result<(), String> {
     CLIPBOARD_MANAGER.clear_history();
     Ok(())

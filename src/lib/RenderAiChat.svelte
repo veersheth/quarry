@@ -363,7 +363,6 @@
       </div>
     </div>
 
-    <!-- ── Footer ─────────────────────────────────── -->
     {#if key}
       <div class="footer">
         <span class="model">{MODEL.name}</span>
@@ -699,7 +698,7 @@
     gap: 10px;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.78em;
+    font-size: 1.2em;
     opacity: 0.7;
     border-top: 1px solid rgba(255,255,255,0.08);
     flex-shrink: 0;

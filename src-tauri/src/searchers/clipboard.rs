@@ -186,7 +186,7 @@ fn build_results(query: &str) -> SearchResult {
                     item
                 }
 
-                ClipboardContent::Image { thumbnail, width, height, ocr_text, hash, .. } => {
+                ClipboardContent::Image { width, height, ocr_text, hash, .. } => {
                     let hash_str = hash.to_string();
                     let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
                     let pin_action = if is_pinned {
@@ -205,7 +205,7 @@ fn build_results(query: &str) -> SearchResult {
                     let mut actions = vec![
                         Action::new("Copy", ActionData::RunFunction {
                             function_name: "copy_clipboard_image".into(),
-                            params: vec![hash_str],
+                            params: vec![hash_str.clone()],
                         }),
                     ];
                     if let Some(text) = ocr_text {
@@ -225,7 +225,7 @@ fn build_results(query: &str) -> SearchResult {
 
                     let mut item = ResultItem::new(format!("Image {}×{}", width, height), actions)
                         .description(format_timestamp(entry.timestamp))
-                        .thumbnail(thumbnail.clone());
+                        .thumbnail(format!("hash:{}", hash_str));
                     if let Some(text) = ocr_text {
                         item = item.ocr_text(text.clone());
                     }
