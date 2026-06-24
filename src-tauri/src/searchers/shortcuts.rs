@@ -48,14 +48,21 @@ fn all_shortcuts() -> Vec<ResultItem> {
         it.icon = Some("icon-transparent.png".into());
         items.push(it);
 
-        // Add shortcut to scripts directory
-        let mut scripts_it = folder_item(
-            "Open Scripts Folder",
-            "Open ~/.config/quarry/scripts - place executable scripts here",
-            cfg.join("quarry/scripts"),
-        );
-        scripts_it.icon = Some("icons/folder.png".into());
-        items.push(scripts_it);
+        // Add shortcut to scripts directory (respects config override)
+        let scripts_path = {
+            let configured = crate::CONFIG.read().unwrap().scripts.path.clone();
+            if let Some(rest) = configured.strip_prefix("~/") {
+                dirs::home_dir().map(|h| h.join(rest))
+            } else {
+                Some(std::path::PathBuf::from(&configured))
+            }
+        };
+        if let Some(sp) = scripts_path {
+            let desc = format!("Open {} — place executable scripts here", sp.to_string_lossy());
+            let mut scripts_it = folder_item("Open Scripts Folder", &desc, sp);
+            scripts_it.icon = Some("icons/folder.png".into());
+            items.push(scripts_it);
+        }
     }
 
     // ── Trash ─────────────────────────────────────────────────────────────

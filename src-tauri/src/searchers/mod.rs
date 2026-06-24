@@ -20,6 +20,7 @@ pub mod settings;
 pub mod timer;
 pub mod screenshots;
 pub mod shortcuts;
+pub mod scripts;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;

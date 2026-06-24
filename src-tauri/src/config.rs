@@ -11,6 +11,7 @@ pub struct Config {
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
     pub screenshots:   ScreenshotsConfig,
+    pub scripts:       ScriptsConfig,
     /// Groq API key for AI chat. Leave empty to be prompted on first use.
     #[serde(default)]
     pub groq_api_key:  String,
@@ -25,6 +26,7 @@ impl Default for Config {
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
             screenshots:   ScreenshotsConfig::default(),
+            scripts:       ScriptsConfig::default(),
             groq_api_key:  String::new(),
         }
     }
@@ -61,6 +63,23 @@ pub struct ScreenshotsConfig {
 impl Default for ScreenshotsConfig {
     fn default() -> Self {
         Self { path: "~/Pictures/Screenshots".into() }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scripts
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScriptsConfig {
+    /// Directory that holds user executable scripts. Defaults to ~/.config/quarry/scripts.
+    pub path: String,
+}
+
+impl Default for ScriptsConfig {
+    fn default() -> Self {
+        Self { path: "~/.config/quarry/scripts".into() }
     }
 }
 
@@ -194,6 +213,7 @@ pub struct TriggerConfig {
     pub timer:        String,
     pub screenshots:  String,
     pub shortcuts:    String,
+    pub scripts:      String,
 }
 
 impl Default for TriggerConfig {
@@ -220,6 +240,7 @@ impl Default for TriggerConfig {
             timer:        r"^timer\s*(.*)$".into(),
             screenshots:  r"^ss\s*(.*)$".into(),
             shortcuts:    r"^q\s*(.*)$".into(),
+            scripts:      r"^sc\s*(.*)$".into(),
         }
     }
 }
@@ -350,9 +371,13 @@ url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[
 ai           = '^ai\s+(.*)$'
 time         = '^time in\s(.*)$'
 shortcuts    = '^q\s*(.*)$'
+scripts      = '^sc\s*(.*)$'
 
 [screenshots]
 # path = "~/Pictures/Screenshots"   # uncomment to override the default
+
+[scripts]
+# path = "~/.config/quarry/scripts"   # uncomment to override the default scripts folder
 
 [default_search]
 web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]

@@ -21,7 +21,7 @@ const SKIP_DIRS: &[&str] = &[
     "bin", "obj", ".cache", "__MACOSX",
 ];
 
-const SCRIPT_EXTENSIONS: &[&str] = &[
+pub(crate) const SCRIPT_EXTENSIONS: &[&str] = &[
     "sh", "bash", "zsh", "fish",
     "py",
     "rb",
@@ -315,12 +315,15 @@ impl FileSearcher {
     }
 }
 
-/// Gets the user scripts directory, creating it if it doesn't exist.
+/// Gets the user scripts directory from config, creating it if it doesn't exist.
 fn get_user_scripts_dir() -> Option<PathBuf> {
-    let scripts_dir = dirs::home_dir()?
-        .join(".config/quarry/scripts");
+    let configured = crate::CONFIG.read().ok()?.scripts.path.clone();
+    let scripts_dir = if let Some(rest) = configured.strip_prefix("~/") {
+        dirs::home_dir()?.join(rest)
+    } else {
+        PathBuf::from(&configured)
+    };
 
-    // Create the directory if it doesn't exist
     if !scripts_dir.exists() {
         if let Err(e) = fs::create_dir_all(&scripts_dir) {
             eprintln!("Failed to create scripts directory: {}", e);
