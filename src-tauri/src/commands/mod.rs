@@ -148,14 +148,6 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
     let mut search_result = result;
 
-    ACTION_REGISTRY.clear();
-    for (i, item) in search_result.results.iter_mut().enumerate() {
-        for (j, action) in item.actions.iter_mut().enumerate() {
-            action.id = format!("action_{}_{}_{}", my_seq, i, j);
-            ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
-        }
-    }
-
     if !matches!(search_result.result_type, crate::types::ResultType::Clipboard | crate::types::ResultType::Grid) {
         if let Ok(history) = USAGE_HISTORY.read() {
             search_result.results = boost_results_by_usage(search_result.results, &query, &history);
@@ -164,6 +156,14 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
         return None;
+    }
+
+    ACTION_REGISTRY.clear();
+    for (i, item) in search_result.results.iter_mut().enumerate() {
+        for (j, action) in item.actions.iter_mut().enumerate() {
+            action.id = format!("action_{}_{}_{}", my_seq, i, j);
+            ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
+        }
     }
 
     Some(search_result)
