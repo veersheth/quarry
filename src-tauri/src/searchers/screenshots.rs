@@ -238,6 +238,7 @@ impl ScreenshotsSearcher {
 }
 
 impl SearchProvider for ScreenshotsSearcher {
+    fn name(&self) -> String { "screenshots".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let dir = Self::dir();
         let q = query.trim();
@@ -293,7 +294,8 @@ impl SearchProvider for ScreenshotsSearcher {
         SearchResult {
             results,
             result_type: ResultType::Screenshots,
-        }
+                    ..Default::default()
+}
     }
 }
 

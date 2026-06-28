@@ -15,6 +15,7 @@ use crate::searchers::camera::CameraSearcher;
 use crate::searchers::settings::SettingsSearcher;
 use crate::searchers::screenshots::ScreenshotsSearcher;
 use crate::searchers::shortcuts::ShortcutsSearcher;
+use crate::searchers::scripts::ScriptsSearcher;
 use crate::searchers::timer::TimerSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
@@ -84,6 +85,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.timer, "timer", TimerSearcher);
     push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
     push!(v, &t.shortcuts,   "shortcuts",   ShortcutsSearcher);
+    push!(v, &t.scripts,     "scripts",     ScriptsSearcher);
 
     // Detect raw pasted color values without requiring the "color" prefix.
     push!(
@@ -129,7 +131,9 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
                 let rest = caps.get(1).map_or("", |m| m.as_str());
-                result = Some(searcher.search(rest, &app));
+                let mut r = searcher.search(rest, &app);
+                r.searcher = searcher.name().to_string();
+                result = Some(r);
                 break;
             }
         }
@@ -144,14 +148,6 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
     let mut search_result = result;
 
-    ACTION_REGISTRY.clear();
-    for (i, item) in search_result.results.iter_mut().enumerate() {
-        for (j, action) in item.actions.iter_mut().enumerate() {
-            action.id = format!("action_{}_{}_{}", my_seq, i, j);
-            ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
-        }
-    }
-
     if !matches!(search_result.result_type, crate::types::ResultType::Clipboard | crate::types::ResultType::Grid) {
         if let Ok(history) = USAGE_HISTORY.read() {
             search_result.results = boost_results_by_usage(search_result.results, &query, &history);
@@ -160,6 +156,14 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
         return None;
+    }
+
+    ACTION_REGISTRY.clear();
+    for (i, item) in search_result.results.iter_mut().enumerate() {
+        for (j, action) in item.actions.iter_mut().enumerate() {
+            action.id = format!("action_{}_{}_{}", my_seq, i, j);
+            ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
+        }
     }
 
     Some(search_result)
@@ -211,6 +215,11 @@ pub fn exec_func(name: String, params: Vec<String>, app: tauri::AppHandle) -> Re
 }
 
 #[tauri::command]
+pub fn take_pending_query() -> Option<String> {
+    crate::PENDING_QUERY.lock().ok().and_then(|mut slot| slot.take())
+}
+
+#[tauri::command]
 pub fn get_theme() -> config::ThemeConfig {
     CONFIG.read().unwrap().theme.clone()
 }
@@ -240,6 +249,12 @@ pub fn save_config(config: config::Config) -> Result<(), String> {
     }
     reload_triggers();
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_clipboard_thumbnail(hash: String) -> Option<String> {
+    let hash: u64 = hash.parse().ok()?;
+    CLIPBOARD_MANAGER.get_thumbnail(hash)
 }
 
 #[tauri::command]

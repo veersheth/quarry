@@ -37,6 +37,7 @@ fn make_item(label: String, url: String, description: impl Into<String>) -> Resu
 }
 
 impl SearchProvider for URLSearcher {
+    fn name(&self) -> String { String::new() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
@@ -78,7 +79,8 @@ impl SearchProvider for URLSearcher {
             return SearchResult {
                 results,
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         let url = normalise_url(q);
@@ -109,6 +111,7 @@ impl SearchProvider for URLSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }

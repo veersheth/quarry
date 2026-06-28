@@ -8,6 +8,7 @@ use chrono::{Local, NaiveDate, Datelike, Duration, Weekday};
 pub struct MathSearcher;
 
 impl SearchProvider for MathSearcher {
+    fn name(&self) -> String { "math".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let expr = query.trim();
         let mut results = Vec::new();
@@ -22,7 +23,7 @@ impl SearchProvider for MathSearcher {
             results.push(item);
         }
 
-        SearchResult { results, result_type: ResultType::Math }
+        SearchResult { results, result_type: ResultType::Math, ..Default::default() }
     }
 }
 

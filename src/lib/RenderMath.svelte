@@ -1,6 +1,7 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
   import type { ResultItem } from "../stores/search";
+  import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
   function handleClick(item: ResultItem) {
@@ -35,7 +36,7 @@
       class="result-item"
       class:active={index === $activeIndex}
       data-active={index === $activeIndex}
-      on:mouseenter={() => activeIndex.set(index)}
+      on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
       on:click={() => handleClick(item)}
       on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
@@ -71,7 +72,7 @@
 
   .math-answer {
     background-color: var(--q-surface-subtle);
-    font-size: 46px;
+    font-size: 3em;
     color: var(--q-font-color);
     border-radius: 12px;
     width: 100%;
@@ -89,14 +90,14 @@
   }
 
   .math-query {
-    font-size: 18px;
+    font-size: 1.2em;
     letter-spacing: 0.2px;
     text-align: center;
     margin-bottom: 12px;
   }
 
   .math-desc {
-    font-size: 14px;
+    font-size: 0.93em;
     color: var(--q-text-muted);
     text-align: center;
   }

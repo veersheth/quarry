@@ -7,9 +7,11 @@ use std::path::PathBuf;
 pub struct Config {
     pub triggers:      TriggerConfig,
     pub theme:         ThemeConfig,
+    pub window:        WindowConfig,
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
     pub screenshots:   ScreenshotsConfig,
+    pub scripts:       ScriptsConfig,
     /// Groq API key for AI chat. Leave empty to be prompted on first use.
     #[serde(default)]
     pub groq_api_key:  String,
@@ -20,11 +22,30 @@ impl Default for Config {
         Self {
             triggers:      TriggerConfig::default(),
             theme:         ThemeConfig::default(),
+            window:        WindowConfig::default(),
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
             screenshots:   ScreenshotsConfig::default(),
+            scripts:       ScriptsConfig::default(),
             groq_api_key:  String::new(),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Window
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WindowConfig {
+    pub width:  u32,
+    pub height: u32,
+}
+
+impl Default for WindowConfig {
+    fn default() -> Self {
+        Self { width: 1200, height: 700 }
     }
 }
 
@@ -42,6 +63,23 @@ pub struct ScreenshotsConfig {
 impl Default for ScreenshotsConfig {
     fn default() -> Self {
         Self { path: "~/Pictures/Screenshots".into() }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scripts
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScriptsConfig {
+    /// Directory that holds user executable scripts. Defaults to ~/.config/quarry/scripts.
+    pub path: String,
+}
+
+impl Default for ScriptsConfig {
+    fn default() -> Self {
+        Self { path: "~/.config/quarry/scripts".into() }
     }
 }
 
@@ -114,31 +152,35 @@ impl Default for DefaultSearchConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ThemeConfig {
-    pub background_color:    String,
-    pub background_opacity:  f32,
-    pub font_size:           u32,
-    pub font_color:          String,
-    pub border_radius:       u32,
-    pub border_color:        String,
-    pub border_thickness:    u32,
-    pub item_border_radius:  u32,
-    pub active_bg_color:     String,
-    pub active_border_color: String,
+    pub background_color:      String,
+    pub background_opacity:    f32,
+    pub font_size:             u32,
+    pub font_color:            String,
+    pub font_family:           String,
+    pub monospace_font_family: String,
+    pub border_radius:         u32,
+    pub border_color:          String,
+    pub border_thickness:      u32,
+    pub item_border_radius:    u32,
+    pub active_bg_color:       String,
+    pub active_border_color:   String,
 }
 
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
-            background_color:    "rgba(10, 10, 10, 1)".into(),
-            background_opacity:  1.0,
-            font_size:           14,
-            font_color:          "rgba(255, 255, 255, 1)".into(),
-            border_radius:       14,
-            border_color:        "rgba(255,255,255,0.35)".into(),
-            border_thickness:    1,
-            item_border_radius:  12,
-            active_bg_color:     "rgba(40, 40, 40, 1)".into(),
-            active_border_color: "rgba(255,255,255,0.1)".into(),
+            background_color:      "rgba(10, 10, 10, 1)".into(),
+            background_opacity:    1.0,
+            font_size:             14,
+            font_color:            "rgba(255, 255, 255, 1)".into(),
+            font_family:           "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif".into(),
+            monospace_font_family: "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace".into(),
+            border_radius:         14,
+            border_color:          "rgba(255,255,255,0.35)".into(),
+            border_thickness:      1,
+            item_border_radius:    12,
+            active_bg_color:       "rgba(40, 40, 40, 1)".into(),
+            active_border_color:   "rgba(255,255,255,0.1)".into(),
         }
     }
 }
@@ -171,6 +213,7 @@ pub struct TriggerConfig {
     pub timer:        String,
     pub screenshots:  String,
     pub shortcuts:    String,
+    pub scripts:      String,
 }
 
 impl Default for TriggerConfig {
@@ -197,6 +240,7 @@ impl Default for TriggerConfig {
             timer:        r"^timer\s*(.*)$".into(),
             screenshots:  r"^ss\s*(.*)$".into(),
             shortcuts:    r"^q\s*(.*)$".into(),
+            scripts:      r"^sc\s*(.*)$".into(),
         }
     }
 }
@@ -292,17 +336,23 @@ const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry
 
 # groq_api_key = ""   # Add your Groq API key here to enable AI chat (ai <query>)
 
+# [window]
+# width  = 780   # launcher window width in pixels
+# height = 520   # launcher window height in pixels
+
 [theme]
-background_color    = "rgba(10, 10, 10, 1)"
-background_opacity  = 1.0
-font_size           = 14
-font_color          = "rgba(255, 255, 255, 1)"
-border_radius       = 14
-border_color        = "rgba(255,255,255,0.35)"
-border_thickness    = 1
-item_border_radius  = 12
-active_bg_color     = "rgba(40, 40, 40, 1)"
-active_border_color = "rgba(255,255,255,0.1)"
+background_color      = "rgba(10, 10, 10, 1)"
+background_opacity    = 1.0
+font_size             = 14
+font_color            = "rgba(255, 255, 255, 1)"
+font_family           = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+monospace_font_family = "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace"
+border_radius         = 14
+border_color          = "rgba(255,255,255,0.35)"
+border_thickness      = 1
+item_border_radius    = 12
+active_bg_color       = "rgba(40, 40, 40, 1)"
+active_border_color   = "rgba(255,255,255,0.1)"
 
 [triggers]
 camera       = '^cam$'
@@ -321,9 +371,13 @@ url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[
 ai           = '^ai\s+(.*)$'
 time         = '^time in\s(.*)$'
 shortcuts    = '^q\s*(.*)$'
+scripts      = '^sc\s*(.*)$'
 
 [screenshots]
 # path = "~/Pictures/Screenshots"   # uncomment to override the default
+
+[scripts]
+# path = "~/.config/quarry/scripts"   # uncomment to override the default scripts folder
 
 [default_search]
 web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]

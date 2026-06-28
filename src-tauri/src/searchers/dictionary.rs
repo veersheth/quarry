@@ -39,6 +39,7 @@ struct Phonetic {
 }
 
 impl SearchProvider for DictionarySearcher {
+    fn name(&self) -> String { "dictionary".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let word = query.trim();
 
@@ -46,7 +47,8 @@ impl SearchProvider for DictionarySearcher {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::Markdown,
-            };
+                            ..Default::default()
+};
         }
 
         if let Some(cached) = DICT_CACHE.get(word) {
@@ -66,7 +68,8 @@ impl SearchProvider for DictionarySearcher {
                     .description("# Error\n\nCheck your internet connection."),
                 ],
                 result_type: ResultType::Markdown,
-            },
+                            ..Default::default()
+},
         };
 
         let definitions: Vec<DictionaryResponse> = match response.json() {
@@ -80,7 +83,8 @@ impl SearchProvider for DictionarySearcher {
                     .description(format!("# Not Found\n\n'{}' was not found in the dictionary.", word)),
                 ],
                 result_type: ResultType::Markdown,
-            },
+                            ..Default::default()
+},
         };
 
         let mut results = vec![];
@@ -114,7 +118,8 @@ impl SearchProvider for DictionarySearcher {
         let result = SearchResult {
             results,
             result_type: ResultType::Markdown,
-        };
+                    ..Default::default()
+};
 
         DICT_CACHE.insert(word.to_string(), result.clone());
         result

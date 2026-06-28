@@ -4,7 +4,7 @@ import { execute } from "./searcher";
 import { get } from "svelte/store";
 import { tick } from "svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { query, resultType, aiSubmitQuery, contextMenu, closeContextMenu } from "../stores/search";
+import { query, resultType, aiSubmitQuery, contextMenu, closeContextMenu, modalStore, closeModal } from "../stores/search";
 
 function deleteWordFromEnd(str: string): string {
   let pos = str.length;
@@ -29,6 +29,33 @@ export function handleKeydown(
   aiPrefix: string = "ai ",
 ) {
   const isAiMode = get(resultType) === "Ai";
+
+  // --- Modal is open: intercept all keys ---
+  const modal = get(modalStore);
+  if (modal.open) {
+    event.preventDefault();
+    const count = modal.buttons.length;
+    if (event.key === "Escape") {
+      closeModal();
+      return;
+    }
+    if (event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey) || (event.key === "p" && event.ctrlKey)) {
+      modalStore.update(s => ({ ...s, activeIndex: s.activeIndex === 0 ? count - 1 : s.activeIndex - 1 }));
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "Tab" || (event.key === "n" && event.ctrlKey)) {
+      modalStore.update(s => ({ ...s, activeIndex: (s.activeIndex + 1) % count }));
+      return;
+    }
+    if (event.key === "Enter") {
+      const btn = modal.buttons[modal.activeIndex];
+      if (btn?.shell) invoke("exec_shell", { command: btn.shell }).then(() => closeModal());
+      else closeModal();
+      return;
+    }
+    return;
+  }
+
   const menu = get(contextMenu);
 
   // --- Context menu is open: intercept all keys ---

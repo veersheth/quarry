@@ -16,8 +16,19 @@ fn clean_exec_field(exec: &str) -> String {
 }
 
 fn resolve_icon(icon_name: &str) -> Option<String> {
-    let path = freedesktop_icons::lookup(icon_name).with_size(64).find()?;
-    path.to_str().map(|s| s.to_string())
+    if icon_name.starts_with('/') {
+        return if std::path::Path::new(icon_name).exists() {
+            Some(icon_name.to_string())
+        } else {
+            None
+        };
+    }
+
+    freedesktop_icons::lookup(icon_name)
+        .with_size(64)
+        .with_theme("hicolor")
+        .find()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
 }
 
 #[derive(Clone)]
@@ -124,8 +135,23 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
         actions.push(a);
     }
 
-    actions.push(Action::new("Run as Administrator", ActionData::ShellCommand {
-        command: format!("pkexec {}", app.exec),
+    actions.push(Action::new("Run as Administrator", ActionData::LaunchApp {
+        executable: "pkexec".to_string(),
+        args: {
+            let display   = std::env::var("DISPLAY").unwrap_or_default();
+            let wayland   = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
+            let xdg_rt    = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
+            let path      = std::env::var("PATH").unwrap_or_default();
+            let mut a = vec![
+                "env".to_string(),
+                format!("DISPLAY={}", display),
+                format!("WAYLAND_DISPLAY={}", wayland),
+                format!("XDG_RUNTIME_DIR={}", xdg_rt),
+                format!("PATH={}", path),
+            ];
+            a.extend(app.exec.split_whitespace().map(|s| s.to_string()));
+            a
+        },
     }));
     actions.push(Action::new("Copy Command", ActionData::CopyToClipboard { text: app.exec.clone() }));
     actions.push(Action::new("Copy Executable Path", ActionData::CopyToClipboard { text: executable }));
@@ -147,6 +173,7 @@ fn fuzzy_score_app(matcher: &SkimMatcherV2, app: &CachedApp, query: &str) -> i64
 }
 
 impl SearchProvider for AppSearcher {
+    fn name(&self) -> String { "apps".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let guard = APP_CACHE.read().unwrap_or_else(|e| e.into_inner());
 
@@ -180,11 +207,11 @@ impl SearchProvider for AppSearcher {
                 remaining.sort_unstable_by(|a, b| a.name.cmp(&b.name));
                 results.extend(remaining);
 
-                return SearchResult { results, result_type: ResultType::List };
+                return SearchResult { results, result_type: ResultType::List, ..Default::default() };
             }
 
             let results = guard.iter().map(build_result_item).collect();
-            return SearchResult { results, result_type: ResultType::List };
+            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
         }
 
         let matcher = SkimMatcherV2::default().ignore_case();
@@ -202,6 +229,6 @@ impl SearchProvider for AppSearcher {
             .map(|(app, _)| build_result_item(app))
             .collect();
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

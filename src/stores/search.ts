@@ -20,6 +20,7 @@ export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard
 export type SearchResult = {
   results: ResultItem[];
   result_type: ResultType;
+  searcher?: string;
 };
 
 export type ContextMenuState = {
@@ -31,11 +32,31 @@ export type ContextMenuState = {
   searchQuery: string;
 };
 
+export const mouseHasMoved = writable(false);
+
+export type ModalButton = { label: string; kind?: string; shell?: string };
+export type ModalStoreState = {
+  open: boolean;
+  body: string;
+  buttons: ModalButton[];
+  activeIndex: number;
+};
+export const modalStore = writable<ModalStoreState>({
+  open: false, body: "", buttons: [], activeIndex: 0,
+});
+export function openModal(body: string, buttons: ModalButton[] = [{ label: "Dismiss" }]) {
+  modalStore.set({ open: true, body, buttons, activeIndex: 0 });
+}
+export function closeModal() {
+  modalStore.update(s => ({ ...s, open: false }));
+}
+
 export const query = writable("");
 export const resultItems = writable<ResultItem[]>([]);
 export const resultType = writable<ResultType>("List");
 export const activeIndex = writable(0);
 export const aiSubmitQuery = writable<string>("");
+export const searcherName = writable<string>("");
 
 export const contextMenu = writable<ContextMenuState>({
   open: false,

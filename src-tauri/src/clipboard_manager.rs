@@ -180,6 +180,16 @@ impl ClipboardManager {
         self.generation.load(Ordering::Relaxed)
     }
 
+    pub fn get_thumbnail(&self, hash: u64) -> Option<String> {
+        let hist = self.history.lock().ok()?;
+        hist.iter().find_map(|e| {
+            if let ClipboardContent::Image { thumbnail, hash: h, .. } = &e.content {
+                if *h == hash { return Some(thumbnail.clone()); }
+            }
+            None
+        })
+    }
+
     pub fn get_full_image(&self, hash: u64) -> Option<(String, u32, u32)> {
         let hist = self.history.lock().ok()?;
         hist.iter().find_map(|e| {

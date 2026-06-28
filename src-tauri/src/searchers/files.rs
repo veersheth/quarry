@@ -3,6 +3,7 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use std::time::{Duration, SystemTime};
@@ -20,7 +21,7 @@ const SKIP_DIRS: &[&str] = &[
     "bin", "obj", ".cache", "__MACOSX",
 ];
 
-const SCRIPT_EXTENSIONS: &[&str] = &[
+pub(crate) const SCRIPT_EXTENSIONS: &[&str] = &[
     "sh", "bash", "zsh", "fish",
     "py",
     "rb",
@@ -110,6 +111,12 @@ impl FileSearcher {
         if let Some(home) = dirs::home_dir() {
             paths.push(home);
         }
+
+        // Include the user scripts directory for script discovery
+        if let Some(scripts_dir) = get_user_scripts_dir() {
+            paths.push(scripts_dir);
+        }
+
         paths.dedup();
         paths
     }
@@ -308,10 +315,39 @@ impl FileSearcher {
     }
 }
 
+/// Gets the user scripts directory from config, creating it if it doesn't exist.
+fn get_user_scripts_dir() -> Option<PathBuf> {
+    let configured = crate::CONFIG.read().ok()?.scripts.path.clone();
+    let scripts_dir = if let Some(rest) = configured.strip_prefix("~/") {
+        dirs::home_dir()?.join(rest)
+    } else {
+        PathBuf::from(&configured)
+    };
+
+    if !scripts_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&scripts_dir) {
+            eprintln!("Failed to create scripts directory: {}", e);
+            return None;
+        }
+    }
+
+    Some(scripts_dir)
+}
+
 /// Returns true if the file should be treated as a runnable script.
-/// Matches by extension first, then falls back to the executable bit on Unix.
+/// Only scripts in the user's ~/.config/quarry/scripts directory are allowed.
 fn is_script(path: &Path) -> bool {
     if path.is_dir() {
+        return false;
+    }
+
+    // Only allow scripts from the user scripts directory
+    let Some(scripts_dir) = get_user_scripts_dir() else {
+        return false;
+    };
+
+    // Check if the file is in the scripts directory
+    if !path.starts_with(&scripts_dir) {
         return false;
     }
 
@@ -340,13 +376,15 @@ fn is_script(path: &Path) -> bool {
 }
 
 impl SearchProvider for FileSearcher {
+    fn name(&self) -> String { "files".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         if trimmed.ends_with('/') {
@@ -371,7 +409,8 @@ impl SearchProvider for FileSearcher {
                 return SearchResult {
                     results,
                     result_type: ResultType::List,
-                };
+                                    ..Default::default()
+};
             }
         }
 
@@ -386,12 +425,14 @@ impl SearchProvider for FileSearcher {
                     return SearchResult {
                         results,
                         result_type: ResultType::List,
-                    };
+                                            ..Default::default()
+};
                 } else {
                     return SearchResult {
                         results: vec![Self::path_to_result(explicit)],
                         result_type: ResultType::List,
-                    };
+                                            ..Default::default()
+};
                 }
             }
         }
@@ -421,7 +462,8 @@ impl SearchProvider for FileSearcher {
             return SearchResult {
                 results: vec![],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         let candidates = if let Some(base) = search_base_hint {
@@ -465,7 +507,8 @@ impl SearchProvider for FileSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }
 

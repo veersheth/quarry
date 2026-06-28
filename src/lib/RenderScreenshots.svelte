@@ -2,7 +2,7 @@
   import { writable, get, type Writable } from "svelte/store";
   import { runItemAction } from "./keyHandler";
   import { execute } from "./searcher";
-  import { query } from "../stores/search";
+  import { query, mouseHasMoved } from "../stores/search";
   import type { ResultItem } from "../stores/search";
 
   export let listitems: {
@@ -44,7 +44,7 @@
         class="grid-item"
         class:active={index === $activeIndex}
         data-active={index === $activeIndex ? "true" : undefined}
-        on:mouseenter={() => activeIndex.set(index)}
+        on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
         on:click={() => runItemAction(item as unknown as ResultItem)}
         on:contextmenu={(e) => {
           e.preventDefault();
@@ -104,7 +104,6 @@
     gap: 12px;
     padding: 12px;
     border-radius: var(--q-item-border-radius);
-    cursor: pointer;
     border: 1.5px solid transparent;
     transition: transform 120ms ease, background 80ms ease;
   }
@@ -138,7 +137,7 @@
   }
 
   .thumb-placeholder {
-    font-size: 0.6rem;
+    font-size: 0.6em;
     color: var(--q-text-placeholder);
     letter-spacing: 0.1em;
   }
@@ -148,7 +147,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.75rem;
+    font-size: 0.75em;
     color: var(--q-text-dim);
     text-align: center;
   }
@@ -182,7 +181,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.85rem;
+    font-size: 0.85em;
     color: var(--q-text-empty);
     padding: 40px 0;
   }

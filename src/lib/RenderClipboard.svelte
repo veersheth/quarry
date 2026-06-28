@@ -1,8 +1,36 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
+  import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
+
+  // Cache of hash → resolved data URL for clipboard image thumbnails
+  let thumbnails: Record<string, string> = {};
+
+  function imageHash(item: { thumbnail?: string }): string | null {
+    return item.thumbnail?.startsWith("hash:") ? item.thumbnail.slice(5) : null;
+  }
+
+  function thumbSrc(item: { thumbnail?: string }): string | null {
+    const hash = imageHash(item);
+    if (hash) return thumbnails[hash] ?? null;
+    return item.thumbnail ?? null;
+  }
+
+  // Fetch thumbnails for any image items not yet in cache
+  $: {
+    for (const item of listitems) {
+      const hash = imageHash(item);
+      if (hash && !thumbnails[hash]) {
+        invoke<string | null>("get_clipboard_thumbnail", { hash })
+          .then((data) => {
+            if (data) thumbnails = { ...thumbnails, [hash]: data };
+          })
+          .catch(() => {});
+      }
+    }
+  }
 
   function iconSrc(icon: string): string {
     return icon.startsWith("/") ? convertFileSrc(icon) : icon;
@@ -23,7 +51,7 @@
     | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
-  $: activeColor = activeItem?.thumbnail
+  $: activeColor = (activeItem && (imageHash(activeItem) ? thumbnails[imageHash(activeItem)!] : activeItem.thumbnail))
     ? null
     : getValidColor(activeItem?.name);
   $: contentType = activeItem
@@ -171,7 +199,7 @@
     | "text";
 
   function detectType(item: (typeof listitems)[0]): ContentType {
-    if (item.thumbnail) return "image";
+    if (item.thumbnail) return "image"; // truthy for both "hash:..." and full data URLs
     const v = item.name?.trim() ?? "";
     if (getValidColor(v)) return "color";
     if (isURL(v)) return "url";
@@ -343,7 +371,7 @@
         class:active={index === $activeIndex}
         class:pinned={item.pinned}
         data-active={index === $activeIndex}
-        on:mouseenter={() => activeIndex.set(index)}
+        on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
         on:click={() => handleClick(item)}
         on:contextmenu={(e) => {
           e.preventDefault();
@@ -352,7 +380,7 @@
       >
         <div class="type-icon">
           {#if item.thumbnail}
-            <img class="icon-thumb" src={item.thumbnail} alt="" />
+            <img class="icon-thumb" src={thumbSrc(item) ?? ""} alt="" />
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
@@ -385,6 +413,8 @@
             <div class="icon-pill icon-json">{"{}"}</div>
           {:else if isCode(item.name)}
             <div class="icon-pill icon-code">&lt;/&gt;</div>
+          {:else}
+            <div class="icon-pill icon-text">Aa</div>
           {/if}
         </div>
         <div class="item-body">
@@ -422,7 +452,7 @@
           {:else}
             <img
               class="image-preview"
-              src={activeItem.thumbnail}
+              src={thumbSrc(activeItem) ?? ""}
               alt={activeItem.name}
             />
           {/if}
@@ -512,7 +542,7 @@
         {/if}
       </div>
 
-      <div class="metadata">
+      <div class="footer">
         <span class="type-badge type-{contentType}">{contentType}</span>
         {#each footerMeta as meta}
           <span class="stat-chip">{meta}</span>
@@ -546,7 +576,6 @@
     gap: 10px;
     padding: 8px 10px;
     border-radius: var(--q-item-border-radius);
-    cursor: pointer;
     border: 2px solid transparent;
   }
 
@@ -595,7 +624,7 @@
   }
 
   .icon-pill {
-    font-size: 0.6rem;
+    font-size: 0.6em;
     font-family: var(--q-mono);
     padding: 2px 5px;
     border-radius: 5px;
@@ -608,6 +637,7 @@
   .icon-email  { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
   .icon-json   { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
   .icon-code   { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
+  .icon-text   { background: #1e1e1e; color: #888;    border: 1px solid #2e2e2e; text-transform: none; }
   .icon-img {
     width: 20px;
     height: 20px;
@@ -621,7 +651,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.95rem;
+    font-size: 0.95em;
   }
 
   .info-panel {
@@ -656,12 +686,13 @@
     height: 100%;
     overflow-y: auto;
     padding: 16px 20px;
-    font-size: 0.85rem;
+    font-size: 0.85em;
     line-height: 1.7;
     color: var(--q-text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
-    user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
 
   .view-tabs {
@@ -676,12 +707,11 @@
   .view-tab {
     flex: 1;
     padding: 5px 0;
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: var(--q-text-dim);
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    cursor: pointer;
     letter-spacing: 0.03em;
   }
 
@@ -720,7 +750,7 @@
 
   .color-value {
     font-family: var(--q-mono);
-    font-size: 1.1rem;
+    font-size: 1.1em;
     background: var(--q-surface-dark);
     padding: 8px 18px;
     border-radius: 12px;
@@ -733,7 +763,7 @@
     display: flex;
     flex-direction: row;
     background: var(--q-code-bg);
-    border: 1px solid var(--q-divider-dark);
+    <!-- border: 1px solid var(--q-divider-dark); -->
     border-radius: 14px;
     padding: 20px;
   }
@@ -753,6 +783,7 @@
     border-radius: 10px;
     overflow: hidden;
     background: var(--q-thumb-bg);
+    bcak
     aspect-ratio: 16 / 9;
     flex-shrink: 0;
   }
@@ -770,7 +801,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
+    font-size: 2.5em;
     color: #fff;
     background: radial-gradient(circle, rgba(0,0,0,0.55) 36%, transparent 70%);
     pointer-events: none;
@@ -792,21 +823,21 @@
   }
 
   .url-hostname {
-    font-size: 1.05rem;
+    font-size: 1.05em;
     font-weight: 600;
     color: var(--q-font-color);
   }
 
   .url-full {
-    font-size: 0.78rem;
-    color: #60a5fa;
+    <!-- font-size: 0.78rem; -->
+    <!-- color: #60a5fa; -->
     word-break: break-all;
     font-family: var(--q-mono);
     opacity: 0.8;
   }
 
   .url-open {
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: #fff;
     text-decoration: underline;
     opacity: 0.6;
@@ -826,10 +857,10 @@
     padding: 28px 20px;
   }
 
-  .email-icon { font-size: 2.2rem; opacity: 0.3; }
+  .email-icon { font-size: 2.2em; opacity: 0.3; }
 
   .email-address {
-    font-size: 1rem;
+    font-size: 1em;
     font-family: var(--q-mono);
     color: #c084fc;
     word-break: break-all;
@@ -847,9 +878,10 @@
   .json-preview {
     flex: 1;
     font-family: var(--q-mono);
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: #fb923c;
-    user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
     border-radius: 10px;
@@ -871,9 +903,10 @@
   .code-preview {
     flex: 1;
     font-family: var(--q-mono);
-    font-size: 0.78rem;
+    font-size: 0.78em;
     color: #facc15;
-    user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
     border-radius: 10px;
@@ -897,15 +930,17 @@
     flex: 1;
     white-space: pre-wrap;
     word-break: break-word;
-    user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
     <!-- font-family: var(--q-mono); -->
     color: #ffb5bc;
-    font-size: 0.95rem;
+    font-size: 0.95em;
     overflow: auto;
   }
 
-  .metadata {
+  .footer {
     padding: 8px 16px;
+    font-size: 1.1rem;
     border-top: 1px solid var(--q-surface-dark);
     display: flex;
     align-items: center;
@@ -915,7 +950,7 @@
   }
 
   .type-badge {
-    font-size: 0.72rem;
+    font-size: 0.72em;
     padding: 2px 8px;
     border-radius: 6px;
     text-transform: capitalize;
@@ -933,7 +968,7 @@
   .type-badge.type-code      { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
 
   .stat-chip {
-    font-size: 0.72rem;
+    font-size: 0.72em;
     font-family: var(--q-mono);
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
@@ -944,7 +979,7 @@
 
   .timestamp {
     margin-left: auto;
-    font-size: 0.78rem;
+    font-size: 0.78em;
     opacity: 0.35;
     font-family: var(--q-mono);
     white-space: nowrap;

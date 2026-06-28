@@ -128,6 +128,7 @@ fn make_emoji_item(emoji: &emojis::Emoji, is_pinned: bool) -> ResultItem {
 // ---------------------------------------------------------------------------
 
 impl SearchProvider for EmojiSearcher {
+    fn name(&self) -> String { "emojis".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim().to_lowercase();
 
@@ -154,27 +155,27 @@ impl SearchProvider for EmojiSearcher {
                 .chain(ALL_SYMBOLS.iter().cloned())
                 .collect();
 
-            return SearchResult { results, result_type: ResultType::Grid };
+            return SearchResult { results, result_type: ResultType::Grid, ..Default::default() };
         }
 
         // Non-empty query: filter emojis via emojis::iter() (static, supports shortcodes),
         // filter symbols from the cache to avoid re-doing unicode_names2 lookups.
         let emoji_results = emojis::iter()
             .filter(|emoji| {
-                emoji.name().to_lowercase().contains(&q)
-                    || emoji.shortcode().map_or(false, |s| s.contains(&q))
+                crate::search_utils::smart_match(emoji.name(), &q).is_some()
+                    || emoji.shortcode().map_or(false, |s| crate::search_utils::smart_match(s, &q).is_some())
             })
             .map(|emoji| make_emoji_item(emoji, false));
 
         let symbol_results = ALL_SYMBOLS.iter()
             .filter(|item| {
                 item.description.as_deref()
-                    .map_or(false, |d| d.to_lowercase().contains(&q))
-                    || item.name == q
+                    .map_or(false, |d| crate::search_utils::smart_match(d, &q).is_some())
+                    || crate::search_utils::smart_match(&item.name, &q).is_some()
             })
             .cloned();
 
         let results = emoji_results.chain(symbol_results).collect();
-        SearchResult { results, result_type: ResultType::Grid }
+        SearchResult { results, result_type: ResultType::Grid, ..Default::default() }
     }
 }

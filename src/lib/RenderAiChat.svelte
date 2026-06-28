@@ -7,6 +7,7 @@
   import rehypeSanitize from "rehype-sanitize";
   import rehypeStringify from "rehype-stringify";
   import { aiSubmitQuery } from "../stores/search";
+  import { addToast } from "../stores/toasts";
   import { onMount } from "svelte";
 
   const processor = unified()
@@ -36,6 +37,15 @@
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let isTimeout = false;
   let lastTokens: number | null = null;
+  let copied = false;
+
+  async function copyResult() {
+    if (!response) return;
+    await navigator.clipboard.writeText(response);
+    copied = true;
+    addToast("AI response copied to clipboard", "success");
+    setTimeout(() => (copied = false), 1800);
+  }
 
   // Animation state
   type GlowState = "idle" | "loading" | "streaming" | "success" | "error" | "settling";
@@ -353,13 +363,17 @@
       </div>
     </div>
 
-    <!-- ── Footer ─────────────────────────────────── -->
     {#if key}
       <div class="footer">
         <span class="model">{MODEL.name}</span>
         <div class="footer-right">
           {#if lastTokens !== null}
             <span class="usage">{lastTokens} tokens</span>
+          {/if}
+          {#if response && !loading}
+            <button class="copy-btn" class:copied on:click={copyResult}>
+              {copied ? "Copied" : "Copy"}
+            </button>
           {/if}
           <a
             href={MODEL.dashboard}
@@ -375,10 +389,10 @@
 
 <style>
   .outer {
-    height: 99%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    font-size: 1rem;
+    font-size: 1em;
   }
 
   .beam-rail {
@@ -434,13 +448,17 @@
 
   .ai-wrap {
     position: relative;
-    margin: 20px;
+    flex: 1;
+    min-height: 0;
+    margin: 20px 20px 0;
     padding: 1.5px;
     border-radius: 14px;
     background: rgba(128,128,128,0.06);
     transition:
       background       0.6s cubic-bezier(0.22,1,0.36,1),
       box-shadow       0.6s cubic-bezier(0.22,1,0.36,1);
+    display: flex;
+    flex-direction: column;
   }
 
   /* ── Conic border ring ────────────────────────────── */
@@ -548,10 +566,25 @@
   .inner {
     border-radius: 12px;
     padding: 16px 18px;
-    max-height: 400px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     position: relative;
     z-index: 1;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text;
+  }
+
+  /* Enhanced text selection styling */
+  .inner :global(::selection) {
+    background: rgba(99,102,241,0.3);
+    color: inherit;
+  }
+
+  .inner :global(::-moz-selection) {
+    background: rgba(99,102,241,0.3);
+    color: inherit;
   }
 
   .inner.shake {
@@ -574,7 +607,7 @@
   .error-badge {
     display: inline-flex;
     align-items: center;
-    font-size: 0.68rem;
+    font-size: 0.68em;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
@@ -587,7 +620,7 @@
   }
 
   .error-msg {
-    font-size: 0.8rem;
+    font-size: 0.8em;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     color: #fca5a5;
     margin: 0;
@@ -596,22 +629,30 @@
   }
 
   /* ── Markdown output ──────────────────────────────── */
-  .md :global(p)               { margin: 0 0 0.75rem; line-height: 1.65; }
+  .md {
+    cursor: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+  .md :global(p)               { margin: 0 0 0.75rem; line-height: 1.65; cursor: text; }
   .md :global(h1),
   .md :global(h2),
   .md :global(h3),
   .md :global(h4),
   .md :global(h5),
-  .md :global(h6)              { margin: 1rem 0 0.4rem; line-height: 1.3; font-weight: 600; }
+  .md :global(h6)              { margin: 1rem 0 0.4rem; line-height: 1.3; font-weight: 600; cursor: text; }
   .md :global(ul),
-  .md :global(ol)              { margin: 0 0 0.75rem 1.25rem; padding: 0; }
-  .md :global(li)              { margin-bottom: 0.25rem; line-height: 1.5; }
+  .md :global(ol)              { margin: 0 0 0.75rem 1.25rem; padding: 0; cursor: text; }
+  .md :global(li)              { margin-bottom: 0.25rem; line-height: 1.5; cursor: text; }
   .md :global(code) {
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     background: rgba(255,255,255,0.1);
     border-radius: 4px;
     padding: 0.1rem 0.3rem;
     font-size: 0.875em;
+    cursor: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
   .md :global(pre) {
     background: rgba(0,0,0,0.3);
@@ -619,8 +660,16 @@
     padding: 12px;
     overflow-x: auto;
     margin: 0 0 0.75rem;
+    cursor: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    position: relative;
   }
-  .md :global(pre code)        { background: none; padding: 0; font-size: 0.875em; }
+  .md :global(pre):hover {
+    background: rgba(0,0,0,0.4);
+    transition: background 0.15s ease;
+  }
+  .md :global(pre code)        { background: none; padding: 0; font-size: 0.875em; cursor: text; }
   .md :global(blockquote) {
     border-left: 3px solid #6366f1;
     margin: 0 0 0.75rem;
@@ -644,14 +693,37 @@
 
   /* ── Footer ───────────────────────────────────────── */
   .footer {
-    padding: 12px 16px 16px;
+    padding: 12px 16px;
     display: flex;
     gap: 10px;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.78rem;
-    opacity: 0.55;
+    font-size: 1.2em;
+    opacity: 0.7;
     border-top: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+
+  .copy-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.72em;
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
+    color: rgba(255,255,255,0.6);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .copy-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.9);
+  }
+
+  .copy-btn.copied {
+    background: rgba(99,102,241,0.18);
+    border-color: rgba(99,102,241,0.4);
+    color: #a5b4fc;
   }
 
   .footer-right {
@@ -663,14 +735,14 @@
   .model {
     font-weight: 500;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.74rem;
+    font-size: 0.74em;
   }
 
   .link {
     text-decoration: none;
     color: #818cf8;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.74rem;
+    font-size: 0.74em;
   }
 
   .usage {
@@ -679,6 +751,6 @@
     border-radius: 20px;
     padding: 4px 10px;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.72rem;
+    font-size: 0.72em;
   }
 </style>

@@ -29,6 +29,7 @@ pub fn warm() {
 }
 
 impl SearchProvider for ClipboardSearcher {
+    fn name(&self) -> String { "clipboard".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let query = query.trim().to_lowercase();
 
@@ -42,7 +43,8 @@ impl SearchProvider for ClipboardSearcher {
                     })],
                 )],
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         // Serve from cache for empty queries when neither history nor pins changed.
@@ -143,7 +145,7 @@ fn build_results(query: &str) -> SearchResult {
                         ClipboardContent::Image { hash, .. } => !pinned_hashes.contains(hash),
                     };
                 }
-                entry.display_text().to_lowercase().contains(query)
+                crate::search_utils::smart_match(&entry.display_text(), query).is_some()
             })
             .map(|entry| match &entry.content {
                 ClipboardContent::Text { value } => {
@@ -184,7 +186,7 @@ fn build_results(query: &str) -> SearchResult {
                     item
                 }
 
-                ClipboardContent::Image { thumbnail, width, height, ocr_text, hash, .. } => {
+                ClipboardContent::Image { width, height, ocr_text, hash, .. } => {
                     let hash_str = hash.to_string();
                     let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
                     let pin_action = if is_pinned {
@@ -203,7 +205,7 @@ fn build_results(query: &str) -> SearchResult {
                     let mut actions = vec![
                         Action::new("Copy", ActionData::RunFunction {
                             function_name: "copy_clipboard_image".into(),
-                            params: vec![hash_str],
+                            params: vec![hash_str.clone()],
                         }),
                     ];
                     if let Some(text) = ocr_text {
@@ -223,7 +225,7 @@ fn build_results(query: &str) -> SearchResult {
 
                     let mut item = ResultItem::new(format!("Image {}×{}", width, height), actions)
                         .description(format_timestamp(entry.timestamp))
-                        .thumbnail(thumbnail.clone());
+                        .thumbnail(format!("hash:{}", hash_str));
                     if let Some(text) = ocr_text {
                         item = item.ocr_text(text.clone());
                     }
@@ -237,7 +239,8 @@ fn build_results(query: &str) -> SearchResult {
     SearchResult {
         results,
         result_type: ResultType::Clipboard,
-    }
+            ..Default::default()
+}
 }
 
 fn resolve_path(value: &str) -> Option<std::path::PathBuf> {

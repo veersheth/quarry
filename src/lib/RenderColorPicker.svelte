@@ -1,4 +1,6 @@
 <script>
+  import { addToast } from "../stores/toasts";
+
   export let initialColor = "";
 
   let hue = 0;
@@ -184,14 +186,9 @@
     isDraggingHue = false;
   }
 
-  let copiedKey = null;
-  let copyTimeout = null;
-
-  function copyText(text, key) {
+  function copyText(text, label) {
     navigator.clipboard.writeText(text);
-    copiedKey = key;
-    clearTimeout(copyTimeout);
-    copyTimeout = setTimeout(() => (copiedKey = null), 1200);
+    addToast(`Copied ${label}`);
   }
 </script>
 
@@ -236,32 +233,25 @@
   <div class="values-section">
     <button
       class="value-box"
-      class:copied={copiedKey === "hsl"}
-      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`, "hsl")}
+      on:click={() => copyText(`${hue}°, ${saturation}%, ${lightness}%`, "HSL")}
     >
-      {#if copiedKey === "hsl"}<span class="ripple"></span>{/if}
-      <span class="value-title">{copiedKey === "hsl" ? "Copied" : "HSL"}</span>
-      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span
-      >
+      <span class="value-title">HSL</span>
+      <span class="value-content mono">{hue}°, {saturation}%, {lightness}%</span>
     </button>
 
     <button
       class="value-box"
-      class:copied={copiedKey === "rgb"}
-      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`, "rgb")}
+      on:click={() => copyText(`${rgb.r}, ${rgb.g}, ${rgb.b}`, "RGB")}
     >
-      {#if copiedKey === "rgb"}<span class="ripple"></span>{/if}
-      <span class="value-title">{copiedKey === "rgb" ? "Copied" : "RGB"}</span>
+      <span class="value-title">RGB</span>
       <span class="value-content mono">{rgb.r}, {rgb.g}, {rgb.b}</span>
     </button>
 
     <button
       class="value-box"
-      class:copied={copiedKey === "hex"}
-      on:click={() => copyText(hex, "hex")}
+      on:click={() => copyText(hex, "HEX")}
     >
-      {#if copiedKey === "hex"}<span class="ripple"></span>{/if}
-      <span class="value-title">{copiedKey === "hex" ? "Copied" : "HEX"}</span>
+      <span class="value-title">HEX</span>
       <span class="value-content mono">{hex}</span>
     </button>
   </div>
@@ -366,7 +356,6 @@
   }
 
   .value-box {
-    cursor: pointer;
     color: white;
     margin-left: 24px;
     padding: 22px;
@@ -375,6 +364,7 @@
     background-color: rgba(60, 60, 60, 0.3);
     display: flex;
     justify-content: space-between;
+    align-items: center;
     transition: background-color 200ms ease, border 200ms ease, transform 100ms ease;
     position: relative;
     overflow: hidden;
@@ -389,31 +379,8 @@
     transform: scale(1);
   }
 
-  .value-box.copied {
-    background-color: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-  }
-
-  .value-title {
-    transition: opacity 150ms ease;
-  }
-
-  .ripple {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at center, rgba(255,255,255,0.4) 0%, transparent 65%);
-    border-radius: inherit;
-    pointer-events: none;
-    animation: ripple-burst 600ms ease-out forwards;
-  }
-
-  @keyframes ripple-burst {
-    from { opacity: 1; transform: scale(0.5); }
-    to   { opacity: 0; transform: scale(2);   }
-  }
-
   .value-content {
-    font-size: 16px;
+    font-size: 1.05em;
     font-weight: 500;
     font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
   }

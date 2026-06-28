@@ -89,6 +89,7 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
 ];
 
 impl SearchProvider for SystemSearcher {
+    fn name(&self) -> String { "system".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
@@ -120,6 +121,6 @@ impl SearchProvider for SystemSearcher {
             self.fuzzy_filter(candidates, q)
         };
 
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

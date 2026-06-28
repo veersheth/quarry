@@ -33,7 +33,7 @@
     color: rgba(255, 255, 255, 0.9);
     font-family: Georgia, 'Times New Roman', serif;
     line-height: 1.6;
-    font-size: 18px;
+    font-size: var(--q-font-size, 15px);
   }
 
   .markdown-body :global(h1) {

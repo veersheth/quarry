@@ -41,6 +41,7 @@ impl WebSearcher {
 }
 
 impl SearchProvider for WebSearcher {
+    fn name(&self) -> String { self.name.clone() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         let name_prefix = format!("Search {}:", self.name);
@@ -101,6 +102,7 @@ impl SearchProvider for WebSearcher {
         SearchResult {
             results,
             result_type: ResultType::List,
-        }
+                    ..Default::default()
+}
     }
 }

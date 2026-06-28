@@ -47,6 +47,22 @@ fn all_shortcuts() -> Vec<ResultItem> {
         );
         it.icon = Some("icon-transparent.png".into());
         items.push(it);
+
+        // Add shortcut to scripts directory (respects config override)
+        let scripts_path = {
+            let configured = crate::CONFIG.read().unwrap().scripts.path.clone();
+            if let Some(rest) = configured.strip_prefix("~/") {
+                dirs::home_dir().map(|h| h.join(rest))
+            } else {
+                Some(std::path::PathBuf::from(&configured))
+            }
+        };
+        if let Some(sp) = scripts_path {
+            let desc = format!("Open {} — place executable scripts here", sp.to_string_lossy());
+            let mut scripts_it = folder_item("Open Scripts Folder", &desc, sp);
+            scripts_it.icon = Some("icons/folder.png".into());
+            items.push(scripts_it);
+        }
     }
 
     // ── Trash ─────────────────────────────────────────────────────────────
@@ -149,26 +165,26 @@ fn all_shortcuts() -> Vec<ResultItem> {
     items.push(item(
         "Mute / Unmute",
         "Toggle mute on the default audio sink - volume sound",
-        "icons/system/power.png",
+        "icons/settings.png",
         shell("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),
     ));
     items.push(item(
         "Volume 50%",
         "Set system volume to 50%",
-        "icons/system/power.png",
+        "icons/settings.png",
         shell("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.5"),
     ));
     items.push(item(
         "Volume 100%",
         "Set system volume to 100%",
-        "icons/system/power.png",
+        "icons/settings.png",
         shell("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0"),
     ));
 
     items.push(item(
         "Toggle Pink Noise",
         "Play or stop pink noise for focus and masking background sounds",
-        "icons/system/power.png",
+        "icons/icon-transparent.png",
         func("toggle_pink_noise", vec![]),
     ));
 
@@ -176,7 +192,7 @@ fn all_shortcuts() -> Vec<ResultItem> {
     items.push(item(
         "Toggle WiFi",
         "Turn WiFi on or off via NetworkManager - wireless network",
-        "icons/system/power.png",
+        "icons/settings.png",
         shell("nmcli -t -f WIFI radio | grep -q enabled && nmcli radio wifi off || nmcli radio wifi on"),
     ));
 
@@ -198,6 +214,7 @@ fn all_shortcuts() -> Vec<ResultItem> {
 }
 
 impl SearchProvider for ShortcutsSearcher {
+    fn name(&self) -> String { "shortcuts".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         let results = if q.is_empty() {
@@ -205,6 +222,6 @@ impl SearchProvider for ShortcutsSearcher {
         } else {
             self.fuzzy_filter(all_shortcuts(), q)
         };
-        SearchResult { results, result_type: ResultType::List }
+        SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
 }

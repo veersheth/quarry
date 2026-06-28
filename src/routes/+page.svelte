@@ -16,6 +16,11 @@
     contextMenu,
     openContextMenu,
     closeContextMenu,
+    searcherName,
+    mouseHasMoved,
+    modalStore,
+    openModal,
+    closeModal,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
@@ -29,23 +34,19 @@
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import Modal from "$lib/Modal.svelte";
 
-  interface ModalButton {
-    label: string;
-    kind?: string;
-    shell?: string;
-  }
-  interface ModalPayload {
-    body: string;
-    buttons?: ModalButton[];
+  function searcherHue(name: string): number {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+    return h % 360;
   }
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
   let aiPrefix = "ai ";
-  let modal: ModalPayload | null = null;
   let resultsEl: HTMLDivElement;
   let searchRaf: number;
+  let uiScale = 1.0;
 
   // Rofi mode: bypass backend search, filter items locally
   let rofiMode = false;
@@ -106,6 +107,8 @@
     background_opacity: number;
     font_size: number;
     font_color: string;
+    font_family: string;
+    monospace_font_family: string;
     border_radius: number;
     border_color: string;
     border_thickness: number;
@@ -120,6 +123,8 @@
     root.setProperty("--q-bg-opacity", String(t.background_opacity));
     root.setProperty("--q-font-size", `${t.font_size}px`);
     root.setProperty("--q-font-color", t.font_color);
+    root.setProperty("--q-font-family", t.font_family);
+    root.setProperty("--q-monospace-font-family", t.monospace_font_family);
     root.setProperty("--q-border-radius", `${t.border_radius}px`);
     root.setProperty("--q-border-color", t.border_color);
     root.setProperty("--q-border-thickness", `${t.border_thickness}px`);
@@ -138,17 +143,26 @@
   async function refresh() {
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
-    requestAnimationFrame(forceRepaint);
+    forceRepaint();
     searchInput?.select();
   }
 
   onMount(async () => {
-    forceRepaint();
     appWindow = getCurrentWindow();
     await refresh();
-    invoke<string>("get_ai_prefix").then((p) => { aiPrefix = p; }).catch(() => {});
+    invoke<string>("get_ai_prefix")
+      .then((p) => {
+        aiPrefix = p;
+      })
+      .catch(() => {});
+
+    // use query from the commandline
+    invoke<string | null>("take_pending_query").then((q) => {
+      if (q) query.set(q);
+    }).catch(() => {});
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused) {
+        mouseHasMoved.set(false);
         refresh();
       } else if (rofiMode) {
         cancelRofi();
@@ -157,10 +171,15 @@
 
     window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
-    const unlistenModal = await listen<ModalPayload>(
+    const blockZoom = (e: WheelEvent) => {
+      if (e.ctrlKey) e.preventDefault();
+    };
+    window.addEventListener("wheel", blockZoom, { passive: false });
+
+    const unlistenModal = await listen<{ body: string; buttons?: { label: string; kind?: string; shell?: string }[] }>(
       "quarry-modal",
       (event) => {
-        modal = event.payload;
+        openModal(event.payload.body, event.payload.buttons);
       },
     );
 
@@ -186,16 +205,22 @@
 
     // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
     // arrive before the file search completes — apply immediately if still relevant.
-    const unlistenFast = await listen<{ query: string; results: import("../stores/search").ResultItem[] }>(
-      "quarry-fast",
-      ({ payload }) => {
-        if (!rofiMode && payload.query === $query.trim()) {
-          resultItems.set(payload.results);
-          resultType.set("List");
-          activeIndex.set(0);
-        }
-      },
-    );
+    const unlistenFast = await listen<{
+      query: string;
+      results: import("../stores/search").ResultItem[];
+    }>("quarry-fast", ({ payload }) => {
+      if (!rofiMode && payload.query === $query.trim()) {
+        resultItems.set(payload.results);
+        resultType.set("List");
+        activeIndex.set(0);
+      }
+    });
+
+    // Pre-fill query from a subsequent `quarry <query>` invocation.
+    const unlistenSetQuery = await listen<string>("quarry-set-query", ({ payload }) => {
+      query.set(payload);
+      searchInput?.focus();
+    });
 
     return () => {
       unlisten.then((fn) => fn());
@@ -203,10 +228,9 @@
       unlistenRofiSocket();
       unlistenRofi();
       unlistenFast();
-      window.removeEventListener(
-        "open-context-menu-at-active",
-        handleOpenAtActive,
-      );
+      unlistenSetQuery();
+      window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
+      window.removeEventListener("wheel", blockZoom);
     };
   });
 
@@ -227,6 +251,7 @@
             if (res === null) return;
             resultItems.set(res.results);
             resultType.set(res.result_type);
+            searcherName.set(res.searcher ?? "");
             activeIndex.set(0);
           })
           .catch((err) => {
@@ -242,22 +267,36 @@
 </script>
 
 <svelte:window
-  on:keydown={(e) =>
-    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow, aiPrefix)}
+  on:keydown={(e) => {
+    if (e.ctrlKey && (e.key === "-" || e.key === "=" || e.key === "+" || e.key === "0")) {
+      e.preventDefault();
+      if (e.key === "-") uiScale = Math.max(0.6, parseFloat((uiScale - 0.05).toFixed(2)));
+      else if (e.key === "=" || e.key === "+") uiScale = Math.min(2.0, parseFloat((uiScale + 0.05).toFixed(2)));
+      else if (e.key === "0") uiScale = 1.0;
+      return;
+    }
+    handleKeydown(e, searchInput, activeIndex, resultItems, appWindow, aiPrefix);
+  }}
+  on:pointermove={(e) => { if (e.movementX !== 0 || e.movementY !== 0) mouseHasMoved.set(true); }}
 />
 
-<main class="container">
+<main class="container" style="zoom: {uiScale}">
   <div class="panel">
-    <!-- svelte-ignore a11y_autofocus -->
-    <input
-      type="text"
-      placeholder="quarry..."
-      bind:value={$query}
-      bind:this={searchInput}
-      autofocus
-      class="search"
-      class:loading={isLoading}
-    />
+    <div class="search-bar" class:searcher-active={!!$searcherName} style={$searcherName ? `--searcher-hue: ${searcherHue($searcherName)}` : ""}>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        type="text"
+        placeholder="quarry..."
+        bind:value={$query}
+        bind:this={searchInput}
+        autofocus
+        class="search"
+        class:loading={isLoading}
+      />
+      {#if $searcherName}
+        <span class="searcher-badge">{$searcherName}</span>
+      {/if}
+    </div>
     <div
       class="results"
       class:loading-overlay={isLoading}
@@ -324,14 +363,8 @@
     />
   {/if}
 
-  {#if modal !== null}
-    <Modal
-      body={modal.body}
-      buttons={modal.buttons}
-      onClose={() => {
-        modal = null;
-      }}
-    />
+  {#if $modalStore.open}
+    <Modal />
   {/if}
 
   <!-- Toasts -->
@@ -351,13 +384,21 @@
 </main>
 
 <style>
-  :global(body) {
-    user-select: none;
+  :global(*) {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    touch-action: pan-x pan-y;
+  }
+
+  :global(input),
+  :global(textarea) {
+    -webkit-user-select: text !important;
+    user-select: text !important;
   }
 
   :global(:root) {
-    --q-sans: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
-    --q-mono: "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace;
+    --q-sans: var(--q-font-family, "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif);
+    --q-mono: var(--q-monospace-font-family, "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace);
 
     --q-surface: rgba(5, 5, 5, 0.8);
     --q-surface-subtle: rgba(255, 255, 255, 0.08);
@@ -373,12 +414,12 @@
     --q-border-strong: rgba(255, 255, 255, 0.25);
     --q-border-dark: #333;
 
-    --q-text-secondary: rgba(255, 255, 255, 0.7);
-    --q-text-muted: rgba(255, 255, 255, 0.4);
-    --q-text-dim: #555;
-    --q-text-dim-active: #999;
-    --q-text-placeholder: #333;
-    --q-text-empty: #444;
+    --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 70%, transparent);
+    --q-text-muted: color-mix(in srgb, var(--q-font-color, #ffffff) 40%, transparent);
+    --q-text-dim: color-mix(in srgb, var(--q-font-color, #ffffff) 25%, transparent);
+    --q-text-dim-active: color-mix(in srgb, var(--q-font-color, #ffffff) 55%, transparent);
+    --q-text-placeholder: color-mix(in srgb, var(--q-font-color, #ffffff) 15%, transparent);
+    --q-text-empty: color-mix(in srgb, var(--q-font-color, #ffffff) 20%, transparent);
 
     --q-thumb-bg: #111;
     --q-pin-border: rgba(200, 220, 255, 0.25);
@@ -399,9 +440,9 @@
     overflow: hidden;
     color: var(--q-font-color, #ffffff);
     position: relative;
-    border-radius: 18px;
     border-style: inset;
-    border: 1px solid var(--q-border-strong);
+    border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
+    border-radius: var(--q-border-radius, 18px);
   }
 
   .container * {
@@ -419,20 +460,60 @@
     min-height: 0;
   }
 
-  .search {
-    width: 100%;
-    display: block;
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 0 20px;
-    margin: 0;
+    height: 56px;
+    flex-shrink: 0;
     margin-bottom: 8px;
-    box-sizing: border-box;
+    border-bottom: 1px solid var(--q-divider);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .search-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      hsla(var(--searcher-hue, 220), 75%, 65%, 0.12) 0%,
+      transparent 95%
+    );
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .search-bar.searcher-active::before {
+    opacity: 1;
+  }
+
+  .searcher-badge {
+    font-size: 0.80em;
+    font-family: var(--q-mono);
+    padding: 3px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--q-border-medium);
+    border-color: hsla(var(--searcher-hue, 220), 75%, 65%, 0.42);
+    color: hsla(var(--searcher-hue, 220), 75%, 72%, 0.92);
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+  }
+
+  .search {
+    flex: 1;
+    min-width: 0;
     border: none;
     outline: none;
     background: none;
-    height: 56px;
-    flex-shrink: 0;
+    height: 100%;
+    padding: 0;
     transition: opacity 0.15s ease;
-    border-bottom: 1px solid var(--q-divider);
   }
 
   .search.loading {
@@ -483,7 +564,7 @@
     gap: 10px;
     padding: 20px 30px 25px;
     border-radius: 999px;
-    font-size: 0.95rem;
+    font-size: 0.95em;
     letter-spacing: 0.01em;
     white-space: nowrap;
     z-index: 1000;
@@ -502,14 +583,23 @@
     flex-shrink: 0;
   }
 
-  .toast-dot.success { background: #4ade80; }
+  .toast-dot.success {
+    background: #4ade80;
+  }
 
-  .toast-dot.error { background: #f87171; }
+  .toast-dot.error {
+    background: #f87171;
+  }
 
-  .toast-dot.info { background: #60a5fa; }
+  .toast-dot.info {
+    background: #60a5fa;
+  }
 
-  .toast.error { border-color: rgba(248, 113, 113, 0.2); }
+  .toast.error {
+    border-color: rgba(248, 113, 113, 0.2);
+  }
 
-  .toast.info { border-color: rgba(96, 165, 250, 0.2); }
-
+  .toast.info {
+    border-color: rgba(96, 165, 250, 0.2);
+  }
 </style>

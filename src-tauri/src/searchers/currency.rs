@@ -109,6 +109,7 @@ fn fmt_amount(n: f64) -> String {
 }
 
 impl SearchProvider for CurrencySearcher {
+    fn name(&self) -> String { "currency".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
@@ -150,13 +151,15 @@ impl SearchProvider for CurrencySearcher {
                         "# Currency Converter\n\nExamples:\n- `100 USD to EUR`\n- `50 GBP JPY`\n- `USD EUR`",
                     )],
                     result_type: ResultType::Markdown,
-                };
+                                    ..Default::default()
+};
             }
 
             return SearchResult {
                 results: history_items,
                 result_type: ResultType::List,
-            };
+                            ..Default::default()
+};
         }
 
         if q.eq_ignore_ascii_case("list") {
@@ -172,7 +175,8 @@ impl SearchProvider for CurrencySearcher {
                         results: vec![ResultItem::new("Supported currencies", vec![Action::new("", ActionData::None)])
                             .description(markdown)],
                         result_type: ResultType::Markdown,
-                    }
+                                            ..Default::default()
+}
                 }
                 Err(e) => error_result(&format!("Could not fetch currency list: {}", e)),
             };
@@ -190,7 +194,8 @@ impl SearchProvider for CurrencySearcher {
                         "# Currency Converter\n\nTry:\n- `100 USD to EUR`\n- `GBP JPY`\n- `fx list` for all currencies",
                     )],
                     result_type: ResultType::Markdown,
-                };
+                                    ..Default::default()
+};
             }
         };
 
@@ -240,7 +245,8 @@ impl SearchProvider for CurrencySearcher {
                     .description(markdown)
                     .icon("icons/math.png")],
                     result_type: ResultType::Markdown,
-                }
+                                    ..Default::default()
+}
             }
             Err(e) => {
                 let msg = if e.contains("422") || e.contains("404") || e.contains("error") {
@@ -269,5 +275,6 @@ fn error_result(msg: &str) -> SearchResult {
         results: vec![ResultItem::new("Currency error", vec![Action::new("", ActionData::None)])
             .description(format!("# Error\n\n{}", msg))],
         result_type: ResultType::Markdown,
-    }
+            ..Default::default()
+}
 }

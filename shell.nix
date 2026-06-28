@@ -14,7 +14,7 @@ pkgs.mkShell {
     cargo-tauri
 
     # Node.js and pnpm
-    nodejs_20
+    nodejs_24
     pnpm_9
 
     # GTK and related libraries (runtime)

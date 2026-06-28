@@ -20,6 +20,7 @@ pub mod settings;
 pub mod timer;
 pub mod screenshots;
 pub mod shortcuts;
+pub mod scripts;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
@@ -28,6 +29,7 @@ use crate::types::{ResultItem, SearchResult};
 
 pub trait SearchProvider {
     fn search(&self, query: &str, app: &AppHandle) -> SearchResult;
+    fn name(&self) -> String { String::new() }
 
     fn fuzzy_filter(&self, items: Vec<ResultItem>, query: &str) -> Vec<ResultItem> {
         if query.is_empty() {
