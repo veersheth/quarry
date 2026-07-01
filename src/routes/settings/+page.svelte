@@ -44,10 +44,10 @@
     theme: ThemeConfig;
     web_searches: WebSearchConfig[];
     default_search: DefaultSearchConfig;
-    groq_api_key: string;
   }
 
   let config: Config | null = null;
+  let groqApiKey = "";
   let tab: "theme" | "triggers" | "web" | "general" = "theme";
   let saving = false;
   let showApiKey = false;
@@ -104,7 +104,10 @@
 
   onMount(async () => {
     appWindow = getCurrentWindow();
-    config = await invoke<Config>("get_config");
+    [config, groqApiKey] = await Promise.all([
+      invoke<Config>("get_config"),
+      invoke<string>("get_groq_api_key"),
+    ]);
     document.documentElement.style.setProperty("--q-font-size", `${config.theme.font_size}px`);
   });
 
@@ -122,7 +125,10 @@
     if (!config) return;
     saving = true;
     try {
-      await invoke("save_config", { config });
+      await Promise.all([
+        invoke("save_config", { config }),
+        invoke("save_groq_api_key", { key: groqApiKey }),
+      ]);
       addToast("Config saved", "success");
     } catch (err) {
       addToast(String(err), "error", 4000);
@@ -357,9 +363,9 @@
           <label>Groq API key</label>
           <div class="field-body">
             {#if showApiKey}
-              <input class="inp" bind:value={config.groq_api_key} placeholder="gsk_…" />
+              <input class="inp" bind:value={groqApiKey} placeholder="gsk_…" />
             {:else}
-              <input type="password" class="inp" bind:value={config.groq_api_key} placeholder="gsk_…" />
+              <input type="password" class="inp" bind:value={groqApiKey} placeholder="gsk_…" />
             {/if}
             <button class="toggle-btn" on:click={() => (showApiKey = !showApiKey)}>
               {showApiKey ? "hide" : "show"}

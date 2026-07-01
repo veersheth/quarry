@@ -400,7 +400,7 @@
     --q-sans: var(--q-font-family, "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif);
     --q-mono: var(--q-monospace-font-family, "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace);
 
-    --q-surface: rgba(5, 5, 5, 0.8);
+    --q-surface: rgba(5, 5, 5, 0.0);
     --q-surface-subtle: rgba(255, 255, 255, 0.08);
     --q-surface-hover: rgba(255, 255, 255, 0.2);
     --q-surface-dark: #222;

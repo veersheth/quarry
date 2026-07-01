@@ -366,6 +366,10 @@ fn run_custom_function(
             toggle_pink_noise();
             Ok(())
         }
+        "toggle_rain_noise" => {
+            toggle_rain_noise();
+            Ok(())
+        }
         "cancel_timer" => {
             let id: u64 = params.first()
                 .and_then(|s| s.parse().ok())
@@ -503,6 +507,10 @@ fn run_custom_function(
                 return Err("No text found in screenshot".into());
             }
             copy_to_clipboard(&text, app)
+        }
+        "save_groq_api_key" => {
+            let key = params.first().map(|s| s.as_str()).unwrap_or("");
+            crate::config::Config::save_groq_api_key(key)
         }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
@@ -697,4 +705,140 @@ fn play_pink_noise() {
 
     sink.stop();
     drop(running);
+}
+
+// Shared flag: true = rain noise should be playing.
+static RAIN_NOISE_RUNNING: AtomicBool = AtomicBool::new(false);
+
+pub fn toggle_rain_noise() {
+    if RAIN_NOISE_RUNNING.compare_exchange(true, false, AtomicOrdering::SeqCst, AtomicOrdering::SeqCst).is_ok() {
+        return;
+    }
+    RAIN_NOISE_RUNNING.store(true, AtomicOrdering::SeqCst);
+    std::thread::spawn(|| {
+        play_rain_noise();
+        RAIN_NOISE_RUNNING.store(false, AtomicOrdering::SeqCst);
+    });
+}
+
+fn play_rain_noise() {
+    use rodio::{buffer::SamplesBuffer, OutputStream, Sink};
+
+    let Ok((_stream, handle)) = OutputStream::try_default() else { return };
+    let Ok(sink) = Sink::try_new(&handle) else { return };
+
+    const SR: u32 = 44100;
+    const CHUNK: usize = (SR * 2) as usize;
+
+    // Two independent XorShift64 states — one for drops, one for texture
+    let mut rng_a: u64 = 0x9e3779b97f4a7c15;
+    let mut rng_b: u64 = 0x6c62272e07bb0142;
+
+    fn xs(s: &mut u64) -> f32 {
+        *s ^= *s << 13; *s ^= *s >> 7; *s ^= *s << 17;
+        (*s as i64) as f32 / i64::MAX as f32
+    }
+
+    // Bandpass filter for the continuous wash: LP at ~4kHz then HP at ~200Hz.
+    // One-pole LP: a = 1 - exp(-2π·fc/sr)
+    let lp_a = 0.43f32;  // fc ≈ 4 kHz
+    let hp_a = 0.972f32; // fc ≈ 200 Hz  (α = R/(R+1), R = sr/(2π·fc))
+    let mut lp = 0.0f32;
+    let mut hp_x = 0.0f32;
+    let mut hp_y = 0.0f32;
+
+    // Each drop is an exponentially decaying burst of bandpass noise.
+    struct Drop {
+        amp: f32,   // current amplitude
+        rate: f32,  // per-sample decay multiplier  (close to 1.0)
+        lp: f32,    // per-drop LP state for tonal variety
+        lp_a: f32,  // per-drop LP cutoff (varies drop-to-drop)
+        rem: u32,   // samples remaining (hard cutoff)
+    }
+    let mut drops: Vec<Drop> = Vec::new();
+
+    // Drop rate targets (events / second):
+    //   fine drizzle : ~600/s  → short, quiet, bright
+    //   medium drops : ~60/s   → medium length, moderate amp
+    //   heavy drops  : ~8/s    → long tail, loud
+    let p_fine:   f32 = 600.0 / SR as f32;
+    let p_medium: f32 =  60.0 / SR as f32;
+    let p_heavy:  f32 =   8.0 / SR as f32;
+
+    loop {
+        if !RAIN_NOISE_RUNNING.load(AtomicOrdering::Relaxed) { break; }
+
+        let mut samples = Vec::with_capacity(CHUNK);
+
+        for _ in 0..CHUNK {
+            let w = xs(&mut rng_a); // white noise excitation
+
+            // --- Continuous wash (bandpass-filtered noise) ---
+            lp += lp_a * (w - lp);
+            let bp = hp_a * (hp_y + lp - hp_x);
+            hp_x = lp;
+            hp_y = bp;
+
+            // --- Spawn new drops ---
+            let r = xs(&mut rng_b).abs();
+            if r < p_fine {
+                // Fine: 3–10 ms, high cutoff, quiet
+                let dur = (SR as f32 * (0.003 + xs(&mut rng_b).abs() * 0.007)) as u32;
+                drops.push(Drop {
+                    amp:  0.04 + xs(&mut rng_b).abs() * 0.05,
+                    rate: (-4.0 / dur as f32).exp(),
+                    lp:   0.0,
+                    lp_a: 0.55 + xs(&mut rng_b).abs() * 0.3, // 5–8 kHz
+                    rem:  dur,
+                });
+            }
+            if r < p_medium {
+                let dur = (SR as f32 * (0.015 + xs(&mut rng_b).abs() * 0.035)) as u32;
+                drops.push(Drop {
+                    amp:  0.10 + xs(&mut rng_b).abs() * 0.15,
+                    rate: (-4.0 / dur as f32).exp(),
+                    lp:   0.0,
+                    lp_a: 0.30 + xs(&mut rng_b).abs() * 0.2, // 2–4 kHz
+                    rem:  dur,
+                });
+            }
+            if r < p_heavy {
+                let dur = (SR as f32 * (0.04 + xs(&mut rng_b).abs() * 0.08)) as u32;
+                drops.push(Drop {
+                    amp:  0.25 + xs(&mut rng_b).abs() * 0.25,
+                    rate: (-4.0 / dur as f32).exp(),
+                    lp:   0.0,
+                    lp_a: 0.18 + xs(&mut rng_b).abs() * 0.1, // 1–2 kHz — more body
+                    rem:  dur,
+                });
+            }
+
+            // --- Accumulate active drops ---
+            // Each drop gets its own LP-filtered noise burst.
+            let drop_noise = xs(&mut rng_a); // shared excitation for all active drops
+            let mut drop_sum = 0.0f32;
+            drops.retain_mut(|d| {
+                d.lp += d.lp_a * (drop_noise - d.lp);
+                drop_sum += d.amp * d.lp;
+                d.amp *= d.rate;
+                d.rem = d.rem.saturating_sub(1);
+                d.rem > 0
+            });
+
+            let out = (bp * 0.18 + drop_sum * 0.55).clamp(-1.0, 1.0);
+            samples.push(out);
+        }
+
+        sink.append(SamplesBuffer::new(1, SR, samples));
+
+        while sink.len() > 1 {
+            if !RAIN_NOISE_RUNNING.load(AtomicOrdering::Relaxed) {
+                sink.stop();
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+
+    sink.stop();
 }

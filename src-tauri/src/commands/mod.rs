@@ -294,7 +294,7 @@ pub fn write_note(content: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_groq_api_key() -> String {
-    CONFIG.read().unwrap().groq_api_key.clone()
+    config::Config::load_groq_api_key()
 }
 
 #[tauri::command]

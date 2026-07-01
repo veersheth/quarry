@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write as _;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -12,9 +13,6 @@ pub struct Config {
     pub default_search: DefaultSearchConfig,
     pub screenshots:   ScreenshotsConfig,
     pub scripts:       ScriptsConfig,
-    /// Groq API key for AI chat. Leave empty to be prompted on first use.
-    #[serde(default)]
-    pub groq_api_key:  String,
 }
 
 impl Default for Config {
@@ -27,7 +25,6 @@ impl Default for Config {
             default_search: DefaultSearchConfig::default(),
             screenshots:   ScreenshotsConfig::default(),
             scripts:       ScriptsConfig::default(),
-            groq_api_key:  String::new(),
         }
     }
 }
@@ -297,44 +294,47 @@ impl Config {
         fs::write(&path, toml).map_err(|e| e.to_string())
     }
 
-    /// Write just the groq_api_key into the config file, preserving all other content.
+    fn key_file_path() -> PathBuf {
+        dirs::data_local_dir()
+            .unwrap_or_else(|| PathBuf::from(".local/share"))
+            .join("quarry/.groq_key")
+    }
+
+    pub fn load_groq_api_key() -> String {
+        fs::read_to_string(Self::key_file_path())
+            .unwrap_or_default()
+            .trim()
+            .to_string()
+    }
+
     pub fn save_groq_api_key(key: &str) -> Result<(), String> {
-        let path = Self::config_path();
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        let path = Self::key_file_path();
+        let dir = path.parent().unwrap();
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+
+        // Write key with owner-only permissions.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut f = fs::OpenOptions::new()
+                .write(true).create(true).truncate(true)
+                .mode(0o600)
+                .open(&path)
+                .map_err(|e| e.to_string())?;
+            f.write_all(key.trim().as_bytes()).map_err(|e| e.to_string())?;
         }
+        #[cfg(not(unix))]
+        fs::write(&path, key.trim()).map_err(|e| e.to_string())?;
 
-        let existing = fs::read_to_string(&path).unwrap_or_default();
-
-        // If key already exists in file, replace it; otherwise append it.
-        let new_content = if existing.contains("groq_api_key") {
-            let mut lines: Vec<String> = existing.lines().map(String::from).collect();
-            for line in &mut lines {
-                if line.trim_start().starts_with("groq_api_key") {
-                    *line = format!("groq_api_key = \"{}\"", key);
-                }
-            }
-            lines.join("\n")
-        } else {
-            // Append at top level (not inside any section)
-            // Insert before the first [section] header so it's a top-level key
-            let insert_line = format!("groq_api_key = \"{}\"\n", key);
-            if let Some(pos) = existing.find("\n[") {
-                let (before, after) = existing.split_at(pos + 1);
-                format!("{}{}{}", before, insert_line, after)
-            } else {
-                format!("{}\n{}", existing.trim_end(), insert_line)
-            }
-        };
-
-        fs::write(&path, new_content).map_err(|e| e.to_string())
+        Ok(())
     }
 }
 
 const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry/config.toml
 # Every key is optional. Remove or comment out any line to keep the default.
 
-# groq_api_key = ""   # Add your Groq API key here to enable AI chat (ai <query>)
+# Groq API key is stored separately in ~/.config/quarry/.groq_key
+# Set it via Settings → General, or write the key to that file directly.
 
 # [window]
 # width  = 780   # launcher window width in pixels

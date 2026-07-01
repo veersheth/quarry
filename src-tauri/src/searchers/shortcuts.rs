@@ -188,6 +188,13 @@ fn all_shortcuts() -> Vec<ResultItem> {
         func("toggle_pink_noise", vec![]),
     ));
 
+    items.push(item(
+        "Toggle Rain Noise",
+        "Play or stop rain sounds for relaxation and focus",
+        "icons/icon-transparent.png",
+        func("toggle_rain_noise", vec![]),
+    ));
+
     // ── Network ───────────────────────────────────────────────────────────
     items.push(item(
         "Toggle WiFi",
