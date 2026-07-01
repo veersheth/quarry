@@ -380,7 +380,11 @@
       >
         <div class="type-icon">
           {#if item.thumbnail}
-            <img class="icon-thumb" src={(imageHash(item) ? thumbnails[imageHash(item)!] : item.thumbnail) ?? ""} alt="" />
+            {#if imageHash(item) && !thumbnails[imageHash(item)!]}
+              <div class="icon-thumb shimmer"></div>
+            {:else}
+              <img class="icon-thumb" src={(imageHash(item) ? thumbnails[imageHash(item)!] : item.thumbnail) ?? ""} alt="" />
+            {/if}
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
@@ -449,6 +453,8 @@
         {#if contentType === "image"}
           {#if activeItem.ocr_text && showOcrText}
             <div class="image-ocr-text">{activeItem.ocr_text}</div>
+          {:else if imageHash(activeItem) && !thumbnails[imageHash(activeItem)!]}
+            <div class="image-preview shimmer"></div>
           {:else}
             <img
               class="image-preview"
@@ -607,6 +613,22 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0.04) 25%,
+      rgba(255,255,255,0.10) 50%,
+      rgba(255,255,255,0.04) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite linear;
+    border-radius: 4px;
   }
 
   /* Blue tint: shift hue toward blue, boost saturation */
