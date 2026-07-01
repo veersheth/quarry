@@ -380,7 +380,7 @@
       >
         <div class="type-icon">
           {#if item.thumbnail}
-            <img class="icon-thumb" src={thumbSrc(item) ?? ""} alt="" />
+            <img class="icon-thumb" src={(imageHash(item) ? thumbnails[imageHash(item)!] : item.thumbnail) ?? ""} alt="" />
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
@@ -452,7 +452,7 @@
           {:else}
             <img
               class="image-preview"
-              src={thumbSrc(activeItem) ?? ""}
+              src={(imageHash(activeItem) ? thumbnails[imageHash(activeItem)!] : activeItem.thumbnail) ?? ""}
               alt={activeItem.name}
             />
           {/if}
