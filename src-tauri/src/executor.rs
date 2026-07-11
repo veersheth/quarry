@@ -512,6 +512,21 @@ fn run_custom_function(
             let key = params.first().map(|s| s.as_str()).unwrap_or("");
             crate::config::Config::save_groq_api_key(key)
         }
+        "copy_last_image_ocr_text" => {
+            let text = crate::CLIPBOARD_MANAGER.with_history(|history| {
+                history.iter().find_map(|e| {
+                    if let crate::clipboard_manager::ClipboardContent::Image { ocr_text: Some(t), .. } = &e.content {
+                        Some(t.clone())
+                    } else {
+                        None
+                    }
+                })
+            });
+            match text {
+                Some(t) => copy_to_clipboard(&t, app),
+                None => Err("No OCR text found on the last copied image".into()),
+            }
+        }
         _ => Err(format!("Unknown function: {}", function_name)),
     }
 }

@@ -125,6 +125,12 @@ fn all_shortcuts() -> Vec<ResultItem> {
 
     // ── Copy to clipboard ─────────────────────────────────────────────────
     items.push(item(
+        "Copy Text from Last Copied Image",
+        "Extract and copy OCR text from the most recently copied image",
+        "icons/file.png",
+        func("copy_last_image_ocr_text", vec![]),
+    ));
+    items.push(item(
         "Copy Today's Date",
         "Copy the current date (YYYY-MM-DD) to clipboard",
         "icons/file.png",
