@@ -115,6 +115,17 @@ pub fn run() {
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
+                .menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        ipc_server::toggle_window(tray.app_handle());
+                    }
+                })
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "toggle" => ipc_server::toggle_window(app),
                     "note" => {
