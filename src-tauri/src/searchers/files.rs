@@ -2,6 +2,7 @@ use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use notify::{RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,7 +13,8 @@ use walkdir::WalkDir;
 
 const MAX_DEPTH: usize = 4;
 const MAX_RESULTS: usize = 10;
-const INDEX_REFRESH_SECS: u64 = 30; 
+// Fallback full-rebuild interval (catches anything inotify misses, e.g. FUSE mounts).
+const FALLBACK_REFRESH_SECS: u64 = 600;
 
 const SKIP_DIRS: &[&str] = &[
     "node_modules", "__pycache__", ".git", ".svn", ".hg",
@@ -47,15 +49,60 @@ struct FileIndex {
 static FILE_INDEX: Lazy<RwLock<FileIndex>> =
     Lazy::new(|| RwLock::new(FileIndex { entries: Vec::new() }));
 
-/// Spawn a background thread that builds the file index immediately, then
-/// refreshes it every INDEX_REFRESH_SECS seconds.
+/// Spawn the file index background worker.
+///
+/// Strategy: build the index immediately, then watch for filesystem events via
+/// inotify (Linux) / FSEvents (macOS). On any event, debounce 500 ms then
+/// rebuild only what changed. A fallback full-rebuild fires every 10 minutes to
+/// catch anything inotify misses (FUSE mounts, kernel queue overflows, etc.).
 pub fn start_file_index() {
-    std::thread::spawn(|| loop {
+    std::thread::spawn(|| {
+        // Initial build.
         let entries = build_index_entries();
         if let Ok(mut idx) = FILE_INDEX.write() {
             idx.entries = entries;
         }
-        std::thread::sleep(Duration::from_secs(INDEX_REFRESH_SECS));
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        // Try to set up inotify/FSEvents watcher. If it fails (e.g. watch
+        // limit exhausted), we fall through to the polling fallback silently.
+        let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+            if res.is_ok() {
+                // Ignore send errors — receiver may have gone away.
+                let _ = tx.send(());
+            }
+        });
+
+        if let Ok(ref mut w) = watcher {
+            for path in FileSearcher::search_paths() {
+                let _ = w.watch(&path, RecursiveMode::Recursive);
+            }
+        }
+
+        let fallback = Duration::from_secs(FALLBACK_REFRESH_SECS);
+        let debounce = Duration::from_millis(500);
+
+        loop {
+            // Wait for either an inotify event or the fallback timeout.
+            match rx.recv_timeout(fallback) {
+                Ok(_) => {
+                    // Drain any events that piled up during the debounce window,
+                    // then rebuild once.
+                    std::thread::sleep(debounce);
+                    while rx.try_recv().is_ok() {}
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // Fallback: no events for 10 minutes, rebuild anyway.
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+
+            let entries = build_index_entries();
+            if let Ok(mut idx) = FILE_INDEX.write() {
+                idx.entries = entries;
+            }
+        }
     });
 }
 

@@ -38,6 +38,7 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 arboard = "3.6.1"
 tokio = { version = "1", features = ["full"] }
 walkdir = "2"
+notify = { version = "6", features = ["macos_fsevent"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 emojis = "0.8.0"
 fuzzy-matcher = "0.3"
