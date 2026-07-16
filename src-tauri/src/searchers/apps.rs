@@ -215,19 +215,52 @@ impl SearchProvider for AppSearcher {
         }
 
         let matcher = SkimMatcherV2::default().ignore_case();
-        let mut scored: Vec<(&CachedApp, i64)> = guard
-            .iter()
-            .filter_map(|app| {
-                let score = fuzzy_score_app(&matcher, app, query);
-                if score > 0 { Some((app, score)) } else { None }
-            })
-            .collect();
-        scored.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        let q = query.to_lowercase();
 
-        let mut results: Vec<ResultItem> = scored
-            .iter()
-            .map(|(app, _)| build_result_item(app))
-            .collect();
+        // Score apps and their actions together, then interleave by score.
+        enum ScoredItem<'a> {
+            App(&'a CachedApp, i64),
+            Action(&'a CachedApp, &'a AppAction, i64),
+        }
+
+        let mut scored: Vec<ScoredItem> = Vec::new();
+
+        for app in guard.iter() {
+            let app_score = fuzzy_score_app(&matcher, app, query);
+            if app_score > 0 {
+                scored.push(ScoredItem::App(app, app_score));
+            }
+
+            for action in &app.app_actions {
+                // Score against "App Name Action Name" and plain action name.
+                let combined = format!("{} {}", app.name, action.name).to_lowercase();
+                let action_score = matcher.fuzzy_match(&combined, &q)
+                    .or_else(|| matcher.fuzzy_match(&action.name.to_lowercase(), &q))
+                    .unwrap_or(0);
+                if action_score > 0 {
+                    scored.push(ScoredItem::Action(app, action, action_score));
+                }
+            }
+        }
+
+        scored.sort_unstable_by(|a, b| {
+            let sa = match a { ScoredItem::App(_, s) | ScoredItem::Action(_, _, s) => *s };
+            let sb = match b { ScoredItem::App(_, s) | ScoredItem::Action(_, _, s) => *s };
+            sb.cmp(&sa)
+        });
+
+        let results = scored.iter().map(|s| match s {
+            ScoredItem::App(app, _) => build_result_item(app),
+            ScoredItem::Action(app, action, _) => {
+                let mut item = ResultItem::new(
+                    action.name.clone(),
+                    launch_actions(&action.exec),
+                );
+                item = item.description(format!("{} shortcut", app.name));
+                if let Some(icon) = &action.icon { item = item.icon(icon.clone()); }
+                item
+            }
+        }).collect();
 
         SearchResult { results, result_type: ResultType::List, ..Default::default() }
     }
