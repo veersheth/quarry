@@ -224,7 +224,36 @@ if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length 
   });
 
   tick().then(() => {
-    document.querySelector('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
+    const el = document.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (!el) return;
+    const container = el.closest('.results') as HTMLElement | null;
+    if (!container) { el.scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
+
+    const pad = 8;
+    const elRect = el.getBoundingClientRect();
+    const cRect = container.getBoundingClientRect();
+
+    let delta = 0;
+    if (elRect.bottom > cRect.bottom - pad) {
+      delta = elRect.bottom - cRect.bottom + pad;
+    } else if (elRect.top < cRect.top + pad) {
+      delta = elRect.top - cRect.top - pad;
+    }
+    if (delta === 0) return;
+
+    const start = container.scrollTop;
+    const target = start + delta;
+    const duration = 180;
+    const startTime = performance.now();
+
+    const ease = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
+    const step = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      container.scrollTop = start + delta * ease(t);
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   });
 }
 
