@@ -64,10 +64,12 @@ impl BookmarksSearcher {
         if bookmarks.iter().any(|b| b.name.to_lowercase() == name.to_lowercase()) {
             return Err(format!("bookmark '{}' already exists", name));
         }
-        let url = if !url.starts_with("http://") && !url.starts_with("https://") {
-            format!("https://{}", url)
-        } else {
+        let url = if url.starts_with("http://") || url.starts_with("https://") {
             url
+        } else if Self::is_localhost(&url) {
+            format!("http://{}", url)
+        } else {
+            format!("https://{}", url)
         };
         bookmarks.push(Bookmark { name: name.clone(), url });
         Self::save_bookmarks(bookmarks)?;
@@ -85,13 +87,17 @@ impl BookmarksSearcher {
         Ok(format!("removed bookmark: {}", name))
     }
 
+    fn is_localhost(s: &str) -> bool {
+        let host = s.split_once("://").map(|(_, rest)| rest).unwrap_or(s);
+        let host = host.split('/').next().unwrap_or(host);
+        let host = host.split(':').next().unwrap_or(host);
+        host == "localhost" || host == "127.0.0.1" || host == "::1"
+    }
+
     fn is_url(s: &str) -> bool {
-        s.contains('.') && (
-            s.starts_with("http://") ||
-            s.starts_with("https://") ||
-            s.contains("://") ||
-            s.split('.').count() >= 2
-        )
+        if s.contains("://") { return true; }
+        if Self::is_localhost(s) { return true; }
+        s.contains('.') && s.split('.').count() >= 2
     }
 }
 

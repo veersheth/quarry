@@ -140,9 +140,9 @@
     border-color: var(--q-pin-border-active);
   }
 
-  .result-item.active .icon-wrap {
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
-  }
+  <!-- .result-item.active .icon-wrap { -->
+  <!--   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3)); -->
+  <!-- } -->
 
   .icon-wrap {
     position: relative;
