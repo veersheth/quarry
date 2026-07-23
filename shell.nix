@@ -15,7 +15,7 @@ pkgs.mkShell {
 
     # Node.js and pnpm
     nodejs_24
-    pnpm_9
+    pnpm
 
     # GTK and related libraries (runtime)
     glib
