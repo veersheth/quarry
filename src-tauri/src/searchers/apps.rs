@@ -119,6 +119,25 @@ fn launch_actions(exec: &str) -> Vec<Action> {
     vec![Action::new("Launch", ActionData::LaunchApp { executable, args })]
 }
 
+fn preferred_terminal() -> String {
+    std::env::var("TERMINAL").unwrap_or_else(|_| "x-terminal-emulator".to_string())
+}
+
+fn terminal_launch(exec: &str) -> Action {
+    Action::new("Run in Terminal", ActionData::LaunchApp {
+        executable: preferred_terminal(),
+        args: vec!["-e".to_string(), exec.to_string()],
+    })
+}
+
+fn copy_actions(exec: &str) -> [Action; 2] {
+    let executable = exec.split_whitespace().next().unwrap_or("").to_string();
+    [
+        Action::new("Copy Command", ActionData::CopyToClipboard { text: exec.to_string() }),
+        Action::new("Copy Executable", ActionData::CopyToClipboard { text: executable }),
+    ]
+}
+
 fn build_result_item(app: &CachedApp) -> ResultItem {
     let parts: Vec<&str> = app.exec.split_whitespace().collect();
     let executable = parts.first().copied().unwrap_or("").to_string();
@@ -135,6 +154,7 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
         actions.push(a);
     }
 
+    actions.push(terminal_launch(&app.exec));
     actions.push(Action::new("Run as Administrator", ActionData::LaunchApp {
         executable: "pkexec".to_string(),
         args: {
@@ -153,8 +173,7 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
             a
         },
     }));
-    actions.push(Action::new("Copy Command", ActionData::CopyToClipboard { text: app.exec.clone() }));
-    actions.push(Action::new("Copy Executable Path", ActionData::CopyToClipboard { text: executable }));
+    actions.extend(copy_actions(&app.exec));
 
     let mut item = ResultItem::new(app.name.clone(), actions);
     if let Some(desc) = &app.description { item = item.description(desc.clone()); }
@@ -252,11 +271,11 @@ impl SearchProvider for AppSearcher {
         let results = scored.iter().map(|s| match s {
             ScoredItem::App(app, _) => build_result_item(app),
             ScoredItem::Action(app, action, _) => {
-                let mut item = ResultItem::new(
-                    action.name.clone(),
-                    launch_actions(&action.exec),
-                );
-                item = item.description(format!("{} shortcut", app.name));
+                let mut actions = launch_actions(&action.exec);
+                actions.push(terminal_launch(&action.exec));
+                actions.extend(copy_actions(&action.exec));
+                let mut item = ResultItem::new(action.name.clone(), actions);
+                item = item.description(format!("{} — {}", app.name, action.name));
                 if let Some(icon) = &action.icon { item = item.icon(icon.clone()); }
                 item
             }
