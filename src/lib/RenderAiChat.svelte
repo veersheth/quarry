@@ -37,14 +37,11 @@
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let isTimeout = false;
   let lastTokens: number | null = null;
-  let copied = false;
 
   async function copyResult() {
     if (!response) return;
     await navigator.clipboard.writeText(response);
-    copied = true;
     addToast("AI response copied to clipboard", "success");
-    setTimeout(() => (copied = false), 1800);
   }
 
   // Animation state
@@ -54,7 +51,6 @@
   let mounted = false;
 
   onMount(() => {
-    // Trigger the top-beam entrance animation shortly after mount
     setTimeout(() => {
       beamVisible = true;
       mounted = true;
@@ -233,7 +229,6 @@
 
 <svelte:head>
   <style>
-    /* @property registrations for animatable custom props */
     @property --ai-deg {
       syntax: "<angle>";
       inherits: true;
@@ -245,14 +240,12 @@
       initial-value: 0;
     }
 
-    /* ── Spin keyframes ───────────────────────────── */
     @keyframes ai-spin-idle    { to { --ai-deg: 360deg; } }
     @keyframes ai-spin-load    { to { --ai-deg: 360deg; } }
     @keyframes ai-spin-stream  { to { --ai-deg: 360deg; } }
     @keyframes ai-spin-success { to { --ai-deg: 360deg; } }
     @keyframes ai-spin-error   { to { --ai-deg: 360deg; } }
 
-    /* ── Border opacity breathe / pulse ──────────── */
     @keyframes idle-breathe {
       0%, 100% { --ai-border-opacity: 0.13; }
       50%       { --ai-border-opacity: 0.30; }
@@ -267,7 +260,6 @@
       66%       { --ai-border-opacity: 0.45; }
     }
 
-    /* ── Wrap glow keyframes ──────────────────────── */
     @keyframes success-bloom {
       0%   { box-shadow: 0 0 0px   rgba(99,102,241,0);    }
       18%  { box-shadow: 0 0 44px 10px rgba(99,102,241,0.52); }
@@ -294,13 +286,11 @@
       80%     { transform: translateX(-2px); }
     }
 
-    /* ── Dot loader ──────────────────────────────── */
     @keyframes dot-pulse {
       0%,80%,100% { transform: scale(0.65); opacity: 0.35; }
       40%          { transform: scale(1.2);  opacity: 1;    }
     }
 
-    /* ── TOP BEAM intro ──────────────────────────── */
     @keyframes beam-slide {
       0%   { transform: translateX(-100%); opacity: 0; }
       10%  { opacity: 1; }
@@ -335,7 +325,6 @@
       class:state-error={glowState === "error"}
       class:state-settling={glowState === "settling"}
     >
-      <!-- animated conic border ring -->
       <div class="ai-border" aria-hidden="true"></div>
 
       <div
@@ -365,21 +354,19 @@
 
     {#if key}
       <div class="footer">
-        <span class="model">{MODEL.name}</span>
+        <span class="footer-pill model">{MODEL.name}</span>
         <div class="footer-right">
           {#if lastTokens !== null}
-            <span class="usage">{lastTokens} tokens</span>
+            <span class="footer-pill">{lastTokens} tokens</span>
           {/if}
           {#if response && !loading}
-            <button class="copy-btn" class:copied on:click={copyResult}>
-              {copied ? "Copied" : "Copy"}
-            </button>
+            <button class="footer-pill" on:click={copyResult}>Copy</button>
           {/if}
           <a
             href={MODEL.dashboard}
             target="_blank"
             rel="noopener noreferrer"
-            class="link"
+            class="footer-pill"
           >Dashboard ↗</a>
         </div>
       </div>
@@ -420,7 +407,7 @@
       rgba(148,130,255,0.4) 80%,
       transparent 100%
     );
-    border-radius: 2px;
+    border-radius: 20px;
     transform: translateX(-100%);
     opacity: 0;
   }
@@ -452,7 +439,7 @@
     min-height: 0;
     margin: 20px 20px 0;
     padding: 1.5px;
-    border-radius: 14px;
+    border-radius: 20px;
     background: rgba(128,128,128,0.06);
     transition:
       background       0.6s cubic-bezier(0.22,1,0.36,1),
@@ -461,13 +448,11 @@
     flex-direction: column;
   }
 
-  /* ── Conic border ring ────────────────────────────── */
   .ai-border {
     position: absolute;
     inset: -1.5px;
     border-radius: 15.5px;
     padding: 2px;
-    /* default: indigo sweep */
     background: conic-gradient(
       from var(--ai-deg),
       transparent 0deg,
@@ -480,7 +465,6 @@
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
     -webkit-mask-composite: xor;
-    /* idle default */
     --ai-border-opacity: 0.18;
     opacity: var(--ai-border-opacity);
     animation:
@@ -489,7 +473,6 @@
     transition: opacity 0.5s ease;
   }
 
-  /* ── State: loading ───────────────────────────────── */
   .state-loading .ai-border {
     --ai-border-opacity: 0.9;
     animation:
@@ -500,7 +483,6 @@
     background: rgba(99,102,241,0.05);
   }
 
-  /* ── State: streaming ─────────────────────────────── */
   .state-streaming .ai-border {
     --ai-border-opacity: 0.72;
     animation:
@@ -511,7 +493,6 @@
     background: rgba(99,102,241,0.06);
   }
 
-  /* ── State: success ───────────────────────────────── */
   .state-success .ai-border {
     --ai-border-opacity: 0.42;
     animation:
@@ -522,7 +503,6 @@
     animation: success-bloom 2.2s cubic-bezier(0.22,1,0.36,1) forwards;
   }
 
-  /* ── State: error ─────────────────────────────────── */
   .state-error .ai-border {
     --ai-border-opacity: 1;
     background: conic-gradient(
@@ -542,7 +522,6 @@
     animation: error-bloom 2.4s cubic-bezier(0.22,1,0.36,1) forwards;
   }
 
-  /* ── State: settling (post-error wind-down) ────────── */
   .state-settling .ai-border {
     --ai-border-opacity: 0.18;
     background: conic-gradient(
@@ -562,7 +541,6 @@
     animation: settling-dim 1.2s ease-out forwards;
   }
 
-  /* ── Inner content pane ───────────────────────────── */
   .inner {
     border-radius: 12px;
     padding: 16px 18px;
@@ -576,7 +554,6 @@
     cursor: text;
   }
 
-  /* Enhanced text selection styling */
   .inner :global(::selection) {
     background: rgba(99,102,241,0.3);
     color: inherit;
@@ -591,13 +568,11 @@
     animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
   }
 
-  /* ── Text ─────────────────────────────────────────── */
   .dim {
     opacity: 0.38;
     margin: 0;
   }
 
-  /* ── Error block ──────────────────────────────────── */
   .error-block {
     display: flex;
     flex-direction: column;
@@ -628,7 +603,6 @@
     word-break: break-all;
   }
 
-  /* ── Markdown output ──────────────────────────────── */
   .md {
     cursor: text;
     user-select: text !important;
@@ -685,7 +659,6 @@
   .md :global(a:hover)         { text-decoration: underline; }
   .md :global(del)             { opacity: 0.6; }
 
-  /* ── Dots loader ──────────────────────────────────── */
   .dots          { display: flex; gap: 6px; padding: 10px 0; align-items: center; }
   .dots span     { width: 8px; height: 8px; background: #818cf8; border-radius: 50%; animation: dot-pulse 1.4s ease-in-out infinite; }
   .dots span:nth-child(2) { animation-delay: 0.2s; }
@@ -695,7 +668,7 @@
   .footer {
     padding: 12px 16px;
     display: flex;
-    gap: 10px;
+    gap: 6px;
     align-items: center;
     justify-content: space-between;
     font-size: 1.2em;
@@ -704,53 +677,35 @@
     flex-shrink: 0;
   }
 
-  .copy-btn {
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 0.72em;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    color: rgba(255,255,255,0.6);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
-  .copy-btn:hover {
+  /* ── Shared pill style ────────────────────────────── */
+  .footer-pill {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.74em;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .footer-pill:hover {
     background: rgba(255,255,255,0.12);
     color: rgba(255,255,255,0.9);
   }
 
-  .copy-btn.copied {
-    background: rgba(99,102,241,0.18);
-    border-color: rgba(99,102,241,0.4);
-    color: #a5b4fc;
-  }
-
-  .footer-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
+  /* Model is the only pill with monospace */
   .model {
+    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
     font-weight: 500;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.74em;
-  }
-
-  .link {
-    text-decoration: none;
-    color: #818cf8;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.74em;
-  }
-
-  .usage {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 20px;
-    padding: 4px 10px;
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-size: 0.72em;
   }
 </style>
