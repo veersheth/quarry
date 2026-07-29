@@ -8,7 +8,7 @@ nix_run() {
     if [ -n "$IN_NIX_SHELL" ]; then
         bash -c "$1"
     else
-        nix-shell --run "$1"
+        nix develop --command bash -c "$1"
     fi
 }
 RELEASE="$SCRIPT_DIR/src-tauri/target/release"
