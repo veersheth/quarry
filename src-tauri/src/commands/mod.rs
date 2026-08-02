@@ -205,11 +205,6 @@ pub fn execute(
 }
 
 #[tauri::command]
-pub fn exec_shell(command: String) -> Result<(), String> {
-    executor::run_shell_command(&command)
-}
-
-#[tauri::command]
 pub fn exec_func(name: String, params: Vec<String>, app: tauri::AppHandle) -> Result<(), String> {
     executor::execute_action(crate::types::ActionData::RunFunction { function_name: name, params }, &app)
 }

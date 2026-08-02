@@ -34,7 +34,7 @@ export type ContextMenuState = {
 
 export const mouseHasMoved = writable(false);
 
-export type ModalButton = { label: string; kind?: string; shell?: string };
+export type ModalButton = { label: string; kind?: string; action_id?: string };
 export type ModalStoreState = {
   open: boolean;
   body: string;

@@ -28,7 +28,7 @@
           class:danger={btn.kind === 'danger'}
           class:primary={btn.kind === 'primary'}
           on:click={async () => {
-            if (btn.shell) await invoke("exec_shell", { command: btn.shell });
+            if (btn.action_id) await invoke("execute", { actionId: btn.action_id, query: "", name: btn.label });
             closeModal();
           }}
           on:mouseenter={() => modalStore.update(s => ({ ...s, activeIndex: i }))}

@@ -49,7 +49,7 @@ export function handleKeydown(
     }
     if (event.key === "Enter") {
       const btn = modal.buttons[modal.activeIndex];
-      if (btn?.shell) invoke("exec_shell", { command: btn.shell }).then(() => closeModal());
+      if (btn?.action_id) invoke("execute", { actionId: btn.action_id, query: "", name: btn.label }).then(() => closeModal());
       else closeModal();
       return;
     }

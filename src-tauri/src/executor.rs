@@ -12,7 +12,7 @@ pub struct ModalButton {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shell: Option<String>,
+    pub action_id: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -355,7 +355,7 @@ fn run_custom_function(
                 };
                 let payload = ModalPayload {
                     body,
-                    buttons: vec![ModalButton { label: "Dismiss".into(), kind: None, shell: None }],
+                    buttons: vec![ModalButton { label: "Dismiss".into(), kind: None, action_id: None }],
                 };
                 let _ = app_clone.emit("quarry-modal", &payload);
                 std::thread::spawn(play_beep);
@@ -377,19 +377,34 @@ fn run_custom_function(
             crate::searchers::timer::remove_timer(id);
             Ok(())
         }
+        "run_shell" => {
+            let command = params.first().ok_or("run_shell requires a command")?;
+            run_shell_command(command)
+        }
         "show_modal" => {
+            static MODAL_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let seq = MODAL_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let body = params.first().cloned().unwrap_or_default();
             let buttons: Vec<ModalButton> = if params.len() > 1 {
-                params[1..].iter().map(|spec| {
+                params[1..].iter().enumerate().map(|(i, spec)| {
                     let parts: Vec<&str> = spec.splitn(3, '|').collect();
-                    ModalButton {
-                        label: parts.first().copied().unwrap_or("OK").to_string(),
-                        kind:  parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string()),
-                        shell: parts.get(2).filter(|s| !s.is_empty()).map(|s| s.to_string()),
-                    }
+                    let label = parts.first().copied().unwrap_or("OK").to_string();
+                    let kind = parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string());
+                    let action_id = parts.get(2).filter(|s| !s.is_empty()).map(|shell| {
+                        let id = format!("modal_{}_{}", seq, i);
+                        crate::ACTION_REGISTRY.register(
+                            id.clone(),
+                            crate::types::ActionData::RunFunction {
+                                function_name: "run_shell".to_string(),
+                                params: vec![shell.to_string()],
+                            },
+                        );
+                        id
+                    });
+                    ModalButton { label, kind, action_id }
                 }).collect()
             } else {
-                vec![ModalButton { label: "Dismiss".into(), kind: None, shell: None }]
+                vec![ModalButton { label: "Dismiss".into(), kind: None, action_id: None }]
             };
             let payload = ModalPayload { body, buttons };
             app.emit("quarry-modal", &payload).map_err(|e| e.to_string())
