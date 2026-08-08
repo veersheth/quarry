@@ -204,7 +204,7 @@
     );
 
     // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
-    // arrive before the file search completes — apply immediately if still relevant.
+    // arrive before the file search completes - apply immediately if still relevant.
     const unlistenFast = await listen<{
       query: string;
       results: import("../stores/search").ResultItem[];

@@ -37,7 +37,7 @@ struct FastPartial {
     results: Vec<ResultItem>,
 }
 
-/// Source type for scoring — apps/shortcuts always beat files at equal fuzzy quality.
+/// Source type for scoring - apps/shortcuts always beat files at equal fuzzy quality.
 #[derive(Clone, Copy)]
 enum Source {
     App,
@@ -87,7 +87,7 @@ impl DefaultSearcher {
             return 0;
         }
 
-        // Name match quality — determines how "intentional" the match looks
+        // Name match quality - determines how "intentional" the match looks
         let name_quality: f64 = if !q.is_empty() && raw_name > 0 {
             if name == q {
                 4.0
@@ -186,7 +186,7 @@ impl SearchProvider for DefaultSearcher {
             let _ = file_tx.send(results);
         });
 
-        // Fast in-memory searchers — parallel, finish in ~2ms
+        // Fast in-memory searchers - parallel, finish in ~2ms
         let ((app_results, sys_results), (bookmark_results, shortcut_results)) = rayon::join(
             || rayon::join(
                 || AppSearcher.search(&q_owned, app).results,
@@ -227,7 +227,7 @@ impl SearchProvider for DefaultSearcher {
             vec![]
         };
 
-        // Merge all primary sources — score determines order, no hard-coded pinning
+        // Merge all primary sources - score determines order, no hard-coded pinning
         let mut seen = HashSet::new();
         let mut combined = Self::merge_scored(vec![
             Self::score_items(app_results, q, Source::App),
@@ -238,7 +238,7 @@ impl SearchProvider for DefaultSearcher {
             settings_results,
         ], &mut seen);
 
-        // Supplementary results — appended after ranked items, not competing by score
+        // Supplementary results - appended after ranked items, not competing by score
         let mut emojis = EmojiSearcher.search(q, app).results;
         emojis.truncate(6);
         combined.extend(emojis);

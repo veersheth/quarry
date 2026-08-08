@@ -374,7 +374,7 @@ impl ClipboardManager {
     }
 
     /// Call `f` with a borrow of the history, avoiding any clone.
-    /// Callers should not clone the `full` image field — use `get_full_image` instead.
+    /// Callers should not clone the `full` image field - use `get_full_image` instead.
     pub fn with_history<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&[ClipboardEntry]) -> R,

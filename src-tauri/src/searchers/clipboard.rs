@@ -133,7 +133,7 @@ fn build_results(query: &str) -> SearchResult {
         }
     }
 
-    // Build history items while holding the lock — no full-image clone needed.
+    // Build history items while holding the lock - no full-image clone needed.
     // The `full` field is intentionally not accessed; copy actions reference by hash.
     CLIPBOARD_MANAGER.with_history(|history| {
         let history_items: Vec<ResultItem> = history

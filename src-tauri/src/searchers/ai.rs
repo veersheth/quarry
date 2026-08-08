@@ -16,7 +16,7 @@ impl SearchProvider for AiSearcher {
             };
         }
 
-        // No key — let the user paste it directly into the query.
+        // No key - let the user paste it directly into the query.
         let q = query.trim();
         let item = if q.is_empty() {
             ResultItem::new(

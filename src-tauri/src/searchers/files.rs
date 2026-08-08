@@ -69,7 +69,7 @@ pub fn start_file_index() {
         // limit exhausted), we fall through to the polling fallback silently.
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             if res.is_ok() {
-                // Ignore send errors — receiver may have gone away.
+                // Ignore send errors - receiver may have gone away.
                 let _ = tx.send(());
             }
         });

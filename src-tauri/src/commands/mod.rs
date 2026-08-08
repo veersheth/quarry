@@ -55,7 +55,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
             match Regex::new($pattern) {
                 Ok(r) => $v.push((r, Box::new($searcher) as Box<dyn SearchProvider + Send + Sync>)),
                 Err(e) => eprintln!(
-                    "quarry: invalid trigger regex for '{}' ({}) — skipping",
+                    "quarry: invalid trigger regex for '{}' ({}) - skipping",
                     $name, e
                 ),
             }
@@ -106,7 +106,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
                 }),
             )),
             Err(e) => eprintln!(
-                "quarry: invalid trigger regex for web search '{}' ({}) — skipping",
+                "quarry: invalid trigger regex for web search '{}' ({}) - skipping",
                 ws.name, e
             ),
         }

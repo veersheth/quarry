@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-// Dictionary definitions don't change — cache indefinitely for the session
+// Dictionary definitions don't change - cache indefinitely for the session
 static DICT_CACHE: Lazy<DashMap<String, SearchResult>> = Lazy::new(DashMap::new);
 
 pub struct DictionarySearcher;

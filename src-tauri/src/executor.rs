@@ -578,7 +578,7 @@ fn open_selecting(path: &std::path::Path) -> Result<(), String> {
         // User-defined override
         Command::new(&fm).arg(&path_str).spawn().is_ok()
     } else {
-        // No detection — try common managers in order
+        // No detection - try common managers in order
         Command::new("nautilus").args(["--select", &path_str]).spawn().is_ok()
         || Command::new("dolphin").args(["--select", &path_str]).spawn().is_ok()
         || Command::new("nemo").args(["--no-desktop", &path_str]).spawn().is_ok()
@@ -672,7 +672,7 @@ pub fn toggle_pink_noise() {
     if PINK_NOISE_RUNNING.compare_exchange(true, false, AtomicOrdering::SeqCst, AtomicOrdering::SeqCst).is_ok() {
         return;
     }
-    // Not running — start it.
+    // Not running - start it.
     PINK_NOISE_RUNNING.store(true, AtomicOrdering::SeqCst);
     std::thread::spawn(|| {
         play_pink_noise();
@@ -760,7 +760,7 @@ fn play_rain_noise() {
     const SR: u32 = 44100;
     const CHUNK: usize = (SR * 2) as usize;
 
-    // Two independent XorShift64 states — one for drops, one for texture
+    // Two independent XorShift64 states - one for drops, one for texture
     let mut rng_a: u64 = 0x9e3779b97f4a7c15;
     let mut rng_b: u64 = 0x6c62272e07bb0142;
 
@@ -838,7 +838,7 @@ fn play_rain_noise() {
                     amp:  0.25 + xs(&mut rng_b).abs() * 0.25,
                     rate: (-4.0 / dur as f32).exp(),
                     lp:   0.0,
-                    lp_a: 0.18 + xs(&mut rng_b).abs() * 0.1, // 1–2 kHz — more body
+                    lp_a: 0.18 + xs(&mut rng_b).abs() * 0.1, // 1–2 kHz - more body
                     rem:  dur,
                 });
             }

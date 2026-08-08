@@ -302,7 +302,7 @@ fn try_date_calc(query: &str) -> Option<Vec<ResultItem>> {
     let today = Local::now().date_naive();
     let mut results: Vec<ResultItem> = Vec::new();
 
-    // ── "today" / "now" — show date info ────────────────────
+    // ── "today" / "now" - show date info ────────────────────
     static RE_TODAY: Lazy<Regex> = Lazy::new(||
         Regex::new(r"(?i)^(today|now)$").unwrap()
     );
@@ -313,7 +313,7 @@ fn try_date_calc(query: &str) -> Option<Vec<ResultItem>> {
         let day_of_year = today.ordinal();
         let wd = weekday_name(today.weekday());
         results.push(make_date_result(
-            format!("{} — {} (week {}, day {} of year)", human, wd, week, day_of_year),
+            format!("{} - {} (week {}, day {} of year)", human, wd, week, day_of_year),
             iso.clone(),
         ));
         results.push(make_date_result(format!("ISO: {}", iso), iso));
@@ -386,7 +386,7 @@ fn try_date_calc(query: &str) -> Option<Vec<ResultItem>> {
     }
 
     // ── resolve_named_date_no_future: like resolve_named_date but never bumps
-    // to next year — used for "since/from" queries where the date being in the
+    // to next year - used for "since/from" queries where the date being in the
     // past is expected and correct.
     fn resolve_named_date_no_future(s: &str) -> Option<NaiveDate> {
         let year = Local::now().date_naive().year();
@@ -494,7 +494,7 @@ fn try_date_calc(query: &str) -> Option<Vec<ResultItem>> {
         return Some(results);
     }
 
-    // ── "<date> to/- <date>" (between) — try last so it doesn't swallow other patterns ──
+    // ── "<date> to/- <date>" (between) - try last so it doesn't swallow other patterns ──
     if let Some(caps) = RE_BETWEEN.captures(q) {
         let a = resolve_named_date(caps[1].trim());
         let b = resolve_named_date(caps[2].trim());
@@ -508,7 +508,7 @@ fn try_date_calc(query: &str) -> Option<Vec<ResultItem>> {
         }
     }
 
-    // ── Bare date — show info about it ───────────────────────
+    // ── Bare date - show info about it ───────────────────────
     if let Some(target) = parse_date(q) {
         let diff = (target - today).num_days();
         let wd   = weekday_name(target.weekday());
@@ -517,7 +517,7 @@ fn try_date_calc(query: &str) -> Option<Vec<ResultItem>> {
         let direction = if diff > 0 { format!("in {}", human) }
                         else if diff < 0 { format!("{} ago", human) }
                         else { "today".to_string() };
-        let label = format!("{} — {} (week {}) — {}", format_date(target), wd, wn, direction);
+        let label = format!("{} - {} (week {}) - {}", format_date(target), wd, wn, direction);
         let iso   = target.format("%Y-%m-%d").to_string();
         results.push(make_date_result(label, iso));
         return Some(results);
@@ -694,7 +694,7 @@ static UNITS: Lazy<Vec<UnitDef>> = Lazy::new(|| vec![
     UnitDef { aliases: &["lb", "lbs", "pound", "pounds"],                                display: "lb",  category: "weight", to_base: 453.592_37 },
     UnitDef { aliases: &["st", "stone", "stones"],                                       display: "st",  category: "weight", to_base: 6_350.293_18 },
 
-    // ── Temperature — special (aliases only, conversion handled separately) ──
+    // ── Temperature - special (aliases only, conversion handled separately) ──
     UnitDef { aliases: &["c", "°c", "celsius", "centigrade"],  display: "°C", category: "temperature", to_base: 1.0 },
     UnitDef { aliases: &["f", "°f", "fahrenheit"],             display: "°F", category: "temperature", to_base: 1.0 },
     UnitDef { aliases: &["k", "kelvin"],                       display: "K",  category: "temperature", to_base: 1.0 },

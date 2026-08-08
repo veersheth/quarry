@@ -78,7 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // A second instance was launched — dispatch to the running app.
+            // A second instance was launched - dispatch to the running app.
             let mut i = 1usize;
             let mut handled = false;
             while i < args.len() {

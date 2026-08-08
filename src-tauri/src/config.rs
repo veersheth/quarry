@@ -268,7 +268,7 @@ impl Config {
         match toml::from_str::<Config>(&contents) {
             Ok(cfg) => cfg,
             Err(e) => {
-                eprintln!("quarry: config parse error — {} — using defaults", e);
+                eprintln!("quarry: config parse error - {} - using defaults", e);
                 Self::default()
             }
         }
@@ -330,7 +330,7 @@ impl Config {
     }
 }
 
-const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration — ~/.config/quarry/config.toml
+const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration - ~/.config/quarry/config.toml
 # Every key is optional. Remove or comment out any line to keep the default.
 
 # Groq API key is stored separately in ~/.config/quarry/.groq_key

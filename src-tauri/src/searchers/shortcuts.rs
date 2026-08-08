@@ -58,7 +58,7 @@ fn all_shortcuts() -> Vec<ResultItem> {
             }
         };
         if let Some(sp) = scripts_path {
-            let desc = format!("Open {} — place executable scripts here", sp.to_string_lossy());
+            let desc = format!("Open {} - place executable scripts here", sp.to_string_lossy());
             let mut scripts_it = folder_item("Open Scripts Folder", &desc, sp);
             scripts_it.icon = Some("icons/folder.png".into());
             items.push(scripts_it);

@@ -137,7 +137,7 @@ pub fn setup_note_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Err
         }
     });
 
-    // #1a1a1f — prevents white flash during resize/move
+    // #1a1a1f - prevents white flash during resize/move
     #[cfg(target_os = "linux")]
     webview.with_webview(|wv| {
         use webkit2gtk::WebViewExt;
@@ -169,7 +169,7 @@ pub fn setup_settings_window(app: &tauri::App) -> Result<(), Box<dyn std::error:
         }
     });
 
-    // #111113 — prevents white flash during resize/move
+    // #111113 - prevents white flash during resize/move
     #[cfg(target_os = "linux")]
     webview.with_webview(|wv| {
         use webkit2gtk::WebViewExt;

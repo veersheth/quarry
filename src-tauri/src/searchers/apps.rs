@@ -275,7 +275,7 @@ impl SearchProvider for AppSearcher {
                 actions.push(terminal_launch(&action.exec));
                 actions.extend(copy_actions(&action.exec));
                 let mut item = ResultItem::new(action.name.clone(), actions);
-                item = item.description(format!("{} — {}", app.name, action.name));
+                item = item.description(format!("{} - {}", app.name, action.name));
                 if let Some(icon) = &action.icon { item = item.icon(icon.clone()); }
                 item
             }

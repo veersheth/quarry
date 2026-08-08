@@ -6,7 +6,7 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 pub struct EmojiSearcher;
 
 // ---------------------------------------------------------------------------
-// Caches — built once at startup, cloned per search call
+// Caches - built once at startup, cloned per search call
 // ---------------------------------------------------------------------------
 
 static ALL_EMOJIS: Lazy<Vec<ResultItem>> = Lazy::new(|| {
@@ -148,7 +148,7 @@ impl SearchProvider for EmojiSearcher {
                 .map(|emoji| make_emoji_item(emoji, false).group("featured"))
                 .collect();
 
-            // 3. All emojis then symbols — served from cache
+            // 3. All emojis then symbols - served from cache
             let results = pinned_items.into_iter()
                 .chain(recent_items)
                 .chain(ALL_EMOJIS.iter().cloned())

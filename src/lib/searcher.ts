@@ -15,7 +15,7 @@ export async function execute(action_id: string, name: string, currentQuery: str
     if (result === "copied") {
       addToast("Copied to clipboard");
     } else if (result === "stay") {
-      // action manages its own UI (e.g. show_modal) — keep window visible
+      // action manages its own UI (e.g. show_modal) - keep window visible
     } else if (result === "error") {
       addToast("Something went wrong", "error");
     } else if (result.startsWith("toasted:")) {
