@@ -190,7 +190,7 @@ fn all_shortcuts() -> Vec<ResultItem> {
     items.push(item(
         "Toggle Pink Noise",
         "Play or stop pink noise for focus and masking background sounds",
-        "icons/icon-transparent.png",
+        "icons/pink-noise.png",
         func("toggle_pink_noise", vec![]),
     ));
 
