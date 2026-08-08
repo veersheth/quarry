@@ -72,6 +72,7 @@
   >
   {#each filteredActions as action, i (action.id)}
     <!-- svelte-ignore a11y_interactive_supports_focus -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="ctx-item"
       class:active={i === activeIdx}
@@ -193,15 +194,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--q-font-color, #fff);
-  }
-
-  .ctx-badge {
-    font-size: 0.67em;
-    letter-spacing: 0.05em;
-    opacity: 0.28;
-    white-space: nowrap;
-    flex-shrink: 0;
     color: var(--q-font-color, #fff);
   }
 </style>

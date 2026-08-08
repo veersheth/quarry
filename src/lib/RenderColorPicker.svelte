@@ -268,19 +268,19 @@
     padding: 20px;
   }
 
-  <!-- .background-blob { -->
-  <!--   position: fixed; -->
-  <!--   bottom: 0%; -->
-  <!--   right: 0; -->
-  <!--   transform: translate(-86%, -50%); -->
-  <!--   height: 56%; -->
-  <!--   width: 57%; -->
-  <!--   z-index: -1; -->
-  <!--   background-size: 300% 300%; -->
-  <!--   opacity: 0.2; -->
-  <!--   filter: blur(120px); -->
-  <!--   border-radius: 50%; -->
-  <!-- } -->
+  /* .background-blob {
+    position: fixed;
+    bottom: 0%;
+    right: 0;
+    transform: translate(-86%, -50%);
+    height: 56%;
+    width: 57%;
+    z-index: -1;
+    background-size: 300% 300%;
+    opacity: 0.2;
+    filter: blur(120px);
+    border-radius: 50%;
+  } */
 
   .left-section {
     display: flex;
