@@ -6,6 +6,7 @@
   import { fly } from "svelte/transition";
   import { backOut } from "svelte/easing";
   import RenderList from "$lib/RenderList.svelte";
+  import RenderHome from "$lib/RenderHome.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
   import ContextMenu from "$lib/ContextMenu.svelte";
   import {
@@ -52,6 +53,11 @@
   let rofiMode = false;
   let rofiResponseSocket = "";
   let rofiAllItems: import("../stores/search").ResultItem[] = [];
+
+  function homeAwareIndex(results: import("../stores/search").ResultItem[], type: string): number {
+    if (type === "Home") return results.filter(r => r.group === "widget").length;
+    return 0;
+  }
 
   function filterRofiItems(q: string) {
     if (!q) {
@@ -252,7 +258,7 @@
             resultItems.set(res.results);
             resultType.set(res.result_type);
             searcherName.set(res.searcher ?? "");
-            activeIndex.set(0);
+            activeIndex.set(homeAwareIndex(res.results, res.result_type));
           })
           .catch((err) => {
             console.error("Search error:", err);
@@ -326,7 +332,7 @@
         {:else if $resultType === "ColorPicker"}
           <RenderColorPicker initialColor={$resultItems[0]?.name ?? ""} />
         {:else if $resultType === "Home"}
-          <RenderList
+          <RenderHome
             listitems={$resultItems}
             {activeIndex}
             onContextMenu={handleContextMenu}

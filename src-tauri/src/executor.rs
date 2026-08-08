@@ -326,7 +326,7 @@ fn run_custom_function(
                 .unwrap()
                 .as_secs() + secs;
             let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-            crate::searchers::timer::add_timer(id, label.clone(), expires_at, cancelled.clone());
+            crate::searchers::timer::add_timer(id, label.clone(), expires_at, secs, cancelled.clone());
             let app_clone = app.clone();
             std::thread::spawn(move || {
                 let interval = std::time::Duration::from_millis(200);
@@ -665,7 +665,7 @@ fn play_beep() {
 }
 
 // Shared flag: true = pink noise should be playing.
-static PINK_NOISE_RUNNING: AtomicBool = AtomicBool::new(false);
+pub static PINK_NOISE_RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub fn toggle_pink_noise() {
     // If already running, signal it to stop.
@@ -738,7 +738,7 @@ fn play_pink_noise() {
 }
 
 // Shared flag: true = rain noise should be playing.
-static RAIN_NOISE_RUNNING: AtomicBool = AtomicBool::new(false);
+pub static RAIN_NOISE_RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub fn toggle_rain_noise() {
     if RAIN_NOISE_RUNNING.compare_exchange(true, false, AtomicOrdering::SeqCst, AtomicOrdering::SeqCst).is_ok() {

@@ -12,6 +12,7 @@ export type ResultItem = {
   icon?: string;
   thumbnail?: string;
   pinned?: boolean;
+  group?: string;
   draggable_path?: string;
 };
 

@@ -261,12 +261,17 @@ struct TzMatch {
 
 fn format_time(tz: Tz) -> String {
     let now = Utc::now().with_timezone(&tz);
-    now.format("%I:%M %p").to_string()
+    now.format("%-I:%M %p").to_string()
 }
 
-fn format_date(tz: Tz) -> String {
+fn format_datetime(tz: Tz) -> String {
     let now = Utc::now().with_timezone(&tz);
-    now.format("%a %d %b · %Z %:z").to_string()
+    now.format("%-I:%M %p, %a %d %b").to_string()
+}
+
+fn format_tz_label(tz: Tz) -> String {
+    let now = Utc::now().with_timezone(&tz);
+    now.format("%Z %:z").to_string()
 }
 
 /// Build a ResultItem for a timezone match.
@@ -284,13 +289,14 @@ fn tz_result(m: &TzMatch, is_pinned: bool) -> ResultItem {
     };
 
     let mut item = ResultItem::new(
-        format!("{} - {}", m.label, format_time(m.tz)),
+        format_datetime(m.tz),
         vec![
             Action::new("Copy", ActionData::CopyToClipboard { text: format_time(m.tz) }),
             pin_action,
         ],
     )
-    .description(format_date(m.tz));
+    .description(format!("{} · {}", m.label, format_tz_label(m.tz)))
+    .icon("icons/clock.svg");
 
     if is_pinned {
         item = item.pinned();

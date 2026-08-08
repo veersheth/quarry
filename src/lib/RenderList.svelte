@@ -33,6 +33,7 @@
     draggable_path?: string;
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
+  export let indexOffset: number = 0;
   export let onContextMenu:
     | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
     | undefined = undefined;
@@ -49,12 +50,12 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="result-item"
-      class:active={index === $activeIndex}
+      class:active={index === $activeIndex - indexOffset}
       class:has-desc={!!item.description}
       class:pinned={item.pinned}
-      data-active={index === $activeIndex}
+      data-active={index === $activeIndex - indexOffset}
       on:mouseenter={() => {
-        if ($mouseHasMoved) activeIndex.set(index);
+        if ($mouseHasMoved) activeIndex.set(index + indexOffset);
       }}
       on:click={() => runItemAction(item)}
       on:contextmenu={(e) => {
@@ -97,9 +98,7 @@
           <span class="item-desc">{item.description}</span>
         {/if}
       </div>
-      {#if index < 4}
-        <span class="alt-hint">Alt + {index + 1}</span>
-      {/if}
+
     </div>
   {/each}
 </div>
@@ -140,10 +139,6 @@
     border-color: var(--q-pin-border-active);
   }
 
-  <!-- .result-item.active .icon-wrap { -->
-  <!--   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3)); -->
-  <!-- } -->
-
   .icon-wrap {
     position: relative;
     width: 20px;
@@ -177,7 +172,6 @@
     object-fit: contain;
     object-position: center;
     opacity: 0;
-    transition: opacity 0.18s ease;
   }
 
   img.item-icon.icon-loaded {

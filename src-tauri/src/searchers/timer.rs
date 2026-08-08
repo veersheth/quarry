@@ -11,17 +11,18 @@ use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 pub struct TimerEntry {
-    pub id:         u64,
-    pub label:      String,
-    pub expires_at: u64,
-    pub cancelled:  Arc<AtomicBool>,
+    pub id:           u64,
+    pub label:        String,
+    pub expires_at:   u64,
+    pub duration_secs: u64,
+    pub cancelled:    Arc<AtomicBool>,
 }
 
 pub static ACTIVE_TIMERS: Lazy<Mutex<Vec<TimerEntry>>> = Lazy::new(|| Mutex::new(vec![]));
 
-pub fn add_timer(id: u64, label: String, expires_at: u64, cancelled: Arc<AtomicBool>) {
+pub fn add_timer(id: u64, label: String, expires_at: u64, duration_secs: u64, cancelled: Arc<AtomicBool>) {
     if let Ok(mut t) = ACTIVE_TIMERS.lock() {
-        t.push(TimerEntry { id, label, expires_at, cancelled });
+        t.push(TimerEntry { id, label, expires_at, duration_secs, cancelled });
     }
 }
 

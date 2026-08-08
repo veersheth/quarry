@@ -1,3 +1,4 @@
+pub mod home;
 pub mod time;
 pub mod ai;
 pub mod currency;

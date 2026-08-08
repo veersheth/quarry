@@ -162,8 +162,10 @@ impl SearchProvider for DefaultSearcher {
         let q = query.trim();
 
         if q.is_empty() {
+            let mut results = crate::searchers::home::home_items(app);
+            results.extend(AppSearcher.search(q, app).results);
             return SearchResult {
-                results: AppSearcher.search(q, app).results,
+                results,
                 result_type: ResultType::Home,
                 ..Default::default()
             };
