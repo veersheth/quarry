@@ -1,3 +1,4 @@
+use chrono::{Local, TimeZone};
 use once_cell::sync::Lazy;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -49,6 +50,14 @@ pub fn format_duration(secs: u64) -> String {
     if m > 0 { parts.push(format!("{}m", m)); }
     if s > 0 || parts.is_empty() { parts.push(format!("{}s", s)); }
     parts.join(" ")
+}
+
+fn format_ring_time(unix_secs: u64) -> String {
+    Local
+        .timestamp_opt(unix_secs as i64, 0)
+        .single()
+        .map(|dt| dt.format("%-I:%M %p").to_string())
+        .unwrap_or_else(|| "??:??".to_string())
 }
 
 pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
@@ -110,6 +119,7 @@ impl SearchProvider for TimerSearcher {
             let mut params = vec![secs.to_string()];
             if !label.is_empty() { params.push(label.clone()); }
 
+            let ring_at = format_ring_time(now_secs() + secs);
             results.push(
                 ResultItem::new(
                     format!("Start: {}", display),
@@ -118,13 +128,15 @@ impl SearchProvider for TimerSearcher {
                         params,
                     })],
                 )
-                .description(format!("Alert after {}", format_duration(secs))),
+                .description(format!("Alert after {} · rings at {}", format_duration(secs), ring_at)),
             );
         }
 
         if let Ok(timers) = ACTIVE_TIMERS.lock() {
             for t in timers.iter() {
-                let rem = t.expires_at.saturating_sub(now_secs());
+                let now = now_secs();
+                let rem = t.expires_at.saturating_sub(now);
+                let ring_at = format_ring_time(t.expires_at);
                 let label = if t.label.is_empty() { "Timer".to_string() } else { t.label.clone() };
                 results.push(
                     ResultItem::new(
@@ -134,7 +146,7 @@ impl SearchProvider for TimerSearcher {
                             params: vec![t.id.to_string()],
                         })],
                     )
-                    .description(format!("Expires in {}", format_duration(rem))),
+                    .description(format!("Rings at {} · {} remaining", ring_at, format_duration(rem))),
                 );
             }
         }
