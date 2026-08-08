@@ -77,7 +77,7 @@
   .widget-row {
     display: grid;
     gap: 8px;
-    padding: 16px 12px 10px;
+    padding: 4px 12px 4px;
   }
 
   .widget {
@@ -88,7 +88,7 @@
     min-width: 0;
     overflow: hidden;
     border-radius: var(--q-item-border-radius);
-    border: 1px solid var(--q-border-subtle);
+    border: 1px solid var(--q-border-medium);
     color: var(--q-text-secondary);
     cursor: default;
     box-sizing: border-box;
