@@ -1,6 +1,6 @@
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
-use chrono::Utc;
+use chrono::{Timelike, Utc};
 use chrono_tz::Tz;
 use std::str::FromStr;
 use tauri::AppHandle;
@@ -274,6 +274,35 @@ fn format_tz_label(tz: Tz) -> String {
     now.format("%Z %:z").to_string()
 }
 
+/// Generate an analog clock SVG data URI showing the current time in `tz`.
+fn clock_icon(tz: Tz) -> String {
+    let now = Utc::now().with_timezone(&tz);
+    let h = (now.hour() % 12) as f64;
+    let m = now.minute() as f64;
+
+    let hour_angle = h * 30.0 + m * 0.5; // 30° per hour + 0.5° per minute
+    let min_angle  = m * 6.0;            // 6° per minute
+
+    let (cx, cy) = (12.0f64, 12.0f64);
+
+    let ha = hour_angle.to_radians();
+    let (hx, hy) = (cx + 5.5 * ha.sin(), cy - 5.5 * ha.cos());
+
+    let ma = min_angle.to_radians();
+    let (mx, my) = (cx + 8.0 * ma.sin(), cy - 8.0 * ma.cos());
+
+    let svg = format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+          <circle cx='12' cy='12' r='10' fill='none' stroke='rgba(255,255,255,0.85)' stroke-width='1.5'/>\
+          <line x1='12' y1='12' x2='{hx:.2}' y2='{hy:.2}' stroke='rgba(255,255,255,0.9)' stroke-width='2.2' stroke-linecap='round'/>\
+          <line x1='12' y1='12' x2='{mx:.2}' y2='{my:.2}' stroke='rgba(255,255,255,0.9)' stroke-width='1.5' stroke-linecap='round'/>\
+          <circle cx='12' cy='12' r='1.5' fill='rgba(255,255,255,0.9)'/>\
+        </svg>",
+    );
+
+    format!("data:image/svg+xml,{}", svg.replace('#', "%23"))
+}
+
 /// Build a ResultItem for a timezone match.
 fn tz_result(m: &TzMatch, is_pinned: bool) -> ResultItem {
     let pin_action = if is_pinned {
@@ -296,7 +325,7 @@ fn tz_result(m: &TzMatch, is_pinned: bool) -> ResultItem {
         ],
     )
     .description(format!("{} · {}", m.label, format_tz_label(m.tz)))
-    .icon("icons/clock.svg");
+    .icon(clock_icon(m.tz));
 
     if is_pinned {
         item = item.pinned();
