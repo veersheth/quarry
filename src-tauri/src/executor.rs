@@ -237,8 +237,10 @@ fn open_in_terminal(path: &str) -> Result<(), String> {
                 .spawn()
                 .map_err(|e| format!("Failed to open cmd: {}", e))?;
         }
+        return Ok(());
     }
 
+    #[allow(unreachable_code)]
     Ok(())
 }
 

@@ -93,7 +93,7 @@ impl SearchProvider for SystemSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
-        let mut candidates: Vec<ResultItem> = SYSTEM_ACTIONS
+        let candidates: Vec<ResultItem> = SYSTEM_ACTIONS
             .iter()
             .map(|action| {
                 let data = if action.confirm {

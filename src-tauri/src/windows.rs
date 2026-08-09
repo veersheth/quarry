@@ -1,4 +1,4 @@
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 #[cfg(target_os = "linux")]
 use gdk;
 

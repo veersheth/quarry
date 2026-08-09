@@ -157,6 +157,7 @@ pub struct ClipboardManager {
     generation: Arc<AtomicU64>,
 }
 
+#[allow(dead_code)]
 impl ClipboardManager {
     pub fn new() -> Self {
         Self {

@@ -16,6 +16,7 @@ pub struct CurrencySearcher;
 
 #[derive(Deserialize, Debug)]
 struct ConversionResponse {
+    #[allow(dead_code)]
     amount: f64,
     base: String,
     date: String,
@@ -23,6 +24,7 @@ struct ConversionResponse {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 struct CurrenciesResponse(HashMap<String, String>);
 
 struct ParsedQuery {

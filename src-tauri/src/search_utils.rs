@@ -71,6 +71,7 @@ pub fn smart_match(text: &str, query: &str) -> Option<i64> {
 }
 
 /// Multi-field smart matching - returns the best score from any field
+#[allow(dead_code)]
 pub fn smart_match_multi(fields: &[&str], query: &str) -> Option<i64> {
     fields
         .iter()
