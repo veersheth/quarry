@@ -392,15 +392,23 @@ fn run_custom_function(
                     let parts: Vec<&str> = spec.splitn(3, '|').collect();
                     let label = parts.first().copied().unwrap_or("OK").to_string();
                     let kind = parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string());
-                    let action_id = parts.get(2).filter(|s| !s.is_empty()).map(|shell| {
+                    let action_id = parts.get(2).filter(|s| !s.is_empty()).map(|spec| {
                         let id = format!("modal_{}_{}", seq, i);
-                        crate::ACTION_REGISTRY.register(
-                            id.clone(),
+                        let data = if let Some(fn_spec) = spec.strip_prefix("fn:") {
+                            // fn:function_name:arg1:arg2...
+                            let mut it = fn_spec.splitn(2, ':');
+                            let function_name = it.next().unwrap_or("").to_string();
+                            let params = it.next()
+                                .map(|rest| rest.split(':').map(str::to_string).collect())
+                                .unwrap_or_default();
+                            crate::types::ActionData::RunFunction { function_name, params }
+                        } else {
                             crate::types::ActionData::RunFunction {
                                 function_name: "run_shell".to_string(),
-                                params: vec![shell.to_string()],
-                            },
-                        );
+                                params: vec![spec.to_string()],
+                            }
+                        };
+                        crate::ACTION_REGISTRY.register(id.clone(), data);
                         id
                     });
                     ModalButton { label, kind, action_id }

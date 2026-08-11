@@ -35,8 +35,12 @@ pub fn home_items(app: &AppHandle) -> Vec<ResultItem> {
                 ResultItem::new(
                     format!("{} - {} left", label, timer::format_duration(rem)),
                     vec![Action::new("Cancel", ActionData::RunFunction {
-                        function_name: "cancel_timer".into(),
-                        params: vec![t.id.to_string()],
+                        function_name: "show_modal".into(),
+                        params: vec![
+                            format!("Cancel **{}**?", label),
+                            format!("Yes|danger|fn:cancel_timer:{}", t.id),
+                            "No|default|".into(),
+                        ],
                     })],
                 )
                 .description(format!("Rings at {}", ring_at))

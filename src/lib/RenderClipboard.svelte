@@ -1,35 +1,12 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+  import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
-  // Cache of hash → resolved data URL for clipboard image thumbnails
-  let thumbnails: Record<string, string> = {};
-
-  function imageHash(item: { thumbnail?: string }): string | null {
-    return item.thumbnail?.startsWith("hash:") ? item.thumbnail.slice(5) : null;
-  }
-
   function thumbSrc(item: { thumbnail?: string }): string | null {
-    const hash = imageHash(item);
-    if (hash) return thumbnails[hash] ?? null;
     return item.thumbnail ?? null;
-  }
-
-  // Fetch thumbnails for any image items not yet in cache
-  $: {
-    for (const item of listitems) {
-      const hash = imageHash(item);
-      if (hash && !thumbnails[hash]) {
-        invoke<string | null>("get_clipboard_thumbnail", { hash })
-          .then((data) => {
-            if (data) thumbnails = { ...thumbnails, [hash]: data };
-          })
-          .catch(() => {});
-      }
-    }
   }
 
   function iconSrc(icon: string): string {
@@ -51,7 +28,7 @@
     | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
-  $: activeColor = (activeItem && (imageHash(activeItem) ? thumbnails[imageHash(activeItem)!] : activeItem.thumbnail))
+  $: activeColor = (activeItem && activeItem.thumbnail)
     ? null
     : getValidColor(activeItem?.name);
   $: contentType = activeItem
@@ -380,11 +357,7 @@
       >
         <div class="type-icon">
           {#if item.thumbnail}
-            {#if imageHash(item) && !thumbnails[imageHash(item)!]}
-              <div class="icon-thumb shimmer"></div>
-            {:else}
-              <img class="icon-thumb" src={(imageHash(item) ? thumbnails[imageHash(item)!] : item.thumbnail) ?? ""} alt="" />
-            {/if}
+            <img class="icon-thumb" src={item.thumbnail} alt="" />
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
@@ -453,12 +426,10 @@
         {#if contentType === "image"}
           {#if activeItem.ocr_text && showOcrText}
             <div class="image-ocr-text">{activeItem.ocr_text}</div>
-          {:else if imageHash(activeItem) && !thumbnails[imageHash(activeItem)!]}
-            <div class="image-preview shimmer"></div>
           {:else}
             <img
               class="image-preview"
-              src={(imageHash(activeItem) ? thumbnails[imageHash(activeItem)!] : activeItem.thumbnail) ?? ""}
+              src={activeItem.thumbnail ?? ""}
               alt={activeItem.name}
             />
           {/if}

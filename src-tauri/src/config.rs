@@ -161,6 +161,25 @@ pub struct ThemeConfig {
     pub item_border_radius:    u32,
     pub active_bg_color:       String,
     pub active_border_color:   String,
+
+    // Surface / overlay
+    pub surface:               String,
+    pub surface_subtle:        String,
+    pub surface_hover:         String,
+    pub overlay:               String,
+
+    // Borders
+    pub border_subtle:         String,
+    pub border_medium:         String,
+    pub border_strong:         String,
+    pub border_dark:           String,
+
+    // Misc
+    pub divider:               String,
+    pub divider_dark:          String,
+    pub code_bg:               String,
+    pub thumb_bg:              String,
+    pub glow:                  String,
 }
 
 impl Default for ThemeConfig {
@@ -178,6 +197,22 @@ impl Default for ThemeConfig {
             item_border_radius:    12,
             active_bg_color:       "rgba(40, 40, 40, 1)".into(),
             active_border_color:   "rgba(255,255,255,0.1)".into(),
+
+            surface:               "rgba(5, 5, 5, 0.0)".into(),
+            surface_subtle:        "rgba(255, 255, 255, 0.08)".into(),
+            surface_hover:         "rgba(255, 255, 255, 0.2)".into(),
+            overlay:               "rgba(30, 30, 30, 0.8)".into(),
+
+            border_subtle:         "rgba(60, 60, 60, 0.3)".into(),
+            border_medium:         "rgba(255, 255, 255, 0.15)".into(),
+            border_strong:         "rgba(255, 255, 255, 0.26)".into(),
+            border_dark:           "rgb(51, 51, 51)".into(),
+
+            divider:               "rgba(80, 80, 80, 0.7)".into(),
+            divider_dark:          "rgb(46, 46, 46)".into(),
+            code_bg:               "rgb(24, 24, 24)".into(),
+            thumb_bg:              "rgb(17, 17, 17)".into(),
+            glow:                  "rgba(50, 50, 50, 1)".into(),
         }
     }
 }
@@ -353,6 +388,22 @@ border_thickness      = 1
 item_border_radius    = 12
 active_bg_color       = "rgba(40, 40, 40, 1)"
 active_border_color   = "rgba(255,255,255,0.1)"
+
+surface               = "rgba(5, 5, 5, 0.0)"
+surface_subtle        = "rgba(255, 255, 255, 0.08)"
+surface_hover         = "rgba(255, 255, 255, 0.2)"
+overlay               = "rgba(30, 30, 30, 0.8)"
+
+border_subtle         = "rgba(60, 60, 60, 0.3)"
+border_medium         = "rgba(255, 255, 255, 0.15)"
+border_strong         = "rgba(255, 255, 255, 0.26)"
+border_dark           = "rgb(51, 51, 51)"
+
+divider               = "rgba(80, 80, 80, 0.7)"
+divider_dark          = "rgb(46, 46, 46)"
+code_bg               = "rgb(24, 24, 24)"
+thumb_bg              = "rgb(17, 17, 17)"
+glow                  = "rgba(50, 50, 50, 1)"
 
 [triggers]
 camera       = '^cam$'

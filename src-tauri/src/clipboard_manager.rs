@@ -282,6 +282,7 @@ impl ClipboardManager {
                                     if let Some(ref p) = storage_path {
                                         Self::save_to_disk_inner(&history, p);
                                     }
+                                    thread::spawn(|| crate::searchers::clipboard::warm());
                                 }
                                 None => {
                                     hist.insert(0, ClipboardEntry::new_text(text.clone()));
@@ -290,6 +291,7 @@ impl ClipboardManager {
                                     if let Some(ref p) = storage_path {
                                         Self::save_to_disk_inner(&history, p);
                                     }
+                                    thread::spawn(|| crate::searchers::clipboard::warm());
                                 }
                             }
                         }
@@ -365,6 +367,7 @@ impl ClipboardManager {
                     if let Some(ref p) = storage_path {
                         Self::save_to_disk_inner(&history, p);
                     }
+                    thread::spawn(|| crate::searchers::clipboard::warm());
                 }
             }
         });

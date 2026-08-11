@@ -121,6 +121,19 @@
     item_border_radius: number;
     active_bg_color: string;
     active_border_color: string;
+    surface: string;
+    surface_subtle: string;
+    surface_hover: string;
+    overlay: string;
+    border_subtle: string;
+    border_medium: string;
+    border_strong: string;
+    border_dark: string;
+    divider: string;
+    divider_dark: string;
+    code_bg: string;
+    thumb_bg: string;
+    glow: string;
   }
 
   function applyTheme(t: Theme) {
@@ -137,6 +150,19 @@
     root.setProperty("--q-item-border-radius", `${t.item_border_radius}px`);
     root.setProperty("--q-active-bg-color", t.active_bg_color);
     root.setProperty("--q-active-border-color", t.active_border_color);
+    root.setProperty("--q-surface", t.surface);
+    root.setProperty("--q-surface-subtle", t.surface_subtle);
+    root.setProperty("--q-surface-hover", t.surface_hover);
+    root.setProperty("--q-overlay", t.overlay);
+    root.setProperty("--q-border-subtle", t.border_subtle);
+    root.setProperty("--q-border-medium", t.border_medium);
+    root.setProperty("--q-border-strong", t.border_strong);
+    root.setProperty("--q-border-dark", t.border_dark);
+    root.setProperty("--q-divider", t.divider);
+    root.setProperty("--q-divider-dark", t.divider_dark);
+    root.setProperty("--q-code-bg", t.code_bg);
+    root.setProperty("--q-thumb-bg", t.thumb_bg);
+    root.setProperty("--q-glow", t.glow);
   }
 
   function forceRepaint() {
@@ -406,19 +432,22 @@
     --q-sans: var(--q-font-family, "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif);
     --q-mono: var(--q-monospace-font-family, "JetBrainsMono Nerd Font", "Fira Code", "Cascadia Mono", monospace);
 
+    /* These are overridden at runtime by applyTheme() from the config.
+       The values here are fallbacks only, shown before the first theme load. */
     --q-surface: rgba(5, 5, 5, 0.0);
     --q-surface-subtle: rgba(255, 255, 255, 0.08);
     --q-surface-hover: rgba(255, 255, 255, 0.2);
     --q-surface-dark: #222;
     --q-overlay: rgba(30, 30, 30, 0.8);
     --q-code-bg: #181818;
-
     --q-divider: rgba(80, 80, 80, 0.7);
     --q-divider-dark: #2e2e2e;
     --q-border-subtle: rgba(60, 60, 60, 0.3);
     --q-border-medium: rgba(255, 255, 255, 0.15);
     --q-border-strong: rgba(255, 255, 255, 0.26);
-    --q-border-dark: #333;
+    --q-border-dark: rgb(51, 51, 51);
+    --q-thumb-bg: rgb(17, 17, 17);
+    --q-glow: rgba(50, 50, 50, 1);
 
     --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 70%, transparent);
     --q-text-muted: color-mix(in srgb, var(--q-font-color, #ffffff) 40%, transparent);
@@ -427,10 +456,8 @@
     --q-text-placeholder: color-mix(in srgb, var(--q-font-color, #ffffff) 15%, transparent);
     --q-text-empty: color-mix(in srgb, var(--q-font-color, #ffffff) 20%, transparent);
 
-    --q-thumb-bg: #111;
     --q-pin-border: rgba(200, 220, 255, 0.25);
     --q-pin-border-active: rgba(210, 230, 255, 0.55);
-    --q-glow: rgba(50, 50, 50, 1);
   }
 
   .container {

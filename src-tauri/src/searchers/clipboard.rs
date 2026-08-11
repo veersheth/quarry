@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use super::SearchProvider;
@@ -6,6 +7,11 @@ use crate::clipboard_manager::ClipboardContent;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use crate::CLIPBOARD_MANAGER;
 use tauri::AppHandle;
+
+// Cache path-detection results so repeated stat() calls are avoided on re-warm.
+// Key: text value. Value: (icon, has_open_action, has_folder_action).
+static PATH_CACHE: Lazy<Mutex<HashMap<String, Option<&'static str>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 // Cache for the empty-query result, keyed by (history generation, pin count).
 // Pin count changes whenever pins are added or removed, invalidating the cache.
@@ -186,7 +192,7 @@ fn build_results(query: &str) -> SearchResult {
                     item
                 }
 
-                ClipboardContent::Image { width, height, ocr_text, hash, .. } => {
+                ClipboardContent::Image { width, height, ocr_text, hash, thumbnail, .. } => {
                     let hash_str = hash.to_string();
                     let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
                     let pin_action = if is_pinned {
@@ -225,7 +231,7 @@ fn build_results(query: &str) -> SearchResult {
 
                     let mut item = ResultItem::new(format!("Image {}×{}", width, height), actions)
                         .description(format_timestamp(entry.timestamp))
-                        .thumbnail(format!("hash:{}", hash_str));
+                        .thumbnail(thumbnail.clone());
                     if let Some(text) = ocr_text {
                         item = item.ocr_text(text.clone());
                     }
@@ -259,26 +265,53 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
     let Some(path) = resolve_path(value) else {
         return (None, vec![]);
     };
-    let path_str = path.to_string_lossy().into_owned();
 
-    if path.is_dir() {
-        let actions = vec![
-            Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) }),
-        ];
-        (Some("icons/folder.png"), actions)
+    // Check path cache first to avoid repeated stat() syscalls on re-warm.
+    if let Ok(cache) = PATH_CACHE.lock() {
+        if let Some(icon) = cache.get(value) {
+            // Rebuild actions from the cached icon type — no stat needed.
+            let path_str = path.to_string_lossy().into_owned();
+            return match icon {
+                Some(i) if *i == "icons/folder.png" => (
+                    *icon,
+                    vec![Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) })],
+                ),
+                Some(i) if *i == "icons/file.png" => {
+                    let parent = path.parent().map(|p| format!("file://{}", p.to_string_lossy()));
+                    let mut actions = vec![Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) })];
+                    if let Some(parent_url) = parent {
+                        actions.push(Action::new("Open Containing Folder", ActionData::OpenUrl { url: parent_url }));
+                    }
+                    (*icon, actions)
+                }
+                _ => (None, vec![]),
+            };
+        }
+    }
+
+    // Cache miss — do the stat calls and store the result.
+    let path_str = path.to_string_lossy().into_owned();
+    let (icon, actions) = if path.is_dir() {
+        (
+            Some("icons/folder.png"),
+            vec![Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) })],
+        )
     } else if path.is_file() {
-        let parent = path.parent()
-            .map(|p| format!("file://{}", p.to_string_lossy()));
-        let mut actions = vec![
-            Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) }),
-        ];
+        let parent = path.parent().map(|p| format!("file://{}", p.to_string_lossy()));
+        let mut actions = vec![Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) })];
         if let Some(parent_url) = parent {
             actions.push(Action::new("Open Containing Folder", ActionData::OpenUrl { url: parent_url }));
         }
         (Some("icons/file.png"), actions)
     } else {
         (None, vec![])
+    };
+
+    if let Ok(mut cache) = PATH_CACHE.lock() {
+        cache.insert(value.to_string(), icon);
     }
+
+    (icon, actions)
 }
 
 fn title_case(s: &str) -> String {
