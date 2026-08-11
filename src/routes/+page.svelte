@@ -417,7 +417,7 @@
     --q-divider-dark: #2e2e2e;
     --q-border-subtle: rgba(60, 60, 60, 0.3);
     --q-border-medium: rgba(255, 255, 255, 0.15);
-    --q-border-strong: rgba(255, 255, 255, 0.25);
+    --q-border-strong: rgba(255, 255, 255, 0.26);
     --q-border-dark: #333;
 
     --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 70%, transparent);

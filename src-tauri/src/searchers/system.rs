@@ -10,6 +10,7 @@ struct SystemAction {
     description:   &'static str,
     icon:          &'static str,
     confirm:       bool,
+    confirm_title: &'static str,
     confirm_label: &'static str,
 }
 
@@ -20,6 +21,7 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Lock the current session - lock screen secure",
         icon:          "icons/system/lock.png",
         confirm:       false,
+        confirm_title: "",
         confirm_label: "",
     },
     SystemAction {
@@ -28,6 +30,7 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Suspend the system - sleep hibernate",
         icon:          "icons/system/lock.png",
         confirm:       false,
+        confirm_title: "",
         confirm_label: "",
     },
     SystemAction {
@@ -36,7 +39,8 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Hibernate the system - save to disk sleep suspend",
         icon:          "icons/system/power.png",
         confirm:       true,
-        confirm_label: "Hibernate",
+        confirm_title: "Hibernate?",
+        confirm_label: "Yes",
     },
     SystemAction {
         name:          "Shutdown",
@@ -44,7 +48,8 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Shut down the system - poweroff power off turn off",
         icon:          "icons/system/power.png",
         confirm:       true,
-        confirm_label: "Shut Down",
+        confirm_title: "Shut down?",
+        confirm_label: "Yes",
     },
     SystemAction {
         name:          "Reboot",
@@ -52,7 +57,8 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Restart the system - reboot reset",
         icon:          "icons/system/reboot.png",
         confirm:       true,
-        confirm_label: "Reboot",
+        confirm_title: "Reboot?",
+        confirm_label: "Yes",
     },
     SystemAction {
         name:          "Log Out",
@@ -60,7 +66,8 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Log out of the current session - logout sign out exit",
         icon:          "icons/system/logout.png",
         confirm:       true,
-        confirm_label: "Log Out",
+        confirm_title: "Log out?",
+        confirm_label: "Yes",
     },
     SystemAction {
         name:          "Lock Then Suspend",
@@ -68,6 +75,7 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Lock screen and then suspend - lock sleep",
         icon:          "icons/system/lock.png",
         confirm:       false,
+        confirm_title: "",
         confirm_label: "",
     },
     SystemAction {
@@ -76,7 +84,8 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Force immediate shutdown - force poweroff kill emergency",
         icon:          "icons/system/power.png",
         confirm:       true,
-        confirm_label: "Force Shut Down",
+        confirm_title: "Force shut down?",
+        confirm_label: "Yes",
     },
     SystemAction {
         name:          "Emergency Reboot",
@@ -84,7 +93,8 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
         description:   "Force immediate reboot - force restart emergency",
         icon:          "icons/system/reboot.png",
         confirm:       true,
-        confirm_label: "Force Reboot",
+        confirm_title: "Force reboot?",
+        confirm_label: "Yes",
     },
 ];
 
@@ -100,9 +110,9 @@ impl SearchProvider for SystemSearcher {
                     ActionData::RunFunction {
                         function_name: "show_modal".into(),
                         params: vec![
-                            format!("{}\n\nAre you sure?", action.name),
+                            action.confirm_title.to_string(),
                             format!("{}|danger|{}", action.confirm_label, action.command),
-                            "Cancel|default|".into(),
+                            "No|default|".into(),
                         ],
                     }
                 } else {

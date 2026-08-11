@@ -58,7 +58,7 @@
 
   .card {
     background: var(--q-overlay);
-    border: 2px solid var(--q-border-strong);
+    border: 1px solid var(--q-border-strong);
     border-radius: 20px;
     padding: 24px 24px 16px;
     max-width: 360px;
@@ -109,7 +109,7 @@
   .btn.active {
     transform: scale(1.01);
     background: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
+    border-color: var(--q-border-strong);
     color: var(--q-font-color, #fff);
     box-shadow: 0 0 10px 1px var(--q-glow);
   }
