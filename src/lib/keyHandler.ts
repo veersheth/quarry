@@ -226,7 +226,18 @@ if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length 
   tick().then(() => {
     const el = document.querySelector('[data-active="true"]') as HTMLElement | null;
     if (!el) return;
-    const container = el.closest('.results') as HTMLElement | null;
+
+    // Walk up to find the nearest scrollable ancestor.
+    function scrollParent(node: HTMLElement): HTMLElement | null {
+      let p = node.parentElement;
+      while (p) {
+        const { overflowY } = getComputedStyle(p);
+        if ((overflowY === "auto" || overflowY === "scroll") && p.scrollHeight > p.clientHeight) return p;
+        p = p.parentElement;
+      }
+      return null;
+    }
+    const container = scrollParent(el);
     if (!container) { el.scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
 
     const pad = 8;
