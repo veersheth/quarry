@@ -471,18 +471,36 @@
     background-color: var(--q-bg-color, rgba(10, 10, 10, 1));
     opacity: var(--q-bg-opacity, 1);
     overflow: hidden;
+    /* color/font-size/font-family are inheritable — setting them once here
+       cascades to all children without fighting component-level padding */
     color: var(--q-font-color, #ffffff);
+    font-size: var(--q-font-size);
+    font-family: var(--q-sans);
     position: relative;
     border-style: inset;
     border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
     border-radius: var(--q-border-radius, 18px);
   }
 
+  /* Keep z-index reset (non-inheritable, needs *) but nothing else:
+     padding/margin must NOT be reset here or they override component styles
+     differently in dev vs production due to CSS load-order differences. */
   .container * {
     z-index: 0;
-    color: var(--q-font-color, #ffffff);
-    font-size: var(--q-font-size);
-    font-family: var(--q-sans);
+  }
+
+  /* Explicit browser-default resets for semantic elements that actually need them */
+  :global(.container ul),
+  :global(.container ol) {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  :global(.container p),
+  :global(.container h1),
+  :global(.container h2),
+  :global(.container h3) {
+    margin: 0;
     padding: 0;
   }
 
