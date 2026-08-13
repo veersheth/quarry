@@ -529,12 +529,6 @@
     position: absolute;
     inset: 0;
 
-    /* background: linear-gradient(
-      90deg,
-      hsla(var(--searcher-hue, 220), 75%, 65%, 0.12) 0%,
-      transparent 95%
-    ); */
-
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.4s ease;
@@ -566,6 +560,7 @@
     height: 100%;
     padding: 0;
     transition: opacity 0.15s ease;
+    color: var(--q-font-color);
   }
 
   .search.loading {

@@ -564,45 +564,63 @@ fn try_math(expr: &str) -> Option<ResultItem> {
     if expr.is_empty() { return None; }
     let preprocessed = preprocess_math(expr);
 
-    let mut ctx = meval::Context::new();
+    // Custom namespace: fasteval calls lookup() before its built-ins, so returning
+    // None falls through to fasteval's own sin/cos/sqrt/log/pi/e/^ etc.
+    struct MathNS;
+    impl fasteval::EvalNamespace for MathNS {
+        fn lookup(
+            &mut self, name: &str, args: Vec<f64>,
+            _keybuf: &mut String,
+        ) -> Option<f64> {
+            match (name, args.as_slice()) {
+                // Extra constants
+                ("tau", []) => Some(std::f64::consts::TAU),
+                ("phi", []) => Some(1.618_033_988_749_895_f64),
+                // 1-arg extras not in fasteval's built-ins
+                ("fact", [x]) => {
+                    let x = *x;
+                    if x < 0.0 || x.fract() != 0.0 || x > 20.0 { return Some(f64::NAN); }
+                    Some((1..=(x as u64)).map(|i| i as f64).product())
+                }
+                ("cbrt", [x]) => Some(x.cbrt()),
+                ("deg",  [x]) => Some(x.to_degrees()),
+                ("rad",  [x]) => Some(x.to_radians()),
+                // 2-arg log(base, x) — 1-arg log(x) falls through to fasteval's log10
+                ("log", [base, x]) => Some(x.log(*base)),
+                // Combinatorics
+                ("nPr", [n, r]) => {
+                    let (n, r) = (*n, *r);
+                    if n < 0.0 || r < 0.0 || r > n || n.fract() != 0.0 || r.fract() != 0.0 { return Some(f64::NAN); }
+                    let (n, r) = (n as u64, r as u64);
+                    Some(((n - r + 1)..=n).map(|i| i as f64).product())
+                }
+                ("nCr", [n, r]) => {
+                    let (n, r) = (*n, *r);
+                    if n < 0.0 || r < 0.0 || r > n || n.fract() != 0.0 || r.fract() != 0.0 { return Some(f64::NAN); }
+                    let (n, r) = (n as u64, r as u64);
+                    let r = r.min(n - r);
+                    let mut res = 1.0f64;
+                    for i in 0..r { res = res * (n - i) as f64 / (i + 1) as f64; }
+                    Some(res)
+                }
+                ("gcd", [a, b]) => {
+                    let (mut a, mut b) = (a.abs() as u64, b.abs() as u64);
+                    while b != 0 { let t = b; b = a % b; a = t; }
+                    Some(a as f64)
+                }
+                ("lcm", [a, b]) => {
+                    let (au, bu) = (a.abs() as u64, b.abs() as u64);
+                    if au == 0 || bu == 0 { return Some(0.0); }
+                    let (mut g, mut gb) = (au, bu);
+                    while gb != 0 { let t = gb; gb = g % gb; g = t; }
+                    Some((au / g * bu) as f64)
+                }
+                _ => None,
+            }
+        }
+    }
 
-    ctx.func("fact", |x: f64| -> f64 {
-        if x < 0.0 || x.fract() != 0.0 || x > 20.0 { return f64::NAN; }
-        (1..=(x as u64)).map(|i| i as f64).product()
-    });
-    ctx.func("cbrt", |x: f64| x.cbrt());
-    ctx.func("deg", |x: f64| x.to_degrees());
-    ctx.func("rad", |x: f64| x.to_radians());
-    ctx.func2("log", |base: f64, x: f64| x.log(base));
-    ctx.func2("nPr", |n: f64, r: f64| -> f64 {
-        if n < 0.0 || r < 0.0 || r > n || n.fract() != 0.0 || r.fract() != 0.0 { return f64::NAN; }
-        let (n, r) = (n as u64, r as u64);
-        ((n - r + 1)..=n).map(|i| i as f64).product()
-    });
-    ctx.func2("nCr", |n: f64, r: f64| -> f64 {
-        if n < 0.0 || r < 0.0 || r > n || n.fract() != 0.0 || r.fract() != 0.0 { return f64::NAN; }
-        let (n, r) = (n as u64, r as u64);
-        let r = r.min(n - r);
-        let mut res = 1.0f64;
-        for i in 0..r { res = res * (n - i) as f64 / (i + 1) as f64; }
-        res
-    });
-    ctx.func2("gcd", |a: f64, b: f64| -> f64 {
-        let (mut a, mut b) = (a.abs() as u64, b.abs() as u64);
-        while b != 0 { let t = b; b = a % b; a = t; }
-        a as f64
-    });
-    ctx.func2("lcm", |a: f64, b: f64| -> f64 {
-        let (au, bu) = (a.abs() as u64, b.abs() as u64);
-        if au == 0 || bu == 0 { return 0.0; }
-        let (mut g, mut gb) = (au, bu);
-        while gb != 0 { let t = gb; gb = g % gb; g = t; }
-        (au / g * bu) as f64
-    });
-    ctx.var("tau", std::f64::consts::TAU);
-    ctx.var("phi", 1.618_033_988_749_895_f64);
-
-    match meval::eval_str_with_context(&preprocessed, ctx) {
+    match fasteval::ez_eval(&preprocessed, &mut MathNS) {
         Ok(val) => {
             let formatted = format_num(val);
             let name = format!("{} = {}", expr, formatted);
