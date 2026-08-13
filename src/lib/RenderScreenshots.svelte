@@ -4,6 +4,9 @@
   import { execute } from "./searcher";
   import { query, mouseHasMoved } from "../stores/search";
   import type { ResultItem } from "../stores/search";
+  import FooterBar from "./ui/FooterBar.svelte";
+  import Chip from "./ui/Chip.svelte";
+  import Timestamp from "./ui/Timestamp.svelte";
 
   export let listitems: {
     name: string;
@@ -63,19 +66,17 @@
     {/each}
 
     {#if listitems.length === 0}
-      <div class="empty-state">no screenshots found</div>
+      <div class="empty">no screenshots found</div>
     {/if}
   </div>
 
   {#if active}
     {@const meta = parseMeta(active.description)}
-    <div class="footer">
-      <div class="metadata">
-        {#if meta.dims}<span class="stat-chip">{meta.dims}</span>{/if}
-        {#if meta.size}<span class="stat-chip">{meta.size}</span>{/if}
-        {#if meta.date}<span class="timestamp">{meta.date}</span>{/if}
-      </div>
-    </div>
+    <FooterBar>
+      {#if meta.dims}<Chip>{meta.dims}</Chip>{/if}
+      {#if meta.size}<Chip>{meta.size}</Chip>{/if}
+      {#if meta.date}<Timestamp value={meta.date} />{/if}
+    </FooterBar>
   {/if}
 </div>
 
@@ -156,33 +157,13 @@
     color: var(--q-text-dim-active);
   }
 
-  .footer {
-    padding: 4px;
-    opacity: 0.6;
-  }
-
-  .metadata {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-top: 1px solid var(--q-surface-dark);
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-
-  .timestamp {
-    margin-left: auto;
-    white-space: nowrap;
-  }
-
-  .empty-state {
+  .empty {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 40px 0;
     font-size: 0.85em;
     color: var(--q-text-empty);
-    padding: 40px 0;
   }
 </style>

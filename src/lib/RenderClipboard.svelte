@@ -3,6 +3,19 @@
   import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
+  import FooterBar from "./ui/FooterBar.svelte";
+  import Chip from "./ui/Chip.svelte";
+  import Timestamp from "./ui/Timestamp.svelte";
+
+  const TYPE_ACCENT: Record<string, string> = {
+    text:      "#888",
+    multiline: "#888",
+    image:     "#6aaa99",
+    color:     "#aa66aa",
+    url:       "#60a5fa",
+    email:     "#c084fc",
+    json:      "#fb923c",
+  };
   import { runItemAction } from "./keyHandler";
 
   function thumbSrc(item: { thumbnail?: string }): string | null {
@@ -166,7 +179,6 @@
     | "url"
     | "email"
     | "json"
-    | "code"
     | "multiline"
     | "text";
 
@@ -177,7 +189,6 @@
     if (isURL(v)) return "url";
     if (isEmail(v)) return "email";
     if (isJSON(v)) return "json";
-    if (isCode(v)) return "code";
     if (v.includes("\n")) return "multiline";
     return "text";
   }
@@ -207,19 +218,6 @@
     } catch {
       return false;
     }
-  }
-
-  const CODE_PATTERNS = [
-    /^(import|export|from|require|const|let|var|function|class|def|fn|pub|use|#include|package|namespace)\s/m,
-    /^\s*(if|for|while|switch|match|try|catch)\s*[\(\{]/m,
-    /[;{}]\s*\n/,
-    /\/\/.*\n|\/\*[\s\S]*?\*\//,
-    /^\s{2,}|\t/m,
-  ];
-
-  function isCode(v: string): boolean {
-    if (!v.includes("\n")) return false;
-    return CODE_PATTERNS.filter((p) => p.test(v)).length >= 2;
   }
 
   function parseURL(v: string) {
@@ -261,22 +259,6 @@
     }
   }
 
-  function guessLang(v: string): string {
-    if (/^\s*(import|export|from|const|let|var|=>|function|class)\s/m.test(v))
-      return "js/ts";
-    if (/^\s*(def |import |from .* import|class .*:)/m.test(v)) return "python";
-    if (/^\s*(fn |pub |use |let mut|impl |struct )/m.test(v)) return "rust";
-    if (/^\s*(func |package |import ")/m.test(v)) return "go";
-    if (/#include|std::|cout|cin/.test(v)) return "c/c++";
-    if (/<\?php|echo\s/.test(v)) return "php";
-    if (/^\s*(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE)\s/im.test(v))
-      return "sql";
-    if (/^\s*(<[a-z][\w-]*[\s>]|<\/[a-z])/im.test(v)) return "html";
-    if (/^\s*[\w-]+\s*:\s*[\w#"'].*;?$/m.test(v)) return "css";
-    if (/^\s*[\w]+:\s*\n|^---/m.test(v)) return "yaml";
-    return "code";
-  }
-
   function textStats(v: string) {
     const lines = v.split("\n");
     const words = v.trim().split(/\s+/).filter(Boolean).length;
@@ -294,10 +276,6 @@
   ): string[] {
     const v = item.name ?? "";
     switch (type) {
-      case "code": {
-        const s = textStats(v);
-        return [guessLang(v), `${s.lines} lines`];
-      }
       case "json": {
         const s = jsonStats(v);
         return [
@@ -383,8 +361,6 @@
             <div class="icon-pill icon-email">@</div>
           {:else if isJSON(item.name)}
             <div class="icon-pill icon-json">{"{}"}</div>
-          {:else if isCode(item.name)}
-            <div class="icon-pill icon-code">&lt;/&gt;</div>
           {:else}
             <div class="icon-pill icon-text">Aa</div>
           {/if}
@@ -514,13 +490,13 @@
         {/if}
       </div>
 
-      <div class="footer">
-        <span class="type-badge type-{contentType}">{contentType}</span>
+      <FooterBar>
+        <Chip mono accent={TYPE_ACCENT[contentType] ?? "#DDD"}>{contentType}</Chip>
         {#each footerMeta as meta}
-          <span class="stat-chip">{meta}</span>
+          <Chip>{meta}</Chip>
         {/each}
-        <span class="timestamp">{formatTimestamp(activeItem.description)}</span>
-      </div>
+        <Timestamp value={formatTimestamp(activeItem.description)} />
+      </FooterBar>
     {/if}
   </div>
 </div>
@@ -534,7 +510,7 @@
 
   .result-list {
     flex: 0 0 224px;
-    border-right: 1px solid var(--q-border-dark);
+    border-right: 1px solid var(--q-divider-dark);
     overflow-y: auto;
     padding: 5px 10px;
     display: flex;
@@ -548,7 +524,6 @@
     gap: 10px;
     padding: 8px 10px;
     border-radius: var(--q-item-border-radius);
-    border: 2px solid transparent;
   }
 
   .result-item.pinned {
@@ -585,6 +560,7 @@
     0%   { background-position: -200% 0; }
     100% { background-position:  200% 0; }
   }
+
   .shimmer {
     background: linear-gradient(
       90deg,
@@ -624,7 +600,6 @@
   .icon-url    { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
   .icon-email  { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
   .icon-json   { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
-  .icon-code   { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
   .icon-text   { background: #1e1e1e; color: #888;    border: 1px solid #2e2e2e; text-transform: none; }
   .icon-img {
     width: 20px;
@@ -782,31 +757,10 @@
     display: block;
   }
 
-  .yt-play-badge {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2.5em;
-    color: #fff;
-    background: radial-gradient(circle, rgba(0,0,0,0.55) 36%, transparent 70%);
-    pointer-events: none;
-    opacity: 0.85;
-  }
-
   .url-header {
     display: flex;
     align-items: center;
     gap: 10px;
-  }
-
-  /* Blue tint on preview favicon too */
-  .url-favicon {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    flex-shrink: 0;
   }
 
   .url-hostname {
@@ -816,8 +770,6 @@
   }
 
   .url-full {
-    /* font-size: 0.78rem; */
-    /* color: #60a5fa; */
     word-break: break-all;
     font-family: var(--q-mono);
     opacity: 0.8;
@@ -919,56 +871,10 @@
     word-break: break-word;
     user-select: text !important;
     -webkit-user-select: text !important;
-    /* font-family: var(--q-mono); */
+    font-family: var(--q-mono);
     color: #ffb5bc;
     font-size: 0.95em;
     overflow: auto;
   }
 
-  .footer {
-    padding: 8px 16px;
-    font-size: 1.1rem;
-    border-top: 1px solid var(--q-surface-dark);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-
-  .type-badge {
-    font-size: 0.72em;
-    padding: 2px 8px;
-    border-radius: 6px;
-    text-transform: capitalize;
-    font-family: var(--q-mono);
-    margin-right: 2px;
-  }
-
-  .type-badge.type-text      { background: #2a2a2a; color: #888;    border: 1px solid #3a3a3a; }
-  .type-badge.type-multiline { background: #2a2a2a; color: #888;    border: 1px solid #3a3a3a; }
-  .type-badge.type-image     { background: #1a2a1a; color: #6a9;    border: 1px solid #2a3a2a; }
-  .type-badge.type-color     { background: #2a1a2a; color: #a6a;    border: 1px solid #3a2a3a; }
-  .type-badge.type-url       { background: #1a2a3a; color: #60a5fa; border: 1px solid #2a3a4a; }
-  .type-badge.type-email     { background: #2a1a3a; color: #c084fc; border: 1px solid #3a2a4a; }
-  .type-badge.type-json      { background: #3a2a1a; color: #fb923c; border: 1px solid #4a3a2a; }
-  .type-badge.type-code      { background: #2a2a1a; color: #facc15; border: 1px solid #3a3a2a; }
-
-  .stat-chip {
-    font-size: 0.72em;
-    font-family: var(--q-mono);
-    background: var(--q-code-bg);
-    border: 1px solid var(--q-divider-dark);
-    color: var(--q-text-dim);
-    padding: 2px 8px;
-    border-radius: 5px;
-  }
-
-  .timestamp {
-    margin-left: auto;
-    font-size: 0.78em;
-    opacity: 0.35;
-    font-family: var(--q-mono);
-    white-space: nowrap;
-  }
 </style>

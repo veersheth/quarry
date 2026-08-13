@@ -1,5 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import FooterBar from "./ui/FooterBar.svelte";
+  import Chip from "./ui/Chip.svelte";
   import { unified } from "unified";
   import remarkParse from "remark-parse";
   import remarkGfm from "remark-gfm";
@@ -353,23 +355,18 @@
     </div>
 
     {#if key}
-      <div class="footer">
-        <span class="footer-pill model">{MODEL.name}</span>
+      <FooterBar>
+        <Chip mono>{MODEL.name}</Chip>
         <div class="footer-right">
           {#if lastTokens !== null}
-            <span class="footer-pill">{lastTokens} tokens</span>
+            <Chip>{lastTokens} tokens</Chip>
           {/if}
           {#if response && !loading}
-            <button class="footer-pill" on:click={copyResult}>Copy</button>
+            <Chip as="button" on:click={copyResult}>Copy</Chip>
           {/if}
-          <a
-            href={MODEL.dashboard}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="footer-pill"
-          >Dashboard ↗</a>
+          <Chip href={MODEL.dashboard}>Dashboard ↗</Chip>
         </div>
-      </div>
+      </FooterBar>
     {/if}
   </div>
 {/await}
@@ -664,48 +661,10 @@
   .dots span:nth-child(2) { animation-delay: 0.2s; }
   .dots span:nth-child(3) { animation-delay: 0.4s; }
 
-  /* ── Footer ───────────────────────────────────────── */
-  .footer {
-    padding: 12px 16px;
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 1.2em;
-    opacity: 0.7;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    flex-shrink: 0;
-  }
-
   .footer-right {
+    margin-left: auto;
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-
-  /* ── Shared pill style ────────────────────────────── */
-  .footer-pill {
-    display: inline-flex;
-    align-items: center;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.13);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 0.74em;
-    color: rgba(255,255,255,0.6);
-    text-decoration: none;
-    white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
-  }
-
-  .footer-pill:hover {
-    background: rgba(255,255,255,0.12);
-    color: rgba(255,255,255,0.9);
-  }
-
-  /* Model is the only pill with monospace */
-  .model {
-    font-family: 'JetBrainsMono Nerd Font', 'Fira Code', 'Cascadia Mono', monospace;
-    font-weight: 500;
   }
 </style>
