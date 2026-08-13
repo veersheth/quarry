@@ -46,7 +46,7 @@
   let isLoading = false;
   let aiPrefix = "ai ";
   let resultsEl: HTMLDivElement;
-  let searchRaf: number;
+  let searchTimer: ReturnType<typeof setTimeout>;
   let uiScale = 1.0;
 
   // Rofi mode: bypass backend search, filter items locally
@@ -276,9 +276,10 @@
       activeIndex.set(0);
     } else {
       isLoading = true;
-      cancelAnimationFrame(searchRaf);
-      searchRaf = requestAnimationFrame(() => {
-        search($query)
+      clearTimeout(searchTimer);
+      const capturedQuery = $query;
+      searchTimer = setTimeout(() => {
+        search(capturedQuery)
           .then((res) => {
             if (res === null) return;
             resultItems.set(res.results);
@@ -293,7 +294,7 @@
           .finally(() => {
             isLoading = false;
           });
-      });
+      }, 80);
     }
   }
 </script>
