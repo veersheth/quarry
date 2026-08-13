@@ -136,11 +136,6 @@
     runItemAction(item as unknown as ResultItem);
   }
 
-  function truncate(str: string | undefined, maxLength: number): string {
-    if (!str) return "";
-    return str.length > maxLength ? str.slice(0, maxLength) + "…" : str;
-  }
-
   function formatTimestamp(timestamp?: string | number): string {
     if (!timestamp) return "";
     const ts = typeof timestamp === "string" ? Number(timestamp) : timestamp;
@@ -395,7 +390,7 @@
           {/if}
         </div>
         <div class="item-body">
-          <span class="item-name">{truncate(item.name, 22)}</span>
+          <span class="item-name">{item.name}</span>
         </div>
       </div>
     {/each}

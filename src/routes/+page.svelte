@@ -314,7 +314,7 @@
 
 <main class="container" style="zoom: {uiScale}">
   <div class="panel">
-    <div class="search-bar" class:searcher-active={!!$searcherName} style={$searcherName ? `--searcher-hue: ${searcherHue($searcherName)}` : ""}>
+    <div class="search-bar" class:searcher-active={!!$searcherName} class:loading={isLoading} style={$searcherName ? `--searcher-hue: ${searcherHue($searcherName)}` : ""}>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
@@ -536,6 +536,34 @@
 
   .search-bar.searcher-active::before {
     opacity: 1;
+  }
+
+  @keyframes search-sweep {
+    0%   { left: -40%; }
+    100% { left: 140%; }
+  }
+
+  .search-bar::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: -40%;
+    width: 40%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--q-border-strong) 50%,
+      transparent 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .search-bar.loading::after {
+    opacity: 1;
+    animation: search-sweep 1.1s ease-in-out infinite;
   }
 
   .searcher-badge {
