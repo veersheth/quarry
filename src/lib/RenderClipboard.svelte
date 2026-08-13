@@ -1,6 +1,6 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc } from "@tauri-apps/api/core";
+  import { iconSrc } from "./utils";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import FooterBar from "./ui/FooterBar.svelte";
@@ -22,22 +22,11 @@
     return item.thumbnail ?? null;
   }
 
-  function iconSrc(icon: string): string {
-    return icon.startsWith("/") ? convertFileSrc(icon) : icon;
-  }
 
-  export let listitems: {
-    name: string;
-    actions: { id: string; name: string }[];
-    description?: string;
-    icon?: string;
-    thumbnail?: string;
-    ocr_text?: string;
-    pinned?: boolean;
-  }[] = [];
+  export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
-    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | ((e: MouseEvent, item: ResultItem) => void)
     | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
@@ -145,20 +134,8 @@
     return getUrlMeta(url)?.thumbnail ?? null;
   }
 
-  function handleClick(item: (typeof listitems)[0]) {
-    runItemAction(item as unknown as ResultItem);
-  }
-
-  function formatTimestamp(timestamp?: string | number): string {
-    if (!timestamp) return "";
-    const ts = typeof timestamp === "string" ? Number(timestamp) : timestamp;
-    if (isNaN(ts)) return String(timestamp);
-    const now = Date.now() / 1000;
-    const age = now - ts;
-    if (age < 60) return "just now";
-    if (age < 3600) return `${Math.floor(age / 60)}m ago`;
-    if (age < 86400) return `${Math.floor(age / 3600)}h ago`;
-    return `${Math.floor(age / 86400)}d ago`;
+  function handleClick(item: ResultItem) {
+    runItemAction(item);
   }
 
   function getValidColor(str: string | undefined): string | null {
@@ -475,10 +452,6 @@
           <div class="json-container">
             <pre class="json-preview">{prettyJSON(activeItem.name)}</pre>
           </div>
-        {:else if contentType === "code"}
-          <div class="code-container">
-            <pre class="code-preview">{activeItem.name}</pre>
-          </div>
         {:else if contentType === "multiline"}
           <div class="multiline-container">
             <div class="text-preview">{activeItem.name}</div>
@@ -495,7 +468,7 @@
         {#each footerMeta as meta}
           <Chip>{meta}</Chip>
         {/each}
-        <Timestamp value={formatTimestamp(activeItem.description)} />
+        <Timestamp value={activeItem.description} />
       </FooterBar>
     {/if}
   </div>
@@ -554,23 +527,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-
-  @keyframes shimmer {
-    0%   { background-position: -200% 0; }
-    100% { background-position:  200% 0; }
-  }
-
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(255,255,255,0.04) 25%,
-      rgba(255,255,255,0.10) 50%,
-      rgba(255,255,255,0.04) 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.4s infinite linear;
-    border-radius: 4px;
   }
 
   /* Blue tint: shift hue toward blue, boost saturation */
@@ -819,31 +775,6 @@
     font-family: var(--q-mono);
     font-size: 0.78em;
     color: #fb923c;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-    background: var(--q-code-bg);
-    border: 1px solid var(--q-divider-dark);
-    border-radius: 10px;
-    padding: 14px;
-    overflow: auto;
-    margin: 0;
-    white-space: pre;
-    line-height: 1.6;
-  }
-
-  .code-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .code-preview {
-    flex: 1;
-    font-family: var(--q-mono);
-    font-size: 0.78em;
-    color: #facc15;
     user-select: text !important;
     -webkit-user-select: text !important;
     background: var(--q-code-bg);

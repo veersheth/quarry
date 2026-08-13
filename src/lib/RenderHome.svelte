@@ -1,10 +1,10 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
   import RenderList from "./RenderList.svelte";
+  import ItemIcon from "./ui/ItemIcon.svelte";
 
   export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
@@ -15,16 +15,6 @@
   $: widgets = listitems.filter(i => i.group === "widget");
   $: apps    = listitems.filter(i => i.group !== "widget");
   $: cols    = Math.min(widgets.length, 4);
-
-
-  function iconSrc(icon: string): string {
-    return icon.startsWith("/") ? convertFileSrc(icon) : icon;
-  }
-
-  let iconLoaded: Record<string, boolean> = {};
-  let iconError:  Record<string, boolean> = {};
-  function onLoad(src: string)  { iconLoaded = { ...iconLoaded, [src]: true }; }
-  function onError(src: string) { iconError  = { ...iconError,  [src]: true }; }
 
   $: { listitems; mouseHasMoved.set(false); }
 </script>
@@ -42,16 +32,7 @@
         on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
       >
         {#if item.icon}
-          {@const src = iconSrc(item.icon)}
-          <div class="widget-icon">
-            <img
-              class="widget-img"
-              class:loaded={iconLoaded[src]}
-              {src} alt=""
-              on:load={() => onLoad(src)}
-              on:error={() => onError(src)}
-            />
-          </div>
+          <ItemIcon icon={item.icon} name={item.name} />
         {/if}
         <div class="widget-text">
           <span class="widget-name">{item.name}</span>
@@ -98,23 +79,6 @@
     background: var(--q-active-bg-color);
     color: var(--q-font-color, #fff);
   }
-
-  .widget-icon {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    position: relative;
-  }
-
-  .widget-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-
-  .widget-img.loaded { opacity: 1; }
 
   .widget-text {
     display: flex;

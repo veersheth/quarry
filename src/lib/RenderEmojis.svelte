@@ -1,23 +1,14 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
-  export let listitems: {
-    name: string;
-    actions: { id: string; name: string }[];
-    description?: string;
-    icon?: string;
-    pinned?: boolean;
-    group?: string;
-  }[] = [];
-
+  export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
-    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | ((e: MouseEvent, item: ResultItem) => void)
     | undefined = undefined;
-
-  type ResultItem = (typeof listitems)[number];
 
   $: featured = listitems.filter((i) => i.group === "featured");
   $: all = listitems.filter((i) => i.group !== "featured");

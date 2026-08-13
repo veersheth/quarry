@@ -4,18 +4,9 @@
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
 
-  function handleClick(item: ResultItem) {
-    runItemAction(item);
-  }
-
-  export let listitems: {
-    name: string;
-    actions: { id: string; name: string }[];
-    description?: string;
-    icon?: string;
-  }[] = [];
+  export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
-  export let onContextMenu: ((e: MouseEvent, item: (typeof listitems)[number]) => void) | undefined = undefined;
+  export let onContextMenu: ((e: MouseEvent, item: ResultItem) => void) | undefined = undefined;
 
   function parseMath(name: string): { query: string; answer: string } {
     const eqIndex = name.lastIndexOf("=");
@@ -37,7 +28,7 @@
       class:active={index === $activeIndex}
       data-active={index === $activeIndex}
       on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
-      on:click={() => handleClick(item)}
+      on:click={() => runItemAction(item)}
       on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
       <div class="math-answer-bar">
@@ -57,9 +48,6 @@
 </div>
 
 <style>
-  .result-item {
-  }
-
   .math-answer-bar {
     font-family: var(--q-mono);
     width: auto;

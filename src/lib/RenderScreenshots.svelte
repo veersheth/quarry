@@ -8,15 +8,10 @@
   import Chip from "./ui/Chip.svelte";
   import Timestamp from "./ui/Timestamp.svelte";
 
-  export let listitems: {
-    name: string;
-    actions: { id: string; name: string }[];
-    description?: string;
-    thumbnail?: string;
-  }[] = [];
+  export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
-    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | ((e: MouseEvent, item: ResultItem) => void)
     | undefined = undefined;
 
   $: active = listitems[$activeIndex];
@@ -48,7 +43,7 @@
         class:active={index === $activeIndex}
         data-active={index === $activeIndex ? "true" : undefined}
         on:mouseenter={() => { if ($mouseHasMoved) activeIndex.set(index); }}
-        on:click={() => runItemAction(item as unknown as ResultItem)}
+        on:click={() => runItemAction(item)}
         on:contextmenu={(e) => {
           e.preventDefault();
           onContextMenu?.(e, item);

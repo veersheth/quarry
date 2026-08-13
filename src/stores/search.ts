@@ -14,6 +14,7 @@ export type ResultItem = {
   pinned?: boolean;
   group?: string;
   draggable_path?: string;
+  ocr_text?: string;
 };
 
 export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai";

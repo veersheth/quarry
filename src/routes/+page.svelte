@@ -34,12 +34,7 @@
   import RenderAiChat from "$lib/RenderAiChat.svelte";
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import Modal from "$lib/Modal.svelte";
-
-  function searcherHue(name: string): number {
-    let h = 0;
-    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-    return h % 360;
-  }
+  import { strHue } from "$lib/utils";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
@@ -315,7 +310,7 @@
 
 <main class="container" style="zoom: {uiScale}">
   <div class="panel">
-    <div class="search-bar" class:searcher-active={!!$searcherName} class:loading={isLoading} style={$searcherName ? `--searcher-hue: ${searcherHue($searcherName)}` : ""}>
+    <div class="search-bar" class:searcher-active={!!$searcherName} class:loading={isLoading} style={$searcherName ? `--searcher-hue: ${strHue($searcherName)}` : ""}>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"

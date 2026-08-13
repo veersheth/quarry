@@ -1,14 +1,9 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
 
-  export let listitems: {
-    name: string;
-    actions: { id: string; name: string }[];
-    description?: string;
-    icon?: string;
-  }[] = [];
-
+  export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
 </script>
 

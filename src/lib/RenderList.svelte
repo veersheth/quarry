@@ -1,41 +1,15 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
-  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
+  import ItemIcon from "./ui/ItemIcon.svelte";
 
-  function iconSrc(icon: string): string {
-    return icon.startsWith("/") ? convertFileSrc(icon) : icon;
-  }
-
-  function nameHue(name: string): number {
-    let h = 0;
-    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-    return h % 360;
-  }
-
-  function nameInitial(name: string): string {
-    return name.trim().charAt(0).toUpperCase() || "?";
-  }
-
-  let iconLoaded: Record<string, boolean> = {};
-  let iconError: Record<string, boolean> = {};
-  function onIconLoad(src: string) { iconLoaded = { ...iconLoaded, [src]: true }; }
-  function onIconError(src: string) { iconError = { ...iconError, [src]: true }; }
-
-  export let listitems: {
-    name: string;
-    actions: { id: string; name: string }[];
-    description?: string;
-    icon?: string;
-    pinned?: boolean;
-    draggable_path?: string;
-  }[] = [];
+  export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let indexOffset: number = 0;
   export let onContextMenu:
-    | ((e: MouseEvent, item: (typeof listitems)[number]) => void)
+    | ((e: MouseEvent, item: ResultItem) => void)
     | undefined = undefined;
 
   $: {
@@ -65,32 +39,7 @@
       on:dragstart|preventDefault
     >
       {#if item.icon}
-        {@const src = iconSrc(item.icon)}
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-          class="icon-wrap"
-          class:drag-source={!!item.draggable_path}
-          on:mousedown|preventDefault={(e) => {
-            if (!item.draggable_path || e.button !== 0) return;
-            invoke("start_drag", { path: item.draggable_path }).catch(console.error);
-          }}
-          on:click={(e) => { if (item.draggable_path) e.stopPropagation(); }}
-        >
-          {#if iconError[src]}
-            <div class="icon-avatar" style="--hue: {nameHue(item.name)}">
-              {nameInitial(item.name)}
-            </div>
-          {/if}
-          <img
-            class="item-icon"
-            class:icon-loaded={iconLoaded[src]}
-            {src}
-            alt=""
-            draggable="false"
-            on:load={() => onIconLoad(src)}
-            on:error={() => onIconError(src)}
-          />
-        </div>
+        <ItemIcon icon={item.icon} name={item.name} draggable_path={item.draggable_path} />
       {/if}
       <div class="item-text">
         <span class="item-name">{item.name}</span>
@@ -115,6 +64,7 @@
     font-size: 1em;
     display: flex;
     align-items: center;
+    gap: 14px;
     width: auto;
     padding: 12px 10px;
     margin: 0 12px;
@@ -137,45 +87,6 @@
 
   .result-item.pinned.active {
     border-color: var(--q-pin-border-active);
-  }
-
-  .icon-wrap {
-    position: relative;
-    width: 20px;
-    height: 20px;
-    margin-right: 14px;
-    flex-shrink: 0;
-  }
-
-  .icon-wrap.drag-source { cursor: grab; }
-  .icon-wrap.drag-source:active { cursor: grabbing; }
-
-  .icon-avatar {
-    position: absolute;
-    inset: 0;
-    border-radius: 5px;
-    background: hsl(var(--hue), 35%, 22%);
-    color: hsl(var(--hue), 60%, 68%);
-    font-size: 0.65em;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    letter-spacing: 0;
-  }
-
-  img.item-icon {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
-    opacity: 0;
-  }
-
-  img.item-icon.icon-loaded {
-    opacity: 1;
   }
 
   .item-text {
@@ -210,11 +121,4 @@
     min-width: 0;
   }
 
-  .alt-hint {
-    font-size: 0.8em;
-    opacity: 0.5;
-    flex-shrink: 0;
-    margin-left: 8px;
-    font-family: var(--q-mono);
-  }
 </style>
