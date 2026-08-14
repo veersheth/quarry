@@ -465,10 +465,6 @@
     padding: 20px 22px 28px;
   }
 
-  .content::-webkit-scrollbar { width: 4px; }
-  .content::-webkit-scrollbar-track { background: transparent; }
-  .content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
-
   .loading {
     padding: 44px;
     text-align: center;
