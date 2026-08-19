@@ -145,7 +145,7 @@ impl SearchProvider for TimerSearcher {
                         vec![Action::new("Cancel", ActionData::RunFunction {
                             function_name: "show_modal".into(),
                             params: vec![
-                                format!("Cancel **{}**?", label),
+                                format!("Cancel {}?", label),
                                 format!("Yes|danger|fn:cancel_timer:{}", t.id),
                                 "No|default|".into(),
                             ],

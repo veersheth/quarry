@@ -476,6 +476,8 @@
     border-style: inset;
     border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
     border-radius: var(--q-border-radius, 18px);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 18px;
   }
 
   /* Keep z-index reset (non-inheritable, needs *) but nothing else:
