@@ -349,10 +349,10 @@ fn run_custom_function(
                     let _ = win.set_focus();
                 }
                 let body = if label.is_empty() {
-                    format!("Timer finished\n\nYour **{}** timer has expired.",
+                    format!("{} timer has elapsed.",
                         crate::searchers::timer::format_duration(secs))
                 } else {
-                    format!("## {}\nYour **{}** timer has expired.",
+                    format!("**{}** \n\n{} timer elapsed.",
                         label, crate::searchers::timer::format_duration(secs))
                 };
                 let payload = ModalPayload {
