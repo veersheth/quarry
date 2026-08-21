@@ -33,6 +33,7 @@
   import RenderMarkdown from "$lib/RenderMarkdown.svelte";
   import RenderAiChat from "$lib/RenderAiChat.svelte";
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
+  import RenderQrCode from "$lib/RenderQrCode.svelte";
   import Modal from "$lib/Modal.svelte";
   import { strHue } from "$lib/utils";
 
@@ -81,9 +82,13 @@
     event: MouseEvent,
     item: import("../stores/search").ResultItem,
   ) {
-    if (item.actions.length <= 1) return;
+    // Inject "Show as QR Code" for any text item (name is the text to encode).
+    // Use a qr: prefixed ID so searcher.ts can handle it client-side.
+    const qrAction = { id: `qr:${item.name}`, name: "Show as QR Code" };
+    const enriched = { ...item, actions: [...item.actions, qrAction] };
+    if (enriched.actions.length <= 1) return;
     event.preventDefault();
-    openContextMenu(item, event.clientX, event.clientY);
+    openContextMenu(enriched, event.clientX, event.clientY);
   }
 
   function handleOpenAtActive() {
@@ -249,6 +254,12 @@
       searchInput?.focus();
     });
 
+    // Show QR code for a given text (triggered by shortcut or context menu action).
+    const unlistenQr = await listen<string>("quarry-show-qr", ({ payload }) => {
+      resultItems.set([{ name: payload, actions: [] }]);
+      resultType.set("QrCode");
+    });
+
     return () => {
       unlisten.then((fn) => fn());
       unlistenModal();
@@ -256,6 +267,7 @@
       unlistenRofi();
       unlistenFast();
       unlistenSetQuery();
+      unlistenQr();
       window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
       window.removeEventListener("wheel", blockZoom);
     };
@@ -375,6 +387,8 @@
             {activeIndex}
             onContextMenu={handleContextMenu}
           />
+        {:else if $resultType === "QrCode"}
+          <RenderQrCode listitems={$resultItems} />
         {:else}
           Oops
         {/if}

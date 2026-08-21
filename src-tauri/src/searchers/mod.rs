@@ -22,6 +22,7 @@ pub mod timer;
 pub mod screenshots;
 pub mod shortcuts;
 pub mod scripts;
+pub mod qrcode;
 
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;

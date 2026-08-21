@@ -537,6 +537,26 @@ fn run_custom_function(
             let key = params.first().map(|s| s.as_str()).unwrap_or("");
             crate::config::Config::save_groq_api_key(key)
         }
+        "show_qr_clipboard" => {
+            // Find the most recent text entry in clipboard history and emit it
+            // to the frontend to render as a QR code. No generation happens here —
+            // all work is deferred to the frontend and only runs on trigger.
+            let text = crate::CLIPBOARD_MANAGER.with_history(|history| {
+                history.iter().find_map(|e| {
+                    if let crate::clipboard_manager::ClipboardContent::Text { value } = &e.content {
+                        Some(value.clone())
+                    } else {
+                        None
+                    }
+                })
+            });
+            match text {
+                Some(t) => {
+                    app.emit("quarry-show-qr", t).map_err(|e| e.to_string())
+                }
+                None => Err("No text found in clipboard history".into()),
+            }
+        }
         "copy_last_image_ocr_text" => {
             let text = crate::CLIPBOARD_MANAGER.with_history(|history| {
                 history.iter().find_map(|e| {

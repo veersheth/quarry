@@ -98,6 +98,7 @@ pub enum ResultType {
     Camera,
     Ai,
     Screenshots,
+    QrCode,
 }
 
 #[derive(Debug, Serialize, Clone)]

@@ -1,10 +1,19 @@
 // lib/searcher.ts
 import { invoke } from "@tauri-apps/api/core";
 import type { SearchResult } from "../stores/search";
+import { resultItems, resultType } from "../stores/search";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { addToast } from "../stores/toasts";
 
 export async function execute(action_id: string, name: string, currentQuery: string) {
+  // Client-side QR code action — no Rust round-trip needed.
+  if (action_id.startsWith("qr:")) {
+    const text = action_id.slice(3);
+    resultItems.set([{ name: text, actions: [] }]);
+    resultType.set("QrCode");
+    return;
+  }
+
   try {
     const result = await invoke<string>("execute", {
       actionId: action_id,

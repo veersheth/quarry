@@ -246,6 +246,7 @@ pub struct TriggerConfig {
     pub screenshots:  String,
     pub shortcuts:    String,
     pub scripts:      String,
+    pub qr_code:      String,
 }
 
 impl Default for TriggerConfig {
@@ -273,6 +274,7 @@ impl Default for TriggerConfig {
             screenshots:  r"^ss\s*(.*)$".into(),
             shortcuts:    r"^q\s*(.*)$".into(),
             scripts:      r"^sc\s*(.*)$".into(),
+            qr_code:      r"^qr\s+(.*)$".into(),
         }
     }
 }

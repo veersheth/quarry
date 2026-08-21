@@ -125,6 +125,12 @@ fn all_shortcuts() -> Vec<ResultItem> {
 
     // ── Copy to clipboard ─────────────────────────────────────────────────
     items.push(item(
+        "Convert Last Copied Text to QR Code",
+        "Generate a QR code from the most recently copied text",
+        "icon-transparent.png",
+        func("show_qr_clipboard", vec![]),
+    ));
+    items.push(item(
         "Copy Text from Last Copied Image",
         "Extract and copy OCR text from the most recently copied image",
         "icons/file.png",

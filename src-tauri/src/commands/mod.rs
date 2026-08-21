@@ -16,6 +16,7 @@ use crate::searchers::settings::SettingsSearcher;
 use crate::searchers::screenshots::ScreenshotsSearcher;
 use crate::searchers::shortcuts::ShortcutsSearcher;
 use crate::searchers::scripts::ScriptsSearcher;
+use crate::searchers::qrcode::QrCodeSearcher;
 use crate::searchers::timer::TimerSearcher;
 use crate::searchers::clipboard::ClipboardSearcher;
 use crate::searchers::colorpicker::ColorPicker;
@@ -86,6 +87,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
     push!(v, &t.shortcuts,   "shortcuts",   ShortcutsSearcher);
     push!(v, &t.scripts,     "scripts",     ScriptsSearcher);
+    push!(v, &t.qr_code,     "qr_code",     QrCodeSearcher);
 
     // Detect raw pasted color values without requiring the "color" prefix.
     push!(
@@ -183,6 +185,7 @@ pub fn execute(
     let tag = match &action_data {
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
+        ActionData::RunFunction { function_name, .. } if function_name == "show_qr_clipboard" => "stay",
         ActionData::RunFunction { function_name, .. } if function_name == "copy_clipboard_image" => "copied",
         ActionData::RunFunction { function_name, .. } if function_name.starts_with("copy_") => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "trash_file" => "toasted:Moved to trash",
