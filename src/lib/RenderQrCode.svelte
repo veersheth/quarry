@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import QRCode from "qrcode";
   import type { ResultItem } from "../stores/search";
   import { addToast } from "../stores/toasts";
-  import FooterBar from "./ui/FooterBar.svelte";
 
   export let listitems: ResultItem[] = [];
 
@@ -13,19 +13,46 @@
 
   $: if (text) {
     QRCode.toString(text, { type: "svg", margin: 2, width: 240, color: { dark: "#ffffff", light: "#00000000" } })
-      .then((svg) => {
-        svgData = svg;
-        error = "";
-      })
-      .catch(() => {
-        svgData = "";
-        error = "Text too long for QR code";
-      });
+      .then((svg) => { svgData = svg; error = ""; })
+      .catch(() => { svgData = ""; error = "Text too long for QR code"; });
   }
 
-  function copyText() {
-    navigator.clipboard.writeText(text).then(() => addToast("Copied to clipboard"));
+  async function copyImage() {
+    if (!text) return;
+    try {
+      // Render a black-on-white QR for the clipboard (visible on any background)
+      const size = 512;
+      const svgStr = await QRCode.toString(text, {
+        type: "svg", margin: 3, width: size,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      const blob = new Blob([svgStr], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.src = url;
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      const png = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob((b) => b ? res(b) : rej(new Error("toBlob failed")), "image/png")
+      );
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+      addToast("QR image copied");
+    } catch {
+      await navigator.clipboard.writeText(text);
+    }
   }
+
+  onMount(() => {
+    function onKeydown(e: KeyboardEvent) {
+      if (e.key === "Enter") { e.preventDefault(); copyImage(); }
+    }
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  });
 </script>
 
 <div class="qr-wrap">
@@ -34,7 +61,7 @@
   {:else if svgData}
     <div class="qr-box">
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-      <div class="qr-svg" on:click={copyText}>
+      <div class="qr-svg" on:click={copyImage}>
         {@html svgData}
       </div>
       <p class="qr-label">{text}</p>

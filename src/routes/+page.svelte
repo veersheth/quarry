@@ -82,13 +82,9 @@
     event: MouseEvent,
     item: import("../stores/search").ResultItem,
   ) {
-    // Inject "Show as QR Code" for any text item (name is the text to encode).
-    // Use a qr: prefixed ID so searcher.ts can handle it client-side.
-    const qrAction = { id: `qr:${item.name}`, name: "Show as QR Code" };
-    const enriched = { ...item, actions: [...item.actions, qrAction] };
-    if (enriched.actions.length <= 1) return;
+    if (item.actions.length === 0) return;
     event.preventDefault();
-    openContextMenu(enriched, event.clientX, event.clientY);
+    openContextMenu(item, event.clientX, event.clientY);
   }
 
   function handleOpenAtActive() {
