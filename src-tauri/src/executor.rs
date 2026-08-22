@@ -637,9 +637,27 @@ pub fn spawn_timer_thread(
         } else {
             format!("**{}** \n\n{} timer elapsed.", label, crate::searchers::timer::format_duration(duration_secs))
         };
+        // Register a one-shot "start again" action for this specific timer.
+        let restart_id = format!("timer_restart_{}", id);
+        let mut restart_params = vec![duration_secs.to_string()];
+        if !label.is_empty() { restart_params.push(label.clone()); }
+        crate::ACTION_REGISTRY.register(
+            restart_id.clone(),
+            crate::types::ActionData::RunFunction {
+                function_name: "start_timer".into(),
+                params: restart_params,
+            },
+        );
         let payload = ModalPayload {
             body,
-            buttons: vec![ModalButton { label: "Dismiss".into(), kind: None, action_id: None }],
+            buttons: vec![
+                ModalButton { label: "Dismiss".into(), kind: None, action_id: None },
+                ModalButton {
+                    label: format!("Start {} again", crate::searchers::timer::format_duration(duration_secs)),
+                    kind: Some("default".into()),
+                    action_id: Some(restart_id),
+                },
+            ],
         };
         let _ = app.emit("quarry-modal", &payload);
         let sound = crate::CONFIG.read().unwrap().timer_sound.clone();
