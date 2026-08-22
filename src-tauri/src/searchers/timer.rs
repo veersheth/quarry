@@ -1,5 +1,6 @@
 use chrono::{Local, TimeZone};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -20,10 +21,56 @@ pub struct TimerEntry {
 
 pub static ACTIVE_TIMERS: Lazy<Mutex<Vec<TimerEntry>>> = Lazy::new(|| Mutex::new(vec![]));
 
+// ── Persistence ──────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct StoredTimer {
+    pub id:           u64,
+    pub label:        String,
+    pub expires_at:   u64,
+    pub duration_secs: u64,
+}
+
+fn storage_path() -> std::path::PathBuf {
+    dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from(".local/share"))
+        .join("quarry/timers.json")
+}
+
+fn save_timers() {
+    let path = storage_path();
+    if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).ok(); }
+    if let Ok(timers) = ACTIVE_TIMERS.lock() {
+        let stored: Vec<StoredTimer> = timers.iter().map(|t| StoredTimer {
+            id: t.id, label: t.label.clone(),
+            expires_at: t.expires_at, duration_secs: t.duration_secs,
+        }).collect();
+        if let Ok(json) = serde_json::to_string(&stored) {
+            std::fs::write(&path, json).ok();
+        }
+    }
+}
+
+/// Load timers persisted from a previous run, filtering out already-elapsed ones.
+pub fn load_stored_timers() -> Vec<StoredTimer> {
+    let now = now_secs();
+    let path = storage_path();
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<StoredTimer>>(&s).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|t| t.expires_at > now)
+        .collect()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 pub fn add_timer(id: u64, label: String, expires_at: u64, duration_secs: u64, cancelled: Arc<AtomicBool>) {
     if let Ok(mut t) = ACTIVE_TIMERS.lock() {
         t.push(TimerEntry { id, label, expires_at, duration_secs, cancelled });
     }
+    save_timers();
 }
 
 pub fn remove_timer(id: u64) {
@@ -33,9 +80,10 @@ pub fn remove_timer(id: u64) {
         }
         t.retain(|e| e.id != id);
     }
+    save_timers();
 }
 
-fn now_secs() -> u64 {
+pub fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

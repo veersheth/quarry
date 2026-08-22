@@ -103,7 +103,20 @@ pub fn run() {
         }))
         .setup(|app| {
             let app_handle = app.handle().clone();
-            ipc_server::start_ipc_server(app_handle);
+            ipc_server::start_ipc_server(app_handle.clone());
+
+            // Restore timers that were running before the app was closed.
+            for stored in crate::searchers::timer::load_stored_timers() {
+                let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                crate::searchers::timer::add_timer(
+                    stored.id, stored.label.clone(), stored.expires_at,
+                    stored.duration_secs, cancelled.clone(),
+                );
+                crate::executor::spawn_timer_thread(
+                    app_handle.clone(), stored.id, stored.label,
+                    stored.expires_at, stored.duration_secs, cancelled,
+                );
+            }
 
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Launcher", true, None::<&str>)?;
             let note = MenuItem::with_id(app, "note", "Notepad", true, None::<&str>)?;

@@ -13,7 +13,12 @@ pub struct Config {
     pub default_search: DefaultSearchConfig,
     pub screenshots:   ScreenshotsConfig,
     pub scripts:       ScriptsConfig,
+    /// Timer alert sound. Options: "synth" (default), "beep"
+    #[serde(default = "default_timer_sound")]
+    pub timer_sound:   String,
 }
+
+fn default_timer_sound() -> String { "synth".into() }
 
 impl Default for Config {
     fn default() -> Self {
@@ -25,6 +30,7 @@ impl Default for Config {
             default_search: DefaultSearchConfig::default(),
             screenshots:   ScreenshotsConfig::default(),
             scripts:       ScriptsConfig::default(),
+            timer_sound:   default_timer_sound(),
         }
     }
 }
@@ -423,6 +429,9 @@ ai           = '^ai\s+(.*)$'
 time         = '^time in\s(.*)$'
 shortcuts    = '^q\s*(.*)$'
 scripts      = '^sc\s*(.*)$'
+
+# Timer alert sound. Options: "synth" (slow harmonic build-up) or "beep" (short repeated beeps)
+# timer_sound = "synth"
 
 [screenshots]
 # path = "~/Pictures/Screenshots"   # uncomment to override the default

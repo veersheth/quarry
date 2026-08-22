@@ -322,45 +322,10 @@ fn run_custom_function(
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as u64;
-            let expires_at = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs() + secs;
-            let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let expires_at = crate::searchers::timer::now_secs() + secs;
+            let cancelled = Arc::new(AtomicBool::new(false));
             crate::searchers::timer::add_timer(id, label.clone(), expires_at, secs, cancelled.clone());
-            let app_clone = app.clone();
-            std::thread::spawn(move || {
-                let interval = std::time::Duration::from_millis(200);
-                let total = std::time::Duration::from_secs(secs);
-                let steps = (total.as_millis() / interval.as_millis()) as u64;
-                for _ in 0..steps {
-                    std::thread::sleep(interval);
-                    if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
-                        return;
-                    }
-                }
-                if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
-                    return;
-                }
-                crate::searchers::timer::remove_timer(id);
-                if let Some(win) = app_clone.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                }
-                let body = if label.is_empty() {
-                    format!("{} timer has elapsed.",
-                        crate::searchers::timer::format_duration(secs))
-                } else {
-                    format!("**{}** \n\n{} timer elapsed.",
-                        label, crate::searchers::timer::format_duration(secs))
-                };
-                let payload = ModalPayload {
-                    body,
-                    buttons: vec![ModalButton { label: "Dismiss".into(), kind: None, action_id: None }],
-                };
-                let _ = app_clone.emit("quarry-modal", &payload);
-                std::thread::spawn(play_beep);
-            });
+            spawn_timer_thread(app.clone(), id, label, expires_at, secs, cancelled);
             Ok(())
         }
         "toggle_pink_noise" => {
@@ -644,6 +609,93 @@ fn rofi_select(name: &str, response_socket: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Spawn the background thread that waits until `expires_at` then fires the alert.
+/// Works for both newly created timers and ones restored from a previous session.
+pub fn spawn_timer_thread(
+    app: tauri::AppHandle,
+    id: u64,
+    label: String,
+    expires_at: u64,
+    duration_secs: u64,
+    cancelled: Arc<AtomicBool>,
+) {
+    std::thread::spawn(move || {
+        let interval = std::time::Duration::from_millis(200);
+        loop {
+            std::thread::sleep(interval);
+            if cancelled.load(std::sync::atomic::Ordering::Relaxed) { return; }
+            if crate::searchers::timer::now_secs() >= expires_at { break; }
+        }
+        if cancelled.load(std::sync::atomic::Ordering::Relaxed) { return; }
+        crate::searchers::timer::remove_timer(id);
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = win.show();
+            let _ = win.set_focus();
+        }
+        let body = if label.is_empty() {
+            format!("{} timer has elapsed.", crate::searchers::timer::format_duration(duration_secs))
+        } else {
+            format!("**{}** \n\n{} timer elapsed.", label, crate::searchers::timer::format_duration(duration_secs))
+        };
+        let payload = ModalPayload {
+            body,
+            buttons: vec![ModalButton { label: "Dismiss".into(), kind: None, action_id: None }],
+        };
+        let _ = app.emit("quarry-modal", &payload);
+        let sound = crate::CONFIG.read().unwrap().timer_sound.clone();
+        std::thread::spawn(move || play_timer_sound(&sound));
+    });
+}
+
+fn play_timer_sound(sound: &str) {
+    match sound {
+        "beep" => play_beep_classic(),
+        _      => play_beep(),   // "synth" and anything unrecognised
+    }
+}
+
+/// 4 beeps: first three warm at 880 Hz, last one higher at 1320 Hz.
+fn play_beep_classic() {
+    use rodio::{buffer::SamplesBuffer, OutputStream, Sink};
+    use std::f32::consts::TAU;
+
+    let Ok((_stream, handle)) = OutputStream::try_default() else { return };
+    let Ok(sink) = Sink::try_new(&handle) else { return };
+
+    let sample_rate: u32 = 44100;
+    let beep_dur = 0.12f32;
+    let gap_dur  = 0.10f32;
+    let beep_n = (sample_rate as f32 * beep_dur) as usize;
+    let gap_n  = (sample_rate as f32 * gap_dur)  as usize;
+    let fade   = (sample_rate as f32 * 0.008) as usize; // 8 ms fade to avoid clicks
+
+    // First 3 beeps: 880 Hz warm (fundamental + sub-octave + 2nd harmonic)
+    // Last beep: 1320 Hz (E6, a fifth above) — same warmth, clearly higher
+    let freqs: [f32; 4] = [987.77, 987.77, 987.77, 1318.51];
+
+    let mut samples = Vec::with_capacity((beep_n + gap_n) * 4);
+
+    for &freq in &freqs {
+        for i in 0..beep_n {
+            let t = i as f32 / sample_rate as f32;
+            let env = if i < fade {
+                i as f32 / fade as f32
+            } else if i > beep_n - fade {
+                (beep_n - i) as f32 / fade as f32
+            } else {
+                1.0
+            };
+            samples.push((TAU * freq * t).sin() * 0.55 * env);
+        }
+        samples.extend(std::iter::repeat(0.0f32).take(gap_n));
+    }
+
+    let source = SamplesBuffer::new(1, sample_rate, samples);
+    sink.append(source);
+    sink.sleep_until_end();
+}
+
+/// Slow synth build-up — original sound.
 fn play_beep() {
     use rodio::{buffer::SamplesBuffer, OutputStream, Sink};
     use std::f32::consts::{FRAC_PI_2, TAU};
