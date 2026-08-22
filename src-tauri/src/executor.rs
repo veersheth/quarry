@@ -307,7 +307,6 @@ fn run_custom_function(
             crate::searchers::files::rebuild_index_now();
             std::thread::spawn(|| {
                 crate::searchers::apps::reload();
-                crate::searchers::settings::reload();
             });
             if let Some(win) = app.get_webview_window("main") {
                 win.eval("location.reload()").ok();

@@ -12,7 +12,6 @@ use crate::searchers::ai::AiSearcher;
 use crate::searchers::apps::AppSearcher;
 use crate::searchers::bookmarks::BookmarksSearcher;
 use crate::searchers::camera::CameraSearcher;
-use crate::searchers::settings::SettingsSearcher;
 use crate::searchers::screenshots::ScreenshotsSearcher;
 use crate::searchers::shortcuts::ShortcutsSearcher;
 use crate::searchers::scripts::ScriptsSearcher;
@@ -82,7 +81,6 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
     push!(v, &t.url, "url", URLSearcher);
     push!(v, &t.currency, "currency", CurrencySearcher);
     push!(v, &t.note, "note", NoteSearcher);
-    push!(v, &t.settings, "settings", SettingsSearcher);
     push!(v, &t.timer, "timer", TimerSearcher);
     push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
     push!(v, &t.shortcuts,   "shortcuts",   ShortcutsSearcher);

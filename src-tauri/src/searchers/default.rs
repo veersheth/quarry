@@ -15,7 +15,6 @@ use crate::searchers::{
     files::FileSearcher,
     bookmarks::BookmarksSearcher,
     math::MathSearcher,
-    settings::SettingsSearcher,
     shell::ShellSearcher,
     shortcuts::ShortcutsSearcher,
     system::SystemSearcher,
@@ -218,17 +217,6 @@ impl SearchProvider for DefaultSearcher {
 
         let file_results = file_rx.recv().unwrap_or_default();
 
-        let settings_results = if q.len() >= 3 {
-            let mut s = Self::score_items(
-                SettingsSearcher.search(&q_owned, app).results, q, Source::System,
-            );
-            s.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-            s.truncate(3);
-            s
-        } else {
-            vec![]
-        };
-
         // Merge all primary sources - score determines order, no hard-coded pinning
         let mut seen = HashSet::new();
         let mut combined = Self::merge_scored(vec![
@@ -237,7 +225,6 @@ impl SearchProvider for DefaultSearcher {
             Self::score_items(sys_results, q, Source::System),
             Self::score_items(bookmark_results, q, Source::Bookmark),
             Self::score_items(file_results, q, Source::File),
-            settings_results,
         ], &mut seen);
 
         // Supplementary results - appended after ranked items, not competing by score
