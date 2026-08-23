@@ -156,13 +156,109 @@ impl DefaultSearcher {
     }
 }
 
+// ── Home-screen helpers ──────────────────────────────────────────────────────
+
+fn make_header(label: &str) -> ResultItem {
+    ResultItem::new(label, vec![]).group("header")
+}
+
+/// A single calc history entry as a result item.
+fn calc_result_item(expr: &str, result: &str, raw: &str) -> ResultItem {
+    ResultItem::new(
+        format!("{} = {}", expr, result),
+        vec![crate::types::Action::new("Copy", crate::types::ActionData::CopyToClipboard { text: raw.to_string() })],
+    )
+    .description("calculation")
+    .icon("icons/math.png")
+}
+
+/// Build the unified "Recent" feed: interleave recently used apps and recent
+/// calculations, sorted purely by timestamp (most recent first), capped at `limit`.
+///
+/// Returns `(recent_items, seen_names)` where `seen_names` is the lowercase set
+/// of all app names already included (for deduplicating the Apps section).
+fn unified_recent(
+    all_apps: &[ResultItem],
+    limit: usize,
+) -> (Vec<ResultItem>, HashSet<String>) {
+    // --- App usage: sorted by last_used descending --------------------------
+    let mut usage = crate::usage_tracker::get_recent_entries("", 20);
+    usage.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+
+    // Map app name (lowercase) → ResultItem for O(1) lookup
+    let app_by_name: std::collections::HashMap<String, &ResultItem> = all_apps
+        .iter()
+        .map(|a| (a.name.to_lowercase(), a))
+        .collect();
+
+    // --- Calc history: up to 3 recent calcs --------------------------------
+    let calcs = crate::searchers::math::recent_calcs(3);
+
+    // --- Merge both streams into (timestamp, ResultItem) pairs -------------
+    // Apps: pull from usage entries, resolve to actual ResultItem
+    let mut seen_apps: HashSet<String> = HashSet::new();
+    let mut events: Vec<(u64, ResultItem)> = Vec::new();
+
+    for entry in &usage {
+        let key = entry.name.to_lowercase();
+        if seen_apps.contains(&key) { continue; }
+        if let Some(&app_item) = app_by_name.get(&key) {
+            seen_apps.insert(key);
+            events.push((entry.last_used, app_item.clone()));
+        }
+    }
+
+    // Calcs
+    for (expr, result, raw, ts) in &calcs {
+        events.push((*ts, calc_result_item(expr, result, raw)));
+    }
+
+    // Sort by timestamp descending, take `limit`
+    events.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+    events.truncate(limit);
+
+    // Collect app names that made it in (for dedup against Apps section)
+    let mut included_app_names: HashSet<String> = HashSet::new();
+    for (_, item) in &events {
+        if item.description.as_deref() != Some("calculation") {
+            included_app_names.insert(item.name.to_lowercase());
+        }
+    }
+
+    let items = events.into_iter().map(|(_, item)| item).collect();
+    (items, included_app_names)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 impl SearchProvider for DefaultSearcher {
     fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
         if q.is_empty() {
             let mut results = crate::searchers::home::home_items(app);
-            results.extend(AppSearcher.search(q, app).results);
+
+            let all_apps = AppSearcher.search("", app).results;
+
+            // Unified recent feed (apps + calcs, sorted by time)
+            let (recent_items, recent_names) = unified_recent(&all_apps, 8);
+
+            if !recent_items.is_empty() {
+                results.push(make_header("Recent"));
+                results.extend(recent_items);
+            }
+
+            // Apps section: apps not already shown in Recent
+            let other_apps: Vec<_> = all_apps
+                .into_iter()
+                .filter(|item| !recent_names.contains(&item.name.to_lowercase()))
+                .collect();
+
+            if !other_apps.is_empty() {
+                results.push(make_header("Apps"));
+                results.extend(other_apps);
+            }
+
             return SearchResult {
                 results,
                 result_type: ResultType::Home,

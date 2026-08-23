@@ -51,7 +51,12 @@
   let rofiAllItems: import("../stores/search").ResultItem[] = [];
 
   function homeAwareIndex(results: import("../stores/search").ResultItem[], type: string): number {
-    if (type === "Home") return results.filter(r => r.group === "widget").length;
+    if (type === "Home") {
+      // Start after widgets, then skip past any section headers to the first real item.
+      let i = results.filter(r => r.group === "widget").length;
+      while (i < results.length && results[i]?.group === "header") i++;
+      return i;
+    }
     return 0;
   }
 

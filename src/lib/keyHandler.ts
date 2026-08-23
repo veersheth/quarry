@@ -210,11 +210,21 @@ export function handleKeydown(
     event.preventDefault();
   }
 
+  // Skip section-header items when navigating — they are non-interactive labels.
+  function nextSelectable(from: number, dir: 1 | -1): number {
+    let i = from + dir;
+    while (i >= 0 && i < items.length) {
+      if (items[i]?.group !== "header") return i;
+      i += dir;
+    }
+    return from; // nowhere to go — stay put
+  }
+
   activeIndex.update((index) => {
-    if (event.key === "ArrowDown") return Math.min(index + 1, items.length - 1);
-    if (event.key === "ArrowUp") return Math.max(index - 1, 0);
-if (event.key === "n" && event.ctrlKey) return Math.min(index + 1, items.length - 1);
-    if (event.key === "p" && event.ctrlKey) return Math.max(index - 1, 0);
+    if (event.key === "ArrowDown" || (event.key === "n" && event.ctrlKey))
+      return nextSelectable(index, 1);
+    if (event.key === "ArrowUp" || (event.key === "p" && event.ctrlKey))
+      return nextSelectable(index, -1);
     if (event.key === "Enter") { runItemAction(items[index]); return index; }
     if (event.key === "1" && event.altKey) return items.length > 0 ? 0 : index;
     if (event.key === "2" && event.altKey) return items.length > 1 ? 1 : index;

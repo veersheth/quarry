@@ -44,6 +44,18 @@ fn save_history_to_disk(entries: &[CalcEntry]) {
     }
 }
 
+/// Returns the most recent calculation entry, if any.
+pub fn last_calc() -> Option<(String, String, String)> {
+    let h = CALC_HISTORY.lock().unwrap_or_else(|e| e.into_inner());
+    h.first().map(|e| (e.expr.clone(), e.result.clone(), e.raw.clone()))
+}
+
+/// Returns up to `n` recent calc entries as `(expr, result, raw, ts)`.
+pub fn recent_calcs(n: usize) -> Vec<(String, String, String, u64)> {
+    let h = CALC_HISTORY.lock().unwrap_or_else(|e| e.into_inner());
+    h.iter().take(n).map(|e| (e.expr.clone(), e.result.clone(), e.raw.clone(), e.ts)).collect()
+}
+
 pub fn push_to_history(expr: &str, result: &str, raw: &str) {
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

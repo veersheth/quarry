@@ -20,35 +20,38 @@
 
 <div class="result-list">
   {#each listitems as item, index}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-      class="result-item"
-      class:active={index === $activeIndex - indexOffset}
-      class:has-desc={!!item.description}
-      class:pinned={item.pinned}
-      data-active={index === $activeIndex - indexOffset}
-      on:mouseenter={() => {
-        if ($mouseHasMoved) activeIndex.set(index + indexOffset);
-      }}
-      on:click={() => runItemAction(item)}
-      on:contextmenu={(e) => {
-        e.preventDefault();
-        onContextMenu?.(e, item);
-      }}
-      on:dragstart|preventDefault
-    >
-      {#if item.icon}
-        <ItemIcon icon={item.icon} name={item.name} draggable_path={item.draggable_path} />
-      {/if}
-      <div class="item-text">
-        <span class="item-name">{item.name}</span>
-        {#if item.description}
-          <span class="item-desc">{item.description}</span>
+    {#if item.group === "header"}
+      <div class="section-header">{item.name}</div>
+    {:else}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div
+        class="result-item"
+        class:active={index === $activeIndex - indexOffset}
+        class:has-desc={!!item.description}
+        class:pinned={item.pinned}
+        data-active={index === $activeIndex - indexOffset}
+        on:mouseenter={() => {
+          if ($mouseHasMoved) activeIndex.set(index + indexOffset);
+        }}
+        on:click={() => runItemAction(item)}
+        on:contextmenu={(e) => {
+          e.preventDefault();
+          onContextMenu?.(e, item);
+        }}
+        on:dragstart|preventDefault
+      >
+        {#if item.icon}
+          <ItemIcon icon={item.icon} name={item.name} draggable_path={item.draggable_path} />
         {/if}
+        <div class="item-text">
+          <span class="item-name">{item.name}</span>
+          {#if item.description}
+            <span class="item-desc">{item.description}</span>
+          {/if}
+        </div>
       </div>
-
-    </div>
+    {/if}
   {/each}
 </div>
 
@@ -58,6 +61,17 @@
     flex-direction: column;
     gap: 6px;
     padding: 5px 0;
+  }
+
+  .section-header {
+    padding: 10px 22px 3px;
+    font-size: 0.72em;
+    font-family: var(--q-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--q-text-dim);
+    user-select: none;
+    pointer-events: none;
   }
 
   .result-item {
