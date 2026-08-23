@@ -8,11 +8,11 @@
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu: ((e: MouseEvent, item: ResultItem) => void) | undefined = undefined;
 
-  function parseMath(name: string): { query: string; answer: string } {
+  function parseMath(name: string): { expr: string; answer: string } {
     const eqIndex = name.lastIndexOf("=");
-    if (eqIndex === -1) return { query: name, answer: "" };
+    if (eqIndex === -1) return { expr: "", answer: name };
     return {
-      query: name.slice(0, eqIndex).trim(),
+      expr:   name.slice(0, eqIndex).trim(),
       answer: name.slice(eqIndex + 1).trim(),
     };
   }
@@ -20,7 +20,7 @@
 
 <div class="result-list">
   {#each listitems as item, index}
-    {@const { query, answer } = parseMath(item.name)}
+    {@const { expr, answer } = parseMath(item.name)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
@@ -32,61 +32,80 @@
       on:contextmenu={(e) => { e.preventDefault(); onContextMenu?.(e, item); }}
     >
       <div class="math-answer-bar">
-        <span class="math-answer">{answer || item.name}</span>
+        <span class="math-answer">{answer}</span>
       </div>
 
-      <div class="math-footer">
-        {#if answer}
-          <span class="math-query">= {query}</span>
-        {/if}
-        {#if item.description}
-          <span class="math-desc">{item.description}</span>
-        {/if}
-      </div>
+      {#if expr}
+        <div class="math-footer">
+          <span class="math-expr">{expr}</span>
+          <span class="math-hint">↵ copy</span>
+        </div>
+      {/if}
     </div>
   {/each}
 </div>
 
 <style>
+  .result-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .result-item {
+    cursor: default;
+    border-radius: var(--q-item-border-radius);
+    margin: 8px 12px 4px;
+    border: 2px solid transparent;
+    overflow: hidden;
+  }
+
+  .result-item.active {
+    border-color: var(--q-active-border-color);
+  }
+
   .math-answer-bar {
     font-family: var(--q-mono);
-    width: auto;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 24px 24px 14px;
+    padding: 20px 20px 16px;
     box-sizing: border-box;
   }
 
   .math-answer {
     background-color: var(--q-surface-subtle);
-    font-size: 3em;
+    font-size: 2.8em;
     color: var(--q-font-color);
-    border-radius: 12px;
+    border-radius: 10px;
     width: 100%;
-    padding: 20px;
+    padding: 18px 24px;
     letter-spacing: -0.5px;
     text-align: center;
+    box-sizing: border-box;
   }
 
   .math-footer {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 10px 22px 14px;
+    justify-content: center;
+    gap: 16px;
+    padding: 6px 24px 16px;
   }
 
-  .math-query {
-    font-size: 1.2em;
+  .math-expr {
+    font-family: var(--q-mono);
+    font-size: 1em;
+    color: var(--q-text-secondary);
     letter-spacing: 0.2px;
-    text-align: center;
-    margin-bottom: 12px;
   }
 
-  .math-desc {
-    font-size: 0.93em;
-    color: var(--q-text-muted);
-    text-align: center;
+  .math-hint {
+    font-size: 0.78em;
+    color: var(--q-text-dim);
+    font-family: var(--q-mono);
+    background: var(--q-surface-subtle);
+    padding: 2px 7px;
+    border-radius: 5px;
+    border: 1px solid var(--q-border-subtle);
   }
 </style>

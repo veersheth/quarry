@@ -1,9 +1,83 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use tauri::AppHandle;
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 use chrono::{Local, NaiveDate, Datelike, Duration, Weekday};
+
+// ============================================================
+// Calculation history
+// ============================================================
+
+#[derive(Serialize, Deserialize, Clone)]
+struct CalcEntry {
+    expr:   String,  // the expression as typed
+    result: String,  // formatted display value
+    raw:    String,  // raw value for clipboard (unformatted)
+    ts:     u64,     // unix seconds
+}
+
+static CALC_HISTORY: Lazy<Mutex<Vec<CalcEntry>>> =
+    Lazy::new(|| Mutex::new(load_history_from_disk()));
+
+fn history_path() -> std::path::PathBuf {
+    dirs::data_local_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from(".local/share"))
+        .join("quarry/calc_history.json")
+}
+
+fn load_history_from_disk() -> Vec<CalcEntry> {
+    let path = history_path();
+    std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_history_to_disk(entries: &[CalcEntry]) {
+    let path = history_path();
+    if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).ok(); }
+    if let Ok(json) = serde_json::to_string(entries) {
+        std::fs::write(&path, json).ok();
+    }
+}
+
+pub fn push_to_history(expr: &str, result: &str, raw: &str) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let mut history = CALC_HISTORY.lock().unwrap_or_else(|e| e.into_inner());
+    history.retain(|e| e.expr != expr);
+    history.insert(0, CalcEntry {
+        expr: expr.to_string(),
+        result: result.to_string(),
+        raw: raw.to_string(),
+        ts,
+    });
+    history.truncate(100);
+    save_history_to_disk(&history);
+}
+
+fn relative_time(ts: u64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let diff = now.saturating_sub(ts);
+    match diff {
+        0..=59       => "just now".into(),
+        60..=3599    => format!("{} min ago", diff / 60),
+        3600..=86399 => { let h = diff / 3600; format!("{} hr{} ago", h, if h == 1 { "" } else { "s" }) }
+        d            => { let d = d / 86400; format!("{} day{} ago", d, if d == 1 { "" } else { "s" }) }
+    }
+}
+
+// ============================================================
+// Searcher
+// ============================================================
 
 pub struct MathSearcher;
 
@@ -11,6 +85,32 @@ impl SearchProvider for MathSearcher {
     fn name(&self) -> String { "math".to_string() }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let expr = query.trim();
+
+        // Empty query → show history
+        if expr.is_empty() {
+            let history = CALC_HISTORY.lock().unwrap_or_else(|e| e.into_inner());
+            if history.is_empty() {
+                return SearchResult {
+                    results: vec![
+                        ResultItem::new("No history yet", vec![])
+                            .description("Calculations will appear here")
+                            .icon("icons/math.png"),
+                    ],
+                    result_type: ResultType::List,
+                    ..Default::default()
+                };
+            }
+            let results = history.iter().map(|e| {
+                ResultItem::new(
+                    format!("{} = {}", e.expr, e.result),
+                    vec![Action::new("Copy", ActionData::CopyToClipboard { text: e.raw.clone() })],
+                )
+                .description(relative_time(e.ts))
+                .icon("icons/math.png")
+            }).collect();
+            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
+        }
+
         let mut results = Vec::new();
 
         if let Some(items) = try_unit_conversion(expr) {
@@ -83,13 +183,11 @@ fn commify_str(s: &str) -> String {
 
 fn make_result(name: String, copy: String) -> ResultItem {
     ResultItem::new(name, vec![Action::new("Copy", ActionData::CopyToClipboard { text: copy })])
-        .description("Copy to clipboard")
         .icon("icons/math.png")
 }
 
 fn make_date_result(name: String, copy: String) -> ResultItem {
     ResultItem::new(name, vec![Action::new("Copy", ActionData::CopyToClipboard { text: copy })])
-        .description("Copy to clipboard")
         .icon("icons/calendar.png")
 }
 
@@ -623,8 +721,17 @@ fn try_math(expr: &str) -> Option<ResultItem> {
     match fasteval::ez_eval(&preprocessed, &mut MathNS) {
         Ok(val) => {
             let formatted = format_num(val);
+            let raw = val.to_string();
             let name = format!("{} = {}", expr, formatted);
-            Some(make_result(name, val.to_string()))
+            // params: [raw_value, expr, formatted_display]
+            // History is saved in the executor when the user actually copies.
+            let action = crate::types::Action::new("Copy", crate::types::ActionData::RunFunction {
+                function_name: "copy_calc".into(),
+                params: vec![raw, expr.to_string(), formatted],
+            });
+            let mut item = ResultItem::new(name, vec![action]);
+            item = item.icon("icons/math.png");
+            Some(item)
         }
         Err(_) => None,
     }

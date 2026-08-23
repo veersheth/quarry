@@ -250,6 +250,15 @@ fn run_custom_function(
     app: &tauri::AppHandle,
 ) -> Result<(), String> {
     match function_name {
+        // params: [raw_value, expr, formatted_display]
+        "copy_calc" => {
+            if params.is_empty() { return Err("copy_calc: missing params".into()); }
+            copy_to_clipboard(&params[0], app)?;
+            if params.len() >= 3 {
+                crate::searchers::math::push_to_history(&params[1], &params[2], &params[0]);
+            }
+            Ok(())
+        }
         "open_note" => {
             if let Some(window) = app.get_webview_window("note") {
                 let window = window.as_ref().window();
