@@ -460,12 +460,12 @@
     --q-thumb-bg: rgb(17, 17, 17);
     --q-glow: rgba(50, 50, 50, 1);
 
-    --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 70%, transparent);
-    --q-text-muted: color-mix(in srgb, var(--q-font-color, #ffffff) 40%, transparent);
-    --q-text-dim: color-mix(in srgb, var(--q-font-color, #ffffff) 25%, transparent);
-    --q-text-dim-active: color-mix(in srgb, var(--q-font-color, #ffffff) 55%, transparent);
-    --q-text-placeholder: color-mix(in srgb, var(--q-font-color, #ffffff) 15%, transparent);
-    --q-text-empty: color-mix(in srgb, var(--q-font-color, #ffffff) 20%, transparent);
+    --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 90%, transparent);
+    --q-text-muted: color-mix(in srgb, var(--q-font-color, #ffffff) 80%, transparent);
+    --q-text-dim: color-mix(in srgb, var(--q-font-color, #ffffff) 55%, transparent);
+    --q-text-dim-active: color-mix(in srgb, var(--q-font-color, #ffffff) 75%, transparent);
+    --q-text-placeholder: color-mix(in srgb, var(--q-font-color, #ffffff) 35%, transparent);
+    --q-text-empty: color-mix(in srgb, var(--q-font-color, #ffffff) 30%, transparent);
 
     --q-pin-border: rgba(200, 220, 255, 0.25);
     --q-pin-border-active: rgba(210, 230, 255, 0.55);
