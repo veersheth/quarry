@@ -168,7 +168,7 @@ fn calc_result_item(expr: &str, result: &str, raw: &str) -> ResultItem {
         format!("{} = {}", expr, result),
         vec![crate::types::Action::new("Copy", crate::types::ActionData::CopyToClipboard { text: raw.to_string() })],
     )
-    .description("calculation")
+    .description("Calculation")
     .icon("icons/math.png")
 }
 
