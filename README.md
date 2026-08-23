@@ -1,6 +1,7 @@
 # Quarry
 
-<img width="1148" height="812" alt="image" src="https://github.com/user-attachments/assets/aff58812-e2a2-467f-8f2a-8207de41d5ad" />
+<img width="2256" height="1504" alt="image" src="https://github.com/user-attachments/assets/2b1e341d-2044-404b-87fd-cc6ea323f7ae" />
+
 
 - Globalized app/shortcut launcher
 - Currently developed focused on a Hyprland / NixOS setup, but it _should_ work on most distributions (not tested)
