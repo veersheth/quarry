@@ -148,11 +148,10 @@ impl SearchProvider for EmojiSearcher {
                 .map(|emoji| make_emoji_item(emoji, false).group("featured"))
                 .collect();
 
-            // 3. All emojis then symbols - served from cache
+            // 3. All emojis - served from cache
             let results = pinned_items.into_iter()
                 .chain(recent_items)
                 .chain(ALL_EMOJIS.iter().cloned())
-                .chain(ALL_SYMBOLS.iter().cloned())
                 .collect();
 
             return SearchResult { results, result_type: ResultType::Grid, ..Default::default() };
@@ -167,15 +166,7 @@ impl SearchProvider for EmojiSearcher {
             })
             .map(|emoji| make_emoji_item(emoji, false));
 
-        let symbol_results = ALL_SYMBOLS.iter()
-            .filter(|item| {
-                item.description.as_deref()
-                    .map_or(false, |d| crate::search_utils::smart_match(d, &q).is_some())
-                    || crate::search_utils::smart_match(&item.name, &q).is_some()
-            })
-            .cloned();
-
-        let results = emoji_results.chain(symbol_results).collect();
+        let results = emoji_results.collect();
         SearchResult { results, result_type: ResultType::Grid, ..Default::default() }
     }
 }

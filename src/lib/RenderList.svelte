@@ -67,8 +67,6 @@
     padding: 10px 22px 3px;
     font-size: 0.72em;
     font-family: var(--q-mono);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
     color: var(--q-text-dim);
     user-select: none;
     pointer-events: none;
