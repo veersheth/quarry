@@ -40,7 +40,6 @@
         canvas.toBlob((b) => b ? res(b) : rej(new Error("toBlob failed")), "image/png")
       );
       await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
-      addToast("QR image copied");
     } catch {
       await navigator.clipboard.writeText(text);
     }
