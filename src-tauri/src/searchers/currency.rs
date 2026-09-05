@@ -228,13 +228,11 @@ impl SearchProvider for CurrencySearcher {
                     parsed.to
                 );
 
-                let markdown = format!(
-                    "<div align=\"center\">\n\n# `{}`\n\n</div>\n\n**Rate:** 1 {} = {} {}\n\n*Source: Frankfurter / ECB · {}*",
-                    result_text,
+                let description = format!(
+                    "1 {} = {} {}  ·  Frankfurter/ECB",
                     data.base,
                     fmt_amount(rate),
                     parsed.to,
-                    data.date,
                 );
 
                 SearchResult {
@@ -244,10 +242,10 @@ impl SearchProvider for CurrencySearcher {
                             text: fmt_amount(converted),
                         })],
                     )
-                    .description(markdown)
+                    .description(description)
                     .icon("icons/math.png")],
-                    result_type: ResultType::Markdown,
-                                    ..Default::default()
+                    result_type: ResultType::List,
+                    ..Default::default()
 }
             }
             Err(e) => {
