@@ -1,5 +1,6 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
+  import { invoke } from "@tauri-apps/api/core";
   import { iconSrc } from "./utils";
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
@@ -18,11 +19,6 @@
   };
   import { runItemAction } from "./keyHandler";
 
-  function thumbSrc(item: { thumbnail?: string }): string | null {
-    return item.thumbnail ?? null;
-  }
-
-
   export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
@@ -30,13 +26,37 @@
     | undefined = undefined;
 
   $: activeItem = listitems[$activeIndex];
-  $: activeColor = (activeItem && activeItem.thumbnail)
+  $: activeColor = (activeItem && (activeItem.thumbnail || activeItem.thumbnail_key))
     ? null
     : getValidColor(activeItem?.name);
   $: contentType = activeItem
     ? detectType(activeItem)
     : ("text" as ContentType);
-  $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType) : [];
+
+  // Lazy-loaded data for the selected item
+  let previewThumb: string | null = null;
+  let previewText: string | null = null;
+
+  $: {
+    previewThumb = null;
+    previewText = null;
+    if (activeItem) {
+      if (activeItem.thumbnail_key && !activeItem.thumbnail) {
+        invoke<string | null>("get_clipboard_thumbnail", { hash: activeItem.thumbnail_key })
+          .then(t => { if (t) previewThumb = `data:image/png;base64,${t}`; })
+          .catch(() => {});
+      } else {
+        const copyAction = activeItem.actions.find(a => a.name === "Copy");
+        if (copyAction) {
+          invoke<string | null>("get_action_text", { actionId: copyAction.id })
+            .then(t => { if (t !== null) previewText = t; })
+            .catch(() => {});
+        }
+      }
+    }
+  }
+
+  $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType, previewText) : [];
 
   let showOcrText = false;
   $: if (activeItem) showOcrText = false;
@@ -160,7 +180,7 @@
     | "text";
 
   function detectType(item: (typeof listitems)[0]): ContentType {
-    if (item.thumbnail) return "image"; // truthy for both "hash:..." and full data URLs
+    if (item.thumbnail || item.thumbnail_key) return "image";
     const v = item.name?.trim() ?? "";
     if (getValidColor(v)) return "color";
     if (isURL(v)) return "url";
@@ -250,8 +270,9 @@
   function getFooterMeta(
     item: (typeof listitems)[0],
     type: ContentType,
+    fullText?: string | null,
   ): string[] {
-    const v = item.name ?? "";
+    const v = fullText ?? item.name ?? "";
     switch (type) {
       case "json": {
         const s = jsonStats(v);
@@ -308,6 +329,8 @@
         <div class="type-icon">
           {#if item.thumbnail}
             <img class="icon-thumb" src={item.thumbnail} alt="" />
+          {:else if item.thumbnail_key}
+            <div class="icon-pill icon-text" style="font-size:0.7em">img</div>
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
@@ -377,7 +400,7 @@
           {:else}
             <img
               class="image-preview"
-              src={activeItem.thumbnail ?? ""}
+              src={previewThumb ?? activeItem.thumbnail ?? ""}
               alt={activeItem.name}
             />
           {/if}
@@ -412,7 +435,7 @@
                   <span class="url-hostname">{parsed.display}</span>
                 </div>
 
-                <div class="url-full">{activeItem.name}</div>
+                <div class="url-full">{previewText ?? activeItem.name}</div>
 
                 <!-- svelte-ignore a11y_invalid_attribute -->
                 <a
@@ -450,15 +473,15 @@
           </div>
         {:else if contentType === "json"}
           <div class="json-container">
-            <pre class="json-preview">{prettyJSON(activeItem.name)}</pre>
+            <pre class="json-preview">{prettyJSON(previewText ?? activeItem.name)}</pre>
           </div>
         {:else if contentType === "multiline"}
           <div class="multiline-container">
-            <div class="text-preview">{activeItem.name}</div>
+            <div class="text-preview">{previewText ?? activeItem.name}</div>
           </div>
         {:else}
           <div class="text-container">
-            <div class="text-preview">{activeItem.name}</div>
+            <div class="text-preview">{previewText ?? activeItem.name}</div>
           </div>
         {/if}
       </div>

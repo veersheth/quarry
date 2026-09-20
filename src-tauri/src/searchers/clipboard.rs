@@ -78,6 +78,10 @@ impl SearchProvider for ClipboardSearcher {
     }
 }
 
+/// Max chars of text included in the IPC payload for display.
+/// Full text is stored in ACTION_REGISTRY and used when copying or shown lazily in the preview.
+const DISPLAY_CHARS: usize = 500;
+
 fn build_results(query: &str) -> SearchResult {
     let text_pins = crate::PINS.get("clipboard");
     let pinned_texts: std::collections::HashSet<&str> =
@@ -184,7 +188,16 @@ fn build_results(query: &str) -> SearchResult {
                             params: vec![],
                         }),
                     ]);
-                    let mut item = ResultItem::new(value.clone(), actions)
+                    // Truncate display name — full text lives in ACTION_REGISTRY for copying
+                    // and is fetched lazily for the preview panel via get_action_text.
+                    let display = if value.len() > DISPLAY_CHARS {
+                        let mut s = value[..value.floor_char_boundary(DISPLAY_CHARS)].to_string();
+                        s.push('…');
+                        s
+                    } else {
+                        value.clone()
+                    };
+                    let mut item = ResultItem::new(display, actions)
                         .description(format_timestamp(entry.timestamp));
                     if let Some(icon) = icon {
                         item = item.icon(icon);
@@ -192,7 +205,7 @@ fn build_results(query: &str) -> SearchResult {
                     item
                 }
 
-                ClipboardContent::Image { width, height, ocr_text, hash, thumbnail, .. } => {
+                ClipboardContent::Image { width, height, ocr_text, hash, .. } => {
                     let hash_str = hash.to_string();
                     let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
                     let pin_action = if is_pinned {
@@ -229,9 +242,10 @@ fn build_results(query: &str) -> SearchResult {
                         }),
                     ]);
 
+                    // Thumbnail is fetched lazily by the frontend using thumbnail_key.
                     let mut item = ResultItem::new(format!("Image {}×{}", width, height), actions)
                         .description(format_timestamp(entry.timestamp))
-                        .thumbnail(thumbnail.clone());
+                        .thumbnail_key(hash.to_string());
                     if let Some(text) = ocr_text {
                         item = item.ocr_text(text.clone());
                     }

@@ -13,6 +13,8 @@ use std::time::Duration;
 const MAX_IMAGE_BYTES: usize = 4_000_000;
 // Max images kept in history
 const MAX_IMAGE_ENTRIES: usize = 20;
+// Max text entries kept in history
+const MAX_TEXT_ENTRIES: usize = 500;
 // Thumbnail width in pixels for preview
 const THUMBNAIL_WIDTH: u32 = 300;
 
@@ -286,6 +288,12 @@ impl ClipboardManager {
                                 }
                                 None => {
                                     hist.insert(0, ClipboardEntry::new_text(text.clone()));
+                                    // Drop oldest text entries beyond the cap
+                                    let mut text_count = 0usize;
+                                    hist.retain(|e| match &e.content {
+                                        ClipboardContent::Text { .. } => { text_count += 1; text_count <= MAX_TEXT_ENTRIES }
+                                        _ => true,
+                                    });
                                     drop(hist);
                                     generation.fetch_add(1, Ordering::Relaxed);
                                     if let Some(ref p) = storage_path {

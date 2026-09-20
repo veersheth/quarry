@@ -1,7 +1,7 @@
 use regex::Regex;
 use base64::{engine::general_purpose, Engine};
 use once_cell::sync::Lazy;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use std::sync::atomic::Ordering;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -123,6 +123,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<(Regex, Box<dyn SearchProvider + 
 pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult> {
     let my_seq = SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
     let query_clone = query.clone();
+    let app_for_search = app.clone();
 
     let result = tauri::async_runtime::spawn_blocking(move || {
         let mut result = None;
@@ -131,7 +132,7 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         for (regex, searcher) in triggers.iter() {
             if let Some(caps) = regex.captures(&query_clone) {
                 let rest = caps.get(1).map_or("", |m| m.as_str());
-                let mut r = searcher.search(rest, &app);
+                let mut r = searcher.search(rest, &app_for_search);
                 r.searcher = searcher.name().to_string();
                 result = Some(r);
                 break;
@@ -140,7 +141,7 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
 
         result.unwrap_or_else(|| {
             use crate::searchers::default::DefaultSearcher;
-            DefaultSearcher::new().search(&query_clone, &app)
+            DefaultSearcher::new().search(&query_clone, &app_for_search)
         })
     })
     .await
@@ -164,6 +165,27 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
             action.id = format!("action_{}_{}_{}", my_seq, i, j);
             ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
         }
+    }
+
+    search_result.seq = my_seq;
+
+    // For clipboard results: return the first 30 immediately and emit the rest
+    // in a background task so the UI shows something instantly.
+    if matches!(search_result.result_type, crate::types::ResultType::Clipboard)
+        && search_result.results.len() > 30
+    {
+        let rest: Vec<_> = search_result.results.drain(30..).collect();
+        let app_for_more = app.clone();
+        tauri::async_runtime::spawn(async move {
+            // Brief yield — lets the IPC response for the first 30 items land
+            // before the event carrying the rest arrives.
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            if SEARCH_SEQ.load(Ordering::SeqCst) == my_seq {
+                #[derive(serde::Serialize, Clone)]
+                struct ClipboardMore { seq: u64, results: Vec<crate::types::ResultItem> }
+                let _ = app_for_more.emit("quarry-clipboard-more", ClipboardMore { seq: my_seq, results: rest });
+            }
+        });
     }
 
     Some(search_result)
@@ -251,6 +273,14 @@ pub fn save_config(config: config::Config) -> Result<(), String> {
 pub fn get_clipboard_thumbnail(hash: String) -> Option<String> {
     let hash: u64 = hash.parse().ok()?;
     CLIPBOARD_MANAGER.get_thumbnail(hash)
+}
+
+#[tauri::command]
+pub fn get_action_text(action_id: String) -> Option<String> {
+    match ACTION_REGISTRY.get_action(&action_id)? {
+        ActionData::CopyToClipboard { text } => Some(text),
+        _ => None,
+    }
 }
 
 #[tauri::command]

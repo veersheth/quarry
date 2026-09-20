@@ -26,6 +26,8 @@ pub struct ResultItem {
     pub icon: Option<String>,
     /// For image clipboard entries: base64 PNG thumbnail for the UI to render
     pub thumbnail: Option<String>,
+    /// Key for lazy thumbnail fetching (hash string for clipboard images)
+    pub thumbnail_key: Option<String>,
     /// OCR text extracted from clipboard images, for display in the preview panel
     pub ocr_text: Option<String>,
     pub pinned: bool,
@@ -41,6 +43,7 @@ impl ResultItem {
             description: None,
             icon: None,
             thumbnail: None,
+            thumbnail_key: None,
             ocr_text: None,
             pinned: false,
             group: None,
@@ -60,6 +63,11 @@ impl ResultItem {
 
     pub fn thumbnail(mut self, t: impl Into<String>) -> Self {
         self.thumbnail = Some(t.into());
+        self
+    }
+
+    pub fn thumbnail_key(mut self, k: impl Into<String>) -> Self {
+        self.thumbnail_key = Some(k.into());
         self
     }
 
@@ -107,11 +115,14 @@ pub struct SearchResult {
     pub result_type: ResultType,
     #[serde(default)]
     pub searcher: String,
+    /// Search sequence number — used by the frontend to correlate quarry-clipboard-more events.
+    #[serde(default)]
+    pub seq: u64,
 }
 
 impl Default for SearchResult {
     fn default() -> Self {
-        Self { results: vec![], result_type: ResultType::List, searcher: String::new() }
+        Self { results: vec![], result_type: ResultType::List, searcher: String::new(), seq: 0 }
     }
 }
 

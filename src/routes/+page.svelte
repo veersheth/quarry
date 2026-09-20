@@ -44,6 +44,7 @@
   let resultsEl: HTMLDivElement;
   let searchTimer: ReturnType<typeof setTimeout>;
   let uiScale = 1.0;
+  let clipboardSeq = 0;
 
   // Rofi mode: bypass backend search, filter items locally
   let rofiMode = false;
@@ -236,6 +237,27 @@
       },
     );
 
+    // Remaining clipboard items arrive ~30ms after the first 30, keyed by seq.
+    // Insert in chunks across animation frames so the UI stays responsive.
+    const unlistenClipboardMore = await listen<{
+      seq: number;
+      results: import("../stores/search").ResultItem[];
+    }>("quarry-clipboard-more", ({ payload }) => {
+      if (payload.seq !== clipboardSeq) return;
+      const CHUNK = 40;
+      const seq = payload.seq;
+      let i = 0;
+      function appendNext() {
+        if (seq !== clipboardSeq) return;
+        const chunk = payload.results.slice(i, i + CHUNK);
+        if (!chunk.length) return;
+        resultItems.update(items => [...items, ...chunk]);
+        i += CHUNK;
+        if (i < payload.results.length) requestAnimationFrame(appendNext);
+      }
+      requestAnimationFrame(appendNext);
+    });
+
     // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
     // arrive before the file search completes - apply immediately if still relevant.
     const unlistenFast = await listen<{
@@ -266,6 +288,7 @@
       unlistenModal();
       unlistenRofiSocket();
       unlistenRofi();
+      unlistenClipboardMore();
       unlistenFast();
       unlistenSetQuery();
       unlistenQr();
@@ -285,6 +308,7 @@
     } else {
       isLoading = true;
       clearTimeout(searchTimer);
+      clipboardSeq = 0;
       const capturedQuery = $query;
       searchTimer = setTimeout(() => {
         search(capturedQuery)
@@ -294,6 +318,9 @@
             resultType.set(res.result_type);
             searcherName.set(res.searcher ?? "");
             activeIndex.set(homeAwareIndex(res.results, res.result_type));
+            if (res.result_type === "Clipboard") {
+              clipboardSeq = res.seq ?? 0;
+            }
           })
           .catch((err) => {
             console.error("Search error:", err);

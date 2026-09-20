@@ -11,6 +11,7 @@ export type ResultItem = {
   description?: string;
   icon?: string;
   thumbnail?: string;
+  thumbnail_key?: string;
   pinned?: boolean;
   group?: string;
   draggable_path?: string;
@@ -23,6 +24,7 @@ export type SearchResult = {
   results: ResultItem[];
   result_type: ResultType;
   searcher?: string;
+  seq?: number;
 };
 
 export type ContextMenuState = {
