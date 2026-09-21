@@ -134,6 +134,19 @@ pub(crate) fn run_shell_command(command: &str) -> Result<(), String> {
 
 fn run_script(path: &str) -> Result<(), String> {
     use std::os::unix::process::CommandExt;
+    Command::new("sh")
+        .args(["-c", path])
+        .process_group(0)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+fn run_script_in_terminal(path: &str) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
 
     let spawn = |binary: &str, args: &[&str]| {
         Command::new(binary)
@@ -144,20 +157,14 @@ fn run_script(path: &str) -> Result<(), String> {
             .is_ok()
     };
 
-    // Respect $TERMINAL if set
     if let Ok(term) = std::env::var("TERMINAL") {
         if !term.is_empty() && spawn(&term, &["-e", path]) {
             return Ok(());
         }
     }
 
-    // Modern freedesktop standard
-    if spawn("xdg-terminal-exec", &[path]) {
-        return Ok(());
-    }
-
-    // Known terminals
-    if spawn("ghostty", &["-e", path])                    { return Ok(()); }
+    if spawn("xdg-terminal-exec", &[path])               { return Ok(()); }
+    if spawn("ghostty", &["-e", path])                   { return Ok(()); }
     if spawn("gnome-terminal", &["--", path])             { return Ok(()); }
     if spawn("kitty", &[path])                            { return Ok(()); }
     if spawn("alacritty", &["-e", path])                  { return Ok(()); }
@@ -250,6 +257,10 @@ fn run_custom_function(
     app: &tauri::AppHandle,
 ) -> Result<(), String> {
     match function_name {
+        "run_in_terminal" => {
+            let path = params.first().map(|s| s.as_str()).unwrap_or("");
+            run_script_in_terminal(path)
+        }
         // params: [raw_value, expr, formatted_display]
         "copy_calc" => {
             if params.is_empty() { return Err("copy_calc: missing params".into()); }

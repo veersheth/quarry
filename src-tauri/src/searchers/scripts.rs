@@ -36,6 +36,9 @@ fn is_runnable(path: &std::path::Path) -> bool {
     false
 }
 
+// Data URI avoids file-serving issues with SVGs in WebKitGTK img tags.
+const SCRIPT_ICON: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTggNiBMMTkgMTIgTDggMTggWiIgZmlsbD0iIzIyYzU1ZSIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==";
+
 fn build_item(path: &std::path::Path, scripts_dir: &std::path::Path) -> ResultItem {
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let rel = path.strip_prefix(scripts_dir)
@@ -45,6 +48,10 @@ fn build_item(path: &std::path::Path, scripts_dir: &std::path::Path) -> ResultIt
 
     ResultItem::new(name, vec![
         Action::new("Run", ActionData::RunScript { path: path_str.clone() }),
+        Action::new("Run in Terminal", ActionData::RunFunction {
+            function_name: "run_in_terminal".into(),
+            params: vec![path_str.clone()],
+        }),
         Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) }),
         Action::new("Open Containing Folder", ActionData::OpenUrl {
             url: format!("file://{}", scripts_dir.to_string_lossy()),
@@ -52,7 +59,7 @@ fn build_item(path: &std::path::Path, scripts_dir: &std::path::Path) -> ResultIt
         Action::new("Copy Path", ActionData::CopyToClipboard { text: path_str }),
     ])
     .description(rel)
-    .icon("icons/file.png")
+    .icon(SCRIPT_ICON)
 }
 
 impl SearchProvider for ScriptsSearcher {
@@ -109,17 +116,6 @@ impl SearchProvider for ScriptsSearcher {
             scored.sort_by(|a, b| b.1.cmp(&a.1));
             scored.iter().map(|(p, _)| build_item(p, &dir)).collect()
         };
-
-        if items.is_empty() && !query.is_empty() {
-            return SearchResult {
-                results: vec![ResultItem::new(
-                    format!("No scripts matching \"{}\"", query),
-                    vec![],
-                )],
-                result_type: ResultType::List,
-                ..Default::default()
-            };
-        }
 
         SearchResult {
             results: items,
