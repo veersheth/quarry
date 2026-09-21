@@ -146,18 +146,43 @@ fn build_results(query: &str) -> SearchResult {
     // Build history items while holding the lock - no full-image clone needed.
     // The `full` field is intentionally not accessed; copy actions reference by hash.
     CLIPBOARD_MANAGER.with_history(|history| {
-        let history_items: Vec<ResultItem> = history
+        // For a non-empty query: score each entry and sort by score descending.
+        // For empty query: preserve history order (most recent first), no scoring.
+        let mut scored: Vec<(i64, &_)> = history
             .iter()
-            .filter(|entry| {
+            .filter_map(|entry| {
                 if query.is_empty() {
-                    return match &entry.content {
+                    let keep = match &entry.content {
                         ClipboardContent::Text { value } => !pinned_texts.contains(value.as_str()),
                         ClipboardContent::Image { hash, .. } => !pinned_hashes.contains(hash),
                     };
+                    if keep { Some((0i64, entry)) } else { None }
+                } else {
+                    // Score against the display text (and OCR text for images)
+                    let text_score = crate::search_utils::smart_match(&entry.display_text(), query);
+                    let ocr_score = match &entry.content {
+                        ClipboardContent::Image { ocr_text: Some(ocr), .. } =>
+                            crate::search_utils::smart_match(ocr, query),
+                        _ => None,
+                    };
+                    let score = match (text_score, ocr_score) {
+                        (Some(a), Some(b)) => Some(a.max(b)),
+                        (Some(a), None) => Some(a),
+                        (None, Some(b)) => Some(b),
+                        (None, None) => None,
+                    };
+                    score.map(|s| (s, entry))
                 }
-                crate::search_utils::smart_match(&entry.display_text(), query).is_some()
             })
-            .map(|entry| match &entry.content {
+            .collect();
+
+        if !query.is_empty() {
+            scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+        }
+
+        let history_items: Vec<ResultItem> = scored
+            .into_iter()
+            .map(|(_, entry)| match &entry.content {
                 ClipboardContent::Text { value } => {
                     let is_pinned = crate::PINS.contains("clipboard", value);
                     let pin_action = if is_pinned {

@@ -15,6 +15,7 @@ use crate::searchers::{
     files::FileSearcher,
     bookmarks::BookmarksSearcher,
     math::MathSearcher,
+    scripts::ScriptsSearcher,
     shell::ShellSearcher,
     shortcuts::ShortcutsSearcher,
     system::SystemSearcher,
@@ -43,6 +44,7 @@ enum Source {
     Shortcut,
     System,
     Bookmark,
+    Script,
     File,
 }
 
@@ -131,6 +133,7 @@ impl DefaultSearcher {
             Source::Shortcut => 1.7,
             Source::System   => 1.2,
             Source::Bookmark => 1.0,
+            Source::Script   => 0.9,
             Source::File     => 0.75,
         };
 
@@ -294,6 +297,7 @@ impl SearchProvider for DefaultSearcher {
                 || ShortcutsSearcher.search(&q_owned, app).results,
             ),
         );
+        let script_results = ScriptsSearcher.search(&q_owned, app).results;
 
         // Emit fast partial results with the same scoring as the final pass
         {
@@ -303,6 +307,7 @@ impl SearchProvider for DefaultSearcher {
                 Self::score_items(shortcut_results.clone(), q, Source::Shortcut),
                 Self::score_items(sys_results.clone(), q, Source::System),
                 Self::score_items(bookmark_results.clone(), q, Source::Bookmark),
+                Self::score_items(script_results.clone(), q, Source::Script),
             ], &mut seen);
             let _ = app.emit("quarry-fast", FastPartial { query: q.to_string(), results: fast });
         }
@@ -320,6 +325,7 @@ impl SearchProvider for DefaultSearcher {
             Self::score_items(shortcut_results, q, Source::Shortcut),
             Self::score_items(sys_results, q, Source::System),
             Self::score_items(bookmark_results, q, Source::Bookmark),
+            Self::score_items(script_results, q, Source::Script),
             Self::score_items(file_results, q, Source::File),
         ], &mut seen);
 
