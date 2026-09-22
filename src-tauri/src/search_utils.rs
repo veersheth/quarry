@@ -2,6 +2,16 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
 
+/// Expand a leading `~/` to the user's home directory.
+/// Paths without `~/` are returned as-is wrapped in `Some`.
+pub fn expand_tilde(path: &str) -> Option<std::path::PathBuf> {
+    if let Some(rest) = path.strip_prefix("~/") {
+        Some(dirs::home_dir()?.join(rest))
+    } else {
+        Some(std::path::PathBuf::from(path))
+    }
+}
+
 static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
 
 /// Normalize text for better matching by:

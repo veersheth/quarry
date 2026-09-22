@@ -1,5 +1,20 @@
 pub mod home;
 pub mod time;
+
+// ── Shared icon paths ─────────────────────────────────────────────────────────
+// Single source of truth for every icon path used across searchers.
+// All paths are relative to the webview root (static/ in the source tree).
+pub const ICON_FOLDER:      &str = "icons/folder.png";
+pub const ICON_FILE:        &str = "icons/file.png";
+pub const ICON_BOOKMARK:    &str = "icons/bookmark.png";
+pub const ICON_SETTINGS:    &str = "icons/settings.png";
+pub const ICON_MATH:        &str = "icons/math.png";
+pub const ICON_TRANSPARENT: &str = "icons/icon-transparent.png";
+
+/// Data URI for the script run icon (green play triangle).
+/// Canonical SVG is at static/icons/script.svg; base64 here avoids WebKitGTK
+/// failing to render SVGs loaded via <img> file paths.
+pub const SCRIPT_ICON: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTggNiBMMTkgMTIgTDggMTggWiIgZmlsbD0iIzIyYzU1ZSIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==";
 pub mod ai;
 pub mod currency;
 pub mod default;

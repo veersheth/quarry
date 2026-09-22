@@ -24,7 +24,7 @@ impl SearchProvider for AiSearcher {
                 vec![],
             )
             .description("Type your Groq API key and press Enter to save it")
-            .icon("icons/settings.png")
+            .icon(super::ICON_SETTINGS)
         } else {
             ResultItem::new(
                 "Save Groq API key",
@@ -37,13 +37,9 @@ impl SearchProvider for AiSearcher {
                 )],
             )
             .description(format!("Save '{}' as your Groq API key", q))
-            .icon("icons/settings.png")
+            .icon(super::ICON_SETTINGS)
         };
 
-        SearchResult {
-            results: vec![item],
-            result_type: ResultType::List,
-            ..Default::default()
-        }
+        SearchResult::list(vec![item])
     }
 }

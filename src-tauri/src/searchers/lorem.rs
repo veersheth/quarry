@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 pub struct LoremSearcher;
 
@@ -12,11 +12,7 @@ impl SearchProvider for LoremSearcher {
         let trimmed = query.trim();
 
         let Ok(n) = trimmed.parse::<usize>() else {
-            return SearchResult {
-                results: vec![],
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(vec![]);
         };
 
         let words: Vec<&str> = LOREM.split_whitespace().collect();
@@ -31,10 +27,6 @@ impl SearchProvider for LoremSearcher {
             .description("Copy generated lorem ipsum")
         ];
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-                    ..Default::default()
-}
+        SearchResult::list(results)
     }
 }

@@ -18,7 +18,7 @@ export type ResultItem = {
   ocr_text?: string;
 };
 
-export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai" | "QrCode";
+export type ResultType = "List" | "Grid" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai" | "Screenshots" | "QrCode";
 
 export type SearchResult = {
   results: ResultItem[];

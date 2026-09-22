@@ -1,5 +1,5 @@
 use crate::searchers::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use crate::usage_tracker::get_recent_entries;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
@@ -99,10 +99,6 @@ impl SearchProvider for WebSearcher {
             ));
         }
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-                    ..Default::default()
-}
+        SearchResult::list(results)
     }
 }

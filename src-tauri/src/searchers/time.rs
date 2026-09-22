@@ -1,5 +1,5 @@
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use chrono::{Timelike, Utc};
 use chrono_tz::Tz;
 use std::str::FromStr;
@@ -324,7 +324,7 @@ fn tz_result(m: &TzMatch, is_pinned: bool) -> ResultItem {
             pin_action,
         ],
     )
-    .description(format!("{} · {}", m.label, format_tz_label(m.tz)))
+    .description(format!("{} ,{}", m.label, format_tz_label(m.tz)))
     .icon(clock_icon(m.tz));
 
     if is_pinned {
@@ -422,7 +422,7 @@ impl SearchProvider for TimeSearcher {
                     .map(|m| tz_result(&m, false)),
             );
 
-            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
+            return SearchResult::list(results);
         }
 
         let matches = find_matches(q);
@@ -431,6 +431,6 @@ impl SearchProvider for TimeSearcher {
             tz_result(m, is_pinned)
         }).collect();
 
-        SearchResult { results, result_type: ResultType::List, ..Default::default() }
+        SearchResult::list(results)
     }
 }

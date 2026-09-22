@@ -139,7 +139,7 @@ impl SearchProvider for CurrencySearcher {
                         vec![Action::new("Copy", ActionData::CopyToClipboard { text: copied_value })],
                     )
                     .description(format!("recent: used {} time{}", e.count, if e.count == 1 { "" } else { "s" }))
-                    .icon("icons/math.png")
+                    .icon(super::ICON_MATH)
                 })
                 .collect();
 
@@ -157,11 +157,7 @@ impl SearchProvider for CurrencySearcher {
 };
             }
 
-            return SearchResult {
-                results: history_items,
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(history_items);
         }
 
         if q.eq_ignore_ascii_case("list") {
@@ -229,24 +225,20 @@ impl SearchProvider for CurrencySearcher {
                 );
 
                 let description = format!(
-                    "1 {} = {} {}  ·  Frankfurter/ECB",
+                    "1 {} = {} {} (Frankfurter/ECB)",
                     data.base,
                     fmt_amount(rate),
                     parsed.to,
                 );
 
-                SearchResult {
-                    results: vec![ResultItem::new(
-                        result_text.clone(),
-                        vec![Action::new("Copy", ActionData::CopyToClipboard {
-                            text: fmt_amount(converted),
-                        })],
-                    )
-                    .description(description)
-                    .icon("icons/math.png")],
-                    result_type: ResultType::List,
-                    ..Default::default()
-}
+                SearchResult::list(vec![ResultItem::new(
+                    result_text.clone(),
+                    vec![Action::new("Copy", ActionData::CopyToClipboard {
+                        text: fmt_amount(converted),
+                    })],
+                )
+                .description(description)
+                .icon(super::ICON_MATH)])
             }
             Err(e) => {
                 let msg = if e.contains("422") || e.contains("404") || e.contains("error") {

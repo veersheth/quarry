@@ -126,6 +126,12 @@ impl Default for SearchResult {
     }
 }
 
+impl SearchResult {
+    pub fn list(results: Vec<ResultItem>) -> Self {
+        Self { results, result_type: ResultType::List, ..Default::default() }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ActionData {
     None,
@@ -142,6 +148,14 @@ pub enum ActionData {
 }
 
 impl ActionData {
+    /// Build a `show_modal` RunFunction with a title and button specs `(label, kind, command)`.
+    /// `kind` is `"danger"`, `"primary"`, or `"default"`. Empty `command` dismisses with no action.
+    pub fn modal(title: impl Into<String>, buttons: &[(&str, &str, &str)]) -> Self {
+        let mut params = vec![title.into()];
+        params.extend(buttons.iter().map(|(l, k, c)| format!("{}|{}|{}", l, k, c)));
+        ActionData::RunFunction { function_name: "show_modal".into(), params }
+    }
+
     pub fn stable_id(&self) -> String {
         match self {
             ActionData::LaunchApp { executable, .. } => format!("app:{}", executable),

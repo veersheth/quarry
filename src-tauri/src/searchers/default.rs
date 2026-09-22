@@ -22,8 +22,7 @@ use crate::searchers::{
     web_searchers::WebSearcher,
     SearchProvider,
 };
-
-use crate::types::{ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 static CURRENCY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(\d[\d,.]*)?\s*([a-z]{3})\s+(?:to\s+)?([a-z]{3})$").unwrap()
@@ -165,71 +164,130 @@ fn make_header(label: &str) -> ResultItem {
     ResultItem::new(label, vec![]).group("header")
 }
 
-/// A single calc history entry as a result item.
-fn calc_result_item(expr: &str, result: &str, raw: &str) -> ResultItem {
-    ResultItem::new(
-        format!("{} = {}", expr, result),
-        vec![crate::types::Action::new("Copy", crate::types::ActionData::CopyToClipboard { text: raw.to_string() })],
-    )
-    .description("Calculation")
-    .icon("icons/math.png")
+
+/// Build a ResultItem for a usage entry, inferring the action and icon from the
+/// stable action_id prefix. Returns None for entries that shouldn't appear on the
+/// home screen (clipboard copies, rofi, internal functions).
+fn item_from_usage(
+    entry: &crate::usage_tracker::UsageEntry,
+    app_by_name: &std::collections::HashMap<String, &ResultItem>,
+    shortcut_by_id: &std::collections::HashMap<String, &ResultItem>,
+) -> Option<ResultItem> {
+    let id = entry.action_id.as_str();
+
+    // Skip clipboard copies and internal/meta actions
+    if id.starts_with("copy:") || id.starts_with("copy-img:") || id.starts_with("copy-file:")
+        || id.starts_with("rofi:") || id == "none"
+        || id.starts_with("fn:delete_") || id.starts_with("fn:clear_")
+        || id.starts_with("fn:unpin") || id.starts_with("fn:pin")
+    {
+        return None;
+    }
+
+    if id.starts_with("app:") {
+        let key = entry.name.to_lowercase();
+        if let Some(&app) = app_by_name.get(&key) {
+            return Some(app.clone());
+        }
+        // App was removed — show ghost entry with just the name
+        let exec = id.trim_start_matches("app:");
+        return Some(ResultItem::new(
+            entry.name.clone(),
+            vec![Action::new("Launch", ActionData::LaunchApp { executable: exec.to_string(), args: vec![] })],
+        ));
+    }
+
+    if id.starts_with("script:") {
+        let path = id.trim_start_matches("script:").to_string();
+        return Some(ResultItem::new(
+            entry.name.clone(),
+            vec![
+                Action::new("Run", ActionData::RunScript { path: path.clone() }),
+                Action::new("Run in Terminal", ActionData::RunFunction {
+                    function_name: "run_in_terminal".into(),
+                    params: vec![path],
+                }),
+            ],
+        ).icon(super::SCRIPT_ICON));
+    }
+
+    if id.starts_with("url:") {
+        // Prefer the live shortcut/bookmark item to preserve its icon and full action list
+        if let Some(&live) = shortcut_by_id.get(id) {
+            return Some(live.clone());
+        }
+        let url = id.trim_start_matches("url:").to_string();
+        let icon = if url.starts_with("file://") { super::ICON_FILE } else { super::ICON_BOOKMARK };
+        return Some(ResultItem::new(
+            entry.name.clone(),
+            vec![Action::new("Open", ActionData::OpenUrl { url })],
+        ).icon(icon));
+    }
+
+    // For fn: and shell: entries, only show items that match a live shortcut.
+    // This prevents modal confirmation buttons (like "Yes" for Reboot) from
+    // appearing in the recent feed — their stable_id is not in any shortcut list.
+    if id.starts_with("fn:") || id.starts_with("shell:") {
+        return shortcut_by_id.get(id).map(|&live| live.clone());
+    }
+
+    None
 }
 
-/// Build the unified "Recent" feed: interleave recently used apps and recent
-/// calculations, sorted purely by timestamp (most recent first), capped at `limit`.
-///
-/// Returns `(recent_items, seen_names)` where `seen_names` is the lowercase set
-/// of all app names already included (for deduplicating the Apps section).
+/// Build the unified "Recent" feed from all usage history, sorted by a combined
+/// recency + frequency score. Returns `(items, seen_names)` where `seen_names`
+/// is used to deduplicate the Apps section below.
 fn unified_recent(
     all_apps: &[ResultItem],
+    all_shortcuts: &[ResultItem],
     limit: usize,
 ) -> (Vec<ResultItem>, HashSet<String>) {
-    // --- App usage: sorted by last_used descending --------------------------
-    let mut usage = crate::usage_tracker::get_recent_entries("", 20);
-    usage.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+    // Pull a larger pool so deduplication and filtering don't leave us short
+    let mut usage = crate::usage_tracker::get_recent_entries("", 200);
 
-    // Map app name (lowercase) → ResultItem for O(1) lookup
+    // Combined score: recency weighted heavily, with a frequency bonus.
+    // log(count) * 2 days — so something used 10× gets ~4.6 days of bonus.
+    usage.sort_unstable_by(|a, b| {
+        let score = |e: &crate::usage_tracker::UsageEntry| {
+            let freq_bonus = (e.count as f64).ln_1p() * 2.0 * 86400.0;
+            e.last_used as f64 + freq_bonus
+        };
+        score(b).partial_cmp(&score(a)).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     let app_by_name: std::collections::HashMap<String, &ResultItem> = all_apps
         .iter()
         .map(|a| (a.name.to_lowercase(), a))
         .collect();
 
-    // --- Calc history: up to 3 recent calcs --------------------------------
-    let calcs = crate::searchers::math::recent_calcs(3);
+    // Build stable_id → live item map for ALL known shortcuts (built-in, bookmarks, system).
+    // Keyed by the stable_id of the item's primary action. Used in item_from_usage to:
+    //   (a) look up the live item to get its real icon, and
+    //   (b) silently drop entries whose id isn't in this map (e.g., modal "Yes"/"No" buttons).
+    let shortcut_by_id: std::collections::HashMap<String, &ResultItem> = all_shortcuts
+        .iter()
+        .filter_map(|item| {
+            item.actions.first().map(|a| (a.data.stable_id(), item))
+        })
+        .collect();
 
-    // --- Merge both streams into (timestamp, ResultItem) pairs -------------
-    // Apps: pull from usage entries, resolve to actual ResultItem
-    let mut seen_apps: HashSet<String> = HashSet::new();
-    let mut events: Vec<(u64, ResultItem)> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut items: Vec<ResultItem> = Vec::new();
 
     for entry in &usage {
-        let key = entry.name.to_lowercase();
-        if seen_apps.contains(&key) { continue; }
-        if let Some(&app_item) = app_by_name.get(&key) {
-            seen_apps.insert(key);
-            events.push((entry.last_used, app_item.clone()));
+        // Deduplicate by action_id so the same app/file/script only appears once
+        if !seen.insert(entry.action_id.clone()) { continue; }
+        if let Some(item) = item_from_usage(entry, &app_by_name, &shortcut_by_id) {
+            items.push(item);
+            if items.len() >= limit { break; }
         }
     }
 
-    // Calcs
-    for (expr, result, raw, ts) in &calcs {
-        events.push((*ts, calc_result_item(expr, result, raw)));
-    }
+    let included_names: HashSet<String> = items.iter()
+        .map(|i| i.name.to_lowercase())
+        .collect();
 
-    // Sort by timestamp descending, take `limit`
-    events.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-    events.truncate(limit);
-
-    // Collect app names that made it in (for dedup against Apps section)
-    let mut included_app_names: HashSet<String> = HashSet::new();
-    for (_, item) in &events {
-        if item.description.as_deref() != Some("calculation") {
-            included_app_names.insert(item.name.to_lowercase());
-        }
-    }
-
-    let items = events.into_iter().map(|(_, item)| item).collect();
-    (items, included_app_names)
+    (items, included_names)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,8 +301,14 @@ impl SearchProvider for DefaultSearcher {
 
             let all_apps = AppSearcher.search("", app).results;
 
+            // Collect all known shortcut items (built-in shortcuts + bookmarks + system actions)
+            // so their stable_ids can be used to look up live icons and filter modal buttons.
+            let mut all_shortcuts = ShortcutsSearcher.search("", app).results;
+            all_shortcuts.extend(BookmarksSearcher.search("", app).results);
+            all_shortcuts.extend(SystemSearcher.search("", app).results);
+
             // Unified recent feed (apps + calcs, sorted by time)
-            let (recent_items, recent_names) = unified_recent(&all_apps, 8);
+            let (recent_items, recent_names) = unified_recent(&all_apps, &all_shortcuts, 8);
 
             if !recent_items.is_empty() {
                 results.push(make_header("Recent"));
@@ -313,7 +377,7 @@ impl SearchProvider for DefaultSearcher {
         }
 
         if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
-            return SearchResult { results: vec![], result_type: ResultType::List, ..Default::default() };
+            return SearchResult::list(vec![]);
         }
 
         let file_results = file_rx.recv().unwrap_or_default();
@@ -371,10 +435,6 @@ impl SearchProvider for DefaultSearcher {
             }
         }
 
-        SearchResult {
-            results: combined,
-            result_type: ResultType::List,
-            ..Default::default()
-        }
+        SearchResult::list(combined)
     }
 }

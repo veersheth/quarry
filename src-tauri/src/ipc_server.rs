@@ -147,7 +147,7 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
             }
         }
         IpcCommand::ShowRofi { items, response_socket } => {
-            use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+            use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
             let seq = crate::SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
 
@@ -172,11 +172,7 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 })
                 .collect();
 
-            let search_result = SearchResult {
-                results,
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            let search_result = SearchResult::list(results);
 
             show_window(app_handle);
             app_handle.emit("quarry-rofi-socket", &response_socket).ok();

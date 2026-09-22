@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 pub struct TimerEntry {
     pub id:           u64,
@@ -171,8 +171,8 @@ impl SearchProvider for TimerSearcher {
             let ring_at = format_ring_time(now_secs() + secs);
             results.push(
                 ResultItem::new(
-                    format!("Start: {}", display),
-                    vec![Action::new("Start", ActionData::RunFunction {
+                    format!("Start Timer: {}", display),
+                    vec![Action::new("Start Timer", ActionData::RunFunction {
                         function_name: "start_timer".into(),
                         params,
                     })],
@@ -199,7 +199,7 @@ impl SearchProvider for TimerSearcher {
                             ],
                         })],
                     )
-                    .description(format!("Rings at {} · {} remaining", ring_at, format_duration(rem))),
+                    .description(format!("Rings at {} - {} remaining", ring_at, format_duration(rem))),
                 );
             }
         }
@@ -214,6 +214,6 @@ impl SearchProvider for TimerSearcher {
             );
         }
 
-        SearchResult { results, result_type: ResultType::List, ..Default::default() }
+        SearchResult::list(results)
     }
 }

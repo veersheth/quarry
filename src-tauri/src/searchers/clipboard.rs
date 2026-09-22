@@ -40,17 +40,13 @@ impl SearchProvider for ClipboardSearcher {
         let query = query.trim().to_lowercase();
 
         if query == "clear" {
-            return SearchResult {
-                results: vec![ResultItem::new(
-                    "Clear clipboard history?",
-                    vec![Action::new("Clear", ActionData::RunFunction {
-                        function_name: "clear_clipboard".into(),
-                        params: vec![],
-                    })],
-                )],
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(vec![ResultItem::new(
+                "Clear clipboard history?",
+                vec![Action::new("Clear", ActionData::RunFunction {
+                    function_name: "clear_clipboard".into(),
+                    params: vec![],
+                })],
+            )]);
         }
 
         // Serve from cache for empty queries when neither history nor pins changed.
@@ -293,11 +289,7 @@ fn resolve_path(value: &str) -> Option<std::path::PathBuf> {
     if !trimmed.starts_with('/') && !trimmed.starts_with("~/") {
         return None;
     }
-    if let Some(rest) = trimmed.strip_prefix("~/") {
-        Some(dirs::home_dir()?.join(rest))
-    } else {
-        Some(std::path::PathBuf::from(trimmed))
-    }
+    crate::search_utils::expand_tilde(trimmed)
 }
 
 fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
@@ -311,11 +303,11 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
             // Rebuild actions from the cached icon type — no stat needed.
             let path_str = path.to_string_lossy().into_owned();
             return match icon {
-                Some(i) if *i == "icons/folder.png" => (
+                Some(i) if *i == super::ICON_FOLDER => (
                     *icon,
                     vec![Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) })],
                 ),
-                Some(i) if *i == "icons/file.png" => {
+                Some(i) if *i == super::ICON_FILE => {
                     let parent = path.parent().map(|p| format!("file://{}", p.to_string_lossy()));
                     let mut actions = vec![Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) })];
                     if let Some(parent_url) = parent {
@@ -332,7 +324,7 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
     let path_str = path.to_string_lossy().into_owned();
     let (icon, actions) = if path.is_dir() {
         (
-            Some("icons/folder.png"),
+            Some(super::ICON_FOLDER),
             vec![Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) })],
         )
     } else if path.is_file() {
@@ -341,7 +333,7 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
         if let Some(parent_url) = parent {
             actions.push(Action::new("Open Containing Folder", ActionData::OpenUrl { url: parent_url }));
         }
-        (Some("icons/file.png"), actions)
+        (Some(super::ICON_FILE), actions)
     } else {
         (None, vec![])
     };

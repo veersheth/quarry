@@ -27,13 +27,7 @@ pub struct ScreenshotsSearcher;
 impl ScreenshotsSearcher {
     fn dir() -> PathBuf {
         let path = crate::CONFIG.read().unwrap().screenshots.path.clone();
-        if let Some(rest) = path.strip_prefix("~/") {
-            if let Some(home) = dirs::home_dir() {
-                return home.join(rest);
-            }
-        }
-        let p = PathBuf::from(&path);
-        if p.is_absolute() {
+        if let Some(p) = crate::search_utils::expand_tilde(&path).filter(|p| p.is_absolute()) {
             return p;
         }
         dirs::home_dir()

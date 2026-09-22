@@ -1,5 +1,5 @@
 use super::super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use crate::usage_tracker::get_recent_entries;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
@@ -76,11 +76,7 @@ impl SearchProvider for URLSearcher {
                 })
                 .collect();
 
-            return SearchResult {
-                results,
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(results);
         }
 
         let url = normalise_url(q);
@@ -108,10 +104,6 @@ impl SearchProvider for URLSearcher {
             ));
         }
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-                    ..Default::default()
-}
+        SearchResult::list(results)
     }
 }

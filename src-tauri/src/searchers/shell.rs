@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 pub struct ShellSearcher;
 
@@ -21,10 +21,6 @@ impl SearchProvider for ShellSearcher {
             ]
         };
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-                    ..Default::default()
-}
+        SearchResult::list(results)
     }
 }

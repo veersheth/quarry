@@ -1,6 +1,6 @@
 use tauri::AppHandle;
-use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use super::{SearchProvider, ICON_BOOKMARK};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -20,8 +20,7 @@ pub struct BookmarksSearcher;
 
 impl BookmarksSearcher {
     fn get_bookmarks_path() -> Option<PathBuf> {
-        let home = dirs::home_dir()?;
-        let config_dir = home.join(".config/quarry");
+        let config_dir = dirs::config_dir()?.join("quarry");
         if !config_dir.exists() {
             fs::create_dir_all(&config_dir).ok()?;
         }
@@ -33,8 +32,7 @@ impl BookmarksSearcher {
             .ok_or_else(|| "could not determine bookmarks path".to_string())?;
 
         if !path.exists() {
-            let empty_data = BookmarksData { bookmarks: vec![] };
-            let json = serde_json::to_string_pretty(&empty_data)
+            let json = serde_json::to_string_pretty(&BookmarksData { bookmarks: vec![] })
                 .map_err(|e| format!("failed to serialize: {}", e))?;
             fs::write(&path, json)
                 .map_err(|e| format!("failed to create bookmarks file: {}", e))?;
@@ -51,8 +49,7 @@ impl BookmarksSearcher {
     fn save_bookmarks(bookmarks: Vec<Bookmark>) -> Result<(), String> {
         let path = Self::get_bookmarks_path()
             .ok_or_else(|| "could not determine bookmarks path".to_string())?;
-        let data = BookmarksData { bookmarks };
-        let json = serde_json::to_string_pretty(&data)
+        let json = serde_json::to_string_pretty(&BookmarksData { bookmarks })
             .map_err(|e| format!("failed to serialize: {}", e))?;
         fs::write(&path, json)
             .map_err(|e| format!("failed to write bookmarks: {}", e))?;
@@ -108,59 +105,38 @@ impl SearchProvider for BookmarksSearcher {
 
         let bookmarks = match Self::load_bookmarks() {
             Ok(b) => b,
-            Err(e) => return SearchResult {
-                results: vec![
-                    ResultItem::new(format!("error loading bookmarks: {}", e), vec![Action::new("", ActionData::None)])
-                        .icon("icons/bookmark.png")
-                ],
-                result_type: ResultType::List,
-                            ..Default::default()
-},
+            Err(e) => return SearchResult::list(vec![
+                ResultItem::new(format!("error loading bookmarks: {}", e), vec![Action::new("", ActionData::None)])
+                    .icon(ICON_BOOKMARK),
+            ]),
         };
 
         if query.is_empty() {
             if bookmarks.is_empty() {
-                return SearchResult {
-                    results: vec![
-                        ResultItem::new("No bookmarks yet", vec![Action::new("", ActionData::None)])
-                            .description("Type a name and URL to add a bookmark")
-                            .icon("icons/bookmark.png")
-                    ],
-                    result_type: ResultType::List,
-                                    ..Default::default()
-};
+                return SearchResult::list(vec![
+                    ResultItem::new("No bookmarks yet", vec![Action::new("", ActionData::None)])
+                        .description("Type a name and URL to add a bookmark")
+                        .icon(ICON_BOOKMARK),
+                ]);
             }
-            return SearchResult {
-                results: bookmarks.iter().map(bookmark_to_item).collect(),
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(bookmarks.iter().map(bookmark_to_item).collect());
         }
 
         let parts: Vec<&str> = query.splitn(2, ' ').collect();
         if parts.len() == 2 && Self::is_url(parts[1]) {
             let name = parts[0].to_string();
             let url = parts[1].to_string();
-            return SearchResult {
-                results: vec![
-                    ResultItem::new(format!("Add bookmark: {}", name), vec![Action::new("Add", ActionData::RunFunction {
-                        function_name: "add_bookmark".to_string(),
-                        params: vec![name, url.clone()],
-                    })])
-                    .description(url)
-                    .icon("icons/bookmark.png")
-                ],
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(vec![
+                ResultItem::new(format!("Add bookmark: {}", name), vec![Action::new("Add", ActionData::RunFunction {
+                    function_name: "add_bookmark".to_string(),
+                    params: vec![name, url.clone()],
+                })])
+                .description(url)
+                .icon(ICON_BOOKMARK),
+            ]);
         }
 
-        let candidates: Vec<ResultItem> = bookmarks.iter().map(bookmark_to_item).collect();
-        SearchResult {
-            results: self.fuzzy_filter(candidates, query),
-            result_type: ResultType::List,
-                    ..Default::default()
-}
+        SearchResult::list(self.fuzzy_filter(bookmarks.iter().map(bookmark_to_item).collect(), query))
     }
 }
 
@@ -176,5 +152,5 @@ fn bookmark_to_item(bookmark: &Bookmark) -> ResultItem {
         ],
     )
     .description(bookmark.url.clone())
-    .icon("icons/bookmark.png")
+    .icon(ICON_BOOKMARK)
 }

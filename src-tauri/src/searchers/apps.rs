@@ -6,7 +6,7 @@ use std::sync::RwLock;
 use tauri::AppHandle;
 
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 fn clean_exec_field(exec: &str) -> String {
     exec.split_whitespace()
@@ -226,11 +226,11 @@ impl SearchProvider for AppSearcher {
                 remaining.sort_unstable_by(|a, b| a.name.cmp(&b.name));
                 results.extend(remaining);
 
-                return SearchResult { results, result_type: ResultType::List, ..Default::default() };
+                return SearchResult::list(results);
             }
 
             let results = guard.iter().map(build_result_item).collect();
-            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
+            return SearchResult::list(results);
         }
 
         let matcher = SkimMatcherV2::default().ignore_case();
@@ -281,6 +281,6 @@ impl SearchProvider for AppSearcher {
             }
         }).collect();
 
-        SearchResult { results, result_type: ResultType::List, ..Default::default() }
+        SearchResult::list(results)
     }
 }

@@ -102,15 +102,11 @@ impl SearchProvider for MathSearcher {
         if expr.is_empty() {
             let history = CALC_HISTORY.lock().unwrap_or_else(|e| e.into_inner());
             if history.is_empty() {
-                return SearchResult {
-                    results: vec![
-                        ResultItem::new("No history yet", vec![])
-                            .description("Calculations will appear here")
-                            .icon("icons/math.png"),
-                    ],
-                    result_type: ResultType::List,
-                    ..Default::default()
-                };
+                return SearchResult::list(vec![
+                    ResultItem::new("No history yet", vec![])
+                        .description("Calculations will appear here")
+                        .icon(super::ICON_MATH),
+                ]);
             }
             let results = history.iter().map(|e| {
                 ResultItem::new(
@@ -118,9 +114,9 @@ impl SearchProvider for MathSearcher {
                     vec![Action::new("Copy", ActionData::CopyToClipboard { text: e.raw.clone() })],
                 )
                 .description(relative_time(e.ts))
-                .icon("icons/math.png")
+                .icon(super::ICON_MATH)
             }).collect();
-            return SearchResult { results, result_type: ResultType::List, ..Default::default() };
+            return SearchResult::list(results);
         }
 
         let mut results = Vec::new();
@@ -195,7 +191,7 @@ fn commify_str(s: &str) -> String {
 
 fn make_result(name: String, copy: String) -> ResultItem {
     ResultItem::new(name, vec![Action::new("Copy", ActionData::CopyToClipboard { text: copy })])
-        .icon("icons/math.png")
+        .icon(super::ICON_MATH)
 }
 
 fn make_date_result(name: String, copy: String) -> ResultItem {
@@ -742,7 +738,7 @@ fn try_math(expr: &str) -> Option<ResultItem> {
                 params: vec![raw, expr.to_string(), formatted],
             });
             let mut item = ResultItem::new(name, vec![action]);
-            item = item.icon("icons/math.png");
+            item = item.icon(super::ICON_MATH);
             Some(item)
         }
         Err(_) => None,

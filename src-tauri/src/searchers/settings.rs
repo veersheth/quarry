@@ -4,7 +4,7 @@ use std::sync::RwLock;
 use tauri::AppHandle;
 
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 #[derive(Clone)]
 struct SettingsEntry {
@@ -121,6 +121,6 @@ impl SearchProvider for SettingsSearcher {
             self.fuzzy_filter(candidates, query)
         };
 
-        SearchResult { results, result_type: ResultType::List, ..Default::default() }
+        SearchResult::list(results)
     }
 }

@@ -1,5 +1,5 @@
 use super::SearchProvider;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use notify::{RecursiveMode, Watcher};
@@ -169,8 +169,8 @@ impl FileSearcher {
     }
 
     fn resolve_explicit_path(query: &str) -> Option<PathBuf> {
-        let expanded = if let Some(rest) = query.strip_prefix("~/") {
-            dirs::home_dir()?.join(rest)
+        let expanded = if query.starts_with("~/") {
+            crate::search_utils::expand_tilde(query)?
         } else if query.starts_with('/') || query.starts_with("./") {
             PathBuf::from(query)
         } else {
@@ -269,11 +269,7 @@ impl FileSearcher {
     }
 
     fn icon_for(path: &Path) -> &'static str {
-        if path.is_dir() {
-            "icons/folder.png"
-        } else {
-            "icons/file.png"
-        }
+        if path.is_dir() { super::ICON_FOLDER } else { super::ICON_FILE }
     }
 
     fn path_to_result(path: PathBuf) -> ResultItem {
@@ -362,23 +358,16 @@ impl FileSearcher {
     }
 }
 
-/// Gets the user scripts directory from config, creating it if it doesn't exist.
+/// Gets the user scripts directory from config, creating it if necessary.
 fn get_user_scripts_dir() -> Option<PathBuf> {
-    let configured = crate::CONFIG.read().ok()?.scripts.path.clone();
-    let scripts_dir = if let Some(rest) = configured.strip_prefix("~/") {
-        dirs::home_dir()?.join(rest)
-    } else {
-        PathBuf::from(&configured)
-    };
-
-    if !scripts_dir.exists() {
-        if let Err(e) = fs::create_dir_all(&scripts_dir) {
-            eprintln!("Failed to create scripts directory: {}", e);
-            return None;
-        }
-    }
-
-    Some(scripts_dir)
+    let dir = super::scripts::scripts_dir().or_else(|| {
+        // scripts_dir() returns None if the path doesn't exist yet; create it first.
+        let configured = crate::CONFIG.read().ok()?.scripts.path.clone();
+        let path = crate::search_utils::expand_tilde(&configured)?;
+        fs::create_dir_all(&path).ok()?;
+        Some(path)
+    })?;
+    Some(dir)
 }
 
 /// Returns true if the file should be treated as a runnable script.
@@ -389,9 +378,7 @@ fn is_script(path: &Path) -> bool {
     }
 
     // Only allow scripts from the user scripts directory
-    let Some(scripts_dir) = get_user_scripts_dir() else {
-        return false;
-    };
+    let Some(scripts_dir) = get_user_scripts_dir() else { return false; };
 
     // Check if the file is in the scripts directory
     if !path.starts_with(&scripts_dir) {
@@ -427,11 +414,7 @@ impl SearchProvider for FileSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
-            return SearchResult {
-                results: vec![],
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(vec![]);
         }
 
         if trimmed.ends_with('/') {
@@ -453,11 +436,7 @@ impl SearchProvider for FileSearcher {
                     .map(Self::path_to_result)
                     .collect();
                 results.truncate(MAX_RESULTS);
-                return SearchResult {
-                    results,
-                    result_type: ResultType::List,
-                                    ..Default::default()
-};
+                return SearchResult::list(results);
             }
         }
 
@@ -469,17 +448,9 @@ impl SearchProvider for FileSearcher {
                         .map(Self::path_to_result)
                         .collect();
                     results.truncate(MAX_RESULTS);
-                    return SearchResult {
-                        results,
-                        result_type: ResultType::List,
-                                            ..Default::default()
-};
+                    return SearchResult::list(results);
                 } else {
-                    return SearchResult {
-                        results: vec![Self::path_to_result(explicit)],
-                        result_type: ResultType::List,
-                                            ..Default::default()
-};
+                    return SearchResult::list(vec![Self::path_to_result(explicit)]);
                 }
             }
         }
@@ -506,11 +477,7 @@ impl SearchProvider for FileSearcher {
 
         let query_words: Vec<&str> = fuzzy_query.split_whitespace().collect();
         if query_words.is_empty() {
-            return SearchResult {
-                results: vec![],
-                result_type: ResultType::List,
-                            ..Default::default()
-};
+            return SearchResult::list(vec![]);
         }
 
         let candidates = if let Some(base) = search_base_hint {
@@ -551,11 +518,7 @@ impl SearchProvider for FileSearcher {
             .map(|(path, _)| Self::path_to_result(path))
             .collect();
 
-        SearchResult {
-            results,
-            result_type: ResultType::List,
-                    ..Default::default()
-}
+        SearchResult::list(results)
     }
 }
 

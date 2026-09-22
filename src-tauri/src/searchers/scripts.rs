@@ -3,17 +3,13 @@ use tauri::AppHandle;
 
 use super::SearchProvider;
 use super::files::SCRIPT_EXTENSIONS;
-use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
+use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 pub struct ScriptsSearcher;
 
-fn scripts_dir() -> Option<PathBuf> {
+pub fn scripts_dir() -> Option<PathBuf> {
     let configured = crate::CONFIG.read().ok()?.scripts.path.clone();
-    let dir = if let Some(rest) = configured.strip_prefix("~/") {
-        dirs::home_dir()?.join(rest)
-    } else {
-        PathBuf::from(&configured)
-    };
+    let dir = crate::search_utils::expand_tilde(&configured)?;
     if dir.exists() { Some(dir) } else { None }
 }
 
@@ -36,8 +32,6 @@ fn is_runnable(path: &std::path::Path) -> bool {
     false
 }
 
-// Data URI avoids file-serving issues with SVGs in WebKitGTK img tags.
-const SCRIPT_ICON: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTggNiBMMTkgMTIgTDggMTggWiIgZmlsbD0iIzIyYzU1ZSIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==";
 
 fn build_item(path: &std::path::Path, scripts_dir: &std::path::Path) -> ResultItem {
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -59,7 +53,7 @@ fn build_item(path: &std::path::Path, scripts_dir: &std::path::Path) -> ResultIt
         Action::new("Copy Path", ActionData::CopyToClipboard { text: path_str }),
     ])
     .description(rel)
-    .icon(SCRIPT_ICON)
+    .icon(super::SCRIPT_ICON)
 }
 
 impl SearchProvider for ScriptsSearcher {
@@ -69,18 +63,8 @@ impl SearchProvider for ScriptsSearcher {
         let query = query.trim().to_lowercase();
 
         let Some(dir) = scripts_dir() else {
-            return SearchResult {
-                results: vec![ResultItem::new(
-                    "Scripts folder not found",
-                    vec![],
-                ).description(
-                    crate::CONFIG.read().ok()
-                        .map(|c| c.scripts.path.clone())
-                        .unwrap_or_default()
-                )],
-                result_type: ResultType::List,
-                ..Default::default()
-            };
+            let path = crate::CONFIG.read().ok().map(|c| c.scripts.path.clone()).unwrap_or_default();
+            return SearchResult::list(vec![ResultItem::new("Scripts folder not found", vec![]).description(path)]);
         };
 
         // Collect all runnable files, walking one level of subdirectories
@@ -117,10 +101,6 @@ impl SearchProvider for ScriptsSearcher {
             scored.iter().map(|(p, _)| build_item(p, &dir)).collect()
         };
 
-        SearchResult {
-            results: items,
-            result_type: ResultType::List,
-            ..Default::default()
-        }
+        SearchResult::list(items)
     }
 }
