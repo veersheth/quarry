@@ -142,17 +142,31 @@ fn build_results(query: &str) -> SearchResult {
     // Build history items while holding the lock - no full-image clone needed.
     // The `full` field is intentionally not accessed; copy actions reference by hash.
     CLIPBOARD_MANAGER.with_history(|history| {
+        // Deduplicate by content key (history is newest-first, so first seen = most recent).
+        let mut seen_texts = std::collections::HashSet::new();
+        let mut seen_hashes = std::collections::HashSet::new();
+
         // For a non-empty query: score each entry and sort by score descending.
         // For empty query: preserve history order (most recent first), no scoring.
         let mut scored: Vec<(i64, &_)> = history
             .iter()
             .filter_map(|entry| {
+                // Deduplicate — skip if already seen a more recent copy of this content
+                let is_new = match &entry.content {
+                    ClipboardContent::Text { value } => seen_texts.insert(value.as_str()),
+                    ClipboardContent::Image { hash, .. } => seen_hashes.insert(*hash),
+                };
+                if !is_new { return None; }
+
+                // Filter out pinned entries (shown above the history)
+                let is_pinned = match &entry.content {
+                    ClipboardContent::Text { value } => pinned_texts.contains(value.as_str()),
+                    ClipboardContent::Image { hash, .. } => pinned_hashes.contains(hash),
+                };
+                if is_pinned { return None; }
+
                 if query.is_empty() {
-                    let keep = match &entry.content {
-                        ClipboardContent::Text { value } => !pinned_texts.contains(value.as_str()),
-                        ClipboardContent::Image { hash, .. } => !pinned_hashes.contains(hash),
-                    };
-                    if keep { Some((0i64, entry)) } else { None }
+                    Some((0i64, entry))
                 } else {
                     // Score against the display text (and OCR text for images)
                     let text_score = crate::search_utils::smart_match(&entry.display_text(), query);

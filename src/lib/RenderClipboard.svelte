@@ -33,6 +33,19 @@
     ? detectType(activeItem)
     : ("text" as ContentType);
 
+  // Cache of thumbnail_key → data URI for list thumbnails
+  let thumbCache = new Map<string, string>();
+  $: {
+    for (const item of listitems) {
+      if (item.thumbnail_key && !thumbCache.has(item.thumbnail_key)) {
+        const key = item.thumbnail_key;
+        invoke<string | null>("get_clipboard_thumbnail", { hash: key })
+          .then(t => { if (t) { thumbCache.set(key, t); thumbCache = thumbCache; } })
+          .catch(() => {});
+      }
+    }
+  }
+
   // Lazy-loaded data for the selected item
   let previewThumb: string | null = null;
   let previewText: string | null = null;
@@ -42,9 +55,12 @@
     previewText = null;
     if (activeItem) {
       if (activeItem.thumbnail_key && !activeItem.thumbnail) {
-        invoke<string | null>("get_clipboard_thumbnail", { hash: activeItem.thumbnail_key })
-          .then(t => { if (t) previewThumb = `data:image/png;base64,${t}`; })
-          .catch(() => {});
+        previewThumb = thumbCache.get(activeItem.thumbnail_key) ?? null;
+        if (!previewThumb) {
+          invoke<string | null>("get_clipboard_thumbnail", { hash: activeItem.thumbnail_key })
+            .then(t => { if (t) previewThumb = t; })
+            .catch(() => {});
+        }
       } else {
         const copyAction = activeItem.actions.find(a => a.name === "Copy");
         if (copyAction) {
@@ -330,7 +346,11 @@
           {#if item.thumbnail}
             <img class="icon-thumb" src={item.thumbnail} alt="" />
           {:else if item.thumbnail_key}
-            <div class="icon-pill icon-text" style="font-size:0.7em">img</div>
+            {#if thumbCache.has(item.thumbnail_key)}
+              <img class="icon-thumb" src={thumbCache.get(item.thumbnail_key)} alt="" />
+            {:else}
+              <div class="icon-pill icon-text" style="font-size:0.7em">img</div>
+            {/if}
           {:else if item.icon}
             <img class="icon-img" src={iconSrc(item.icon)} alt="" />
           {:else if getValidColor(item.name)}
