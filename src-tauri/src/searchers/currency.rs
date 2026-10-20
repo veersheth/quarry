@@ -8,8 +8,7 @@ use std::time::{Duration, Instant};
 use tauri::AppHandle;
 
 // Cache conversion results for 1 hour; key is "amount:FROM:TO"
-static CURRENCY_CACHE: Lazy<DashMap<String, (Instant, SearchResult)>> =
-    Lazy::new(DashMap::new);
+static CURRENCY_CACHE: Lazy<DashMap<String, (Instant, SearchResult)>> = Lazy::new(DashMap::new);
 const CACHE_TTL: Duration = Duration::from_secs(3600);
 
 pub struct CurrencySearcher;
@@ -84,7 +83,8 @@ fn fetch_all_currencies() -> Result<HashMap<String, String>, String> {
     if !resp.status().is_success() {
         return Err(format!("API error: {}", resp.status()));
     }
-    resp.json::<HashMap<String, String>>().map_err(|e| e.to_string())
+    resp.json::<HashMap<String, String>>()
+        .map_err(|e| e.to_string())
 }
 
 fn fmt_amount(n: f64) -> String {
@@ -110,7 +110,9 @@ fn fmt_amount(n: f64) -> String {
 }
 
 impl SearchProvider for CurrencySearcher {
-    fn name(&self) -> String { "currency".to_string() }
+    fn name(&self) -> String {
+        "currency".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
@@ -127,7 +129,8 @@ impl SearchProvider for CurrencySearcher {
                 .map(|e| {
                     // The stored text is the result; re-copy the converted amount on action
                     // Extract the converted value (token after '=')
-                    let copied_value = e.name
+                    let copied_value = e
+                        .name
                         .split('=')
                         .nth(1)
                         .and_then(|s| s.split_whitespace().next())
@@ -135,9 +138,16 @@ impl SearchProvider for CurrencySearcher {
                         .to_string();
                     ResultItem::new(
                         e.name.clone(),
-                        vec![Action::new("Copy", ActionData::CopyToClipboard { text: copied_value })],
+                        vec![Action::new(
+                            "Copy",
+                            ActionData::CopyToClipboard { text: copied_value },
+                        )],
                     )
-                    .description(format!("recent: used {} time{}", e.count, if e.count == 1 { "" } else { "s" }))
+                    .description(format!(
+                        "recent: used {} time{}",
+                        e.count,
+                        if e.count == 1 { "" } else { "s" }
+                    ))
                     .icon(super::ICON_MATH)
                 })
                 .collect();
@@ -169,11 +179,14 @@ impl SearchProvider for CurrencySearcher {
                     lines.sort();
                     let markdown = format!("# Supported Currencies\n\n{}", lines.join("\n"));
                     SearchResult {
-                        results: vec![ResultItem::new("Supported currencies", vec![Action::new("", ActionData::None)])
-                            .description(markdown)],
+                        results: vec![ResultItem::new(
+                            "Supported currencies",
+                            vec![Action::new("", ActionData::None)],
+                        )
+                        .description(markdown)],
                         result_type: ResultType::Markdown,
-                                            ..Default::default()
-}
+                        ..Default::default()
+                    }
                 }
                 Err(e) => error_result(&format!("Could not fetch currency list: {}", e)),
             };
@@ -232,9 +245,12 @@ impl SearchProvider for CurrencySearcher {
 
                 SearchResult::list(vec![ResultItem::new(
                     result_text.clone(),
-                    vec![Action::new("Copy", ActionData::CopyToClipboard {
-                        text: fmt_amount(converted),
-                    })],
+                    vec![Action::new(
+                        "Copy",
+                        ActionData::CopyToClipboard {
+                            text: fmt_amount(converted),
+                        },
+                    )],
                 )
                 .description(description)
                 .icon(super::ICON_MATH)])
@@ -253,7 +269,11 @@ impl SearchProvider for CurrencySearcher {
         };
 
         // Cache successful (non-error) results
-        if result.results.first().map_or(false, |r| r.name != "Currency error") {
+        if result
+            .results
+            .first()
+            .is_some_and(|r| r.name != "Currency error")
+        {
             CURRENCY_CACHE.insert(cache_key, (Instant::now(), result.clone()));
         }
 
@@ -263,9 +283,11 @@ impl SearchProvider for CurrencySearcher {
 
 fn error_result(msg: &str) -> SearchResult {
     SearchResult {
-        results: vec![ResultItem::new("Currency error", vec![Action::new("", ActionData::None)])
-            .description(format!("# Error\n\n{}", msg))],
+        results: vec![
+            ResultItem::new("Currency error", vec![Action::new("", ActionData::None)])
+                .description(format!("# Error\n\n{}", msg)),
+        ],
         result_type: ResultType::Markdown,
-            ..Default::default()
-}
+        ..Default::default()
+    }
 }

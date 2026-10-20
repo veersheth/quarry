@@ -1,15 +1,15 @@
 mod action_registry;
 mod clipboard_manager;
-pub mod commands;
+mod commands;
 mod config;
-pub mod executor;
+mod executor;
 mod ipc_server;
-pub mod pins;
+mod pins;
 mod search_utils;
 mod searchers;
 mod types;
 mod usage_tracker;
-pub mod windows;
+mod windows;
 
 use action_registry::ActionRegistry;
 use clipboard_manager::ClipboardManager;
@@ -65,12 +65,10 @@ pub fn run() {
     CLIPBOARD_MANAGER.start_monitoring();
 
     // Warm caches in background so the first search is instant
-    std::thread::spawn(|| crate::searchers::apps::warm());
-    std::thread::spawn(|| crate::searchers::emojis::warm());
-    std::thread::spawn(|| crate::searchers::clipboard::warm());
-    std::thread::spawn(|| {
-        let _ = &*crate::commands::TRIGGERS;
-    });
+    std::thread::spawn(crate::searchers::apps::warm);
+    std::thread::spawn(crate::searchers::emojis::warm);
+    std::thread::spawn(crate::searchers::clipboard::warm);
+    std::thread::spawn(crate::commands::warm_triggers);
     crate::searchers::files::start_file_index();
 
     tauri::Builder::default()
@@ -83,9 +81,18 @@ pub fn run() {
             let mut handled = false;
             while i < args.len() {
                 match args[i].as_str() {
-                    "--notepad" => { ipc_server::toggle_note_window(app); return; }
-                    "--config"  => { ipc_server::toggle_settings_window(app); return; }
-                    "--toggle"  => { ipc_server::toggle_window(app); return; }
+                    "--notepad" => {
+                        ipc_server::toggle_note_window(app);
+                        return;
+                    }
+                    "--config" => {
+                        ipc_server::toggle_settings_window(app);
+                        return;
+                    }
+                    "--toggle" => {
+                        ipc_server::toggle_window(app);
+                        return;
+                    }
                     "--with" => {
                         if let Some(q) = args.get(i + 1) {
                             ipc_server::show_with_query(app, q);
@@ -109,12 +116,19 @@ pub fn run() {
             for stored in crate::searchers::timer::load_stored_timers() {
                 let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
                 crate::searchers::timer::add_timer(
-                    stored.id, stored.label.clone(), stored.expires_at,
-                    stored.duration_secs, cancelled.clone(),
+                    stored.id,
+                    stored.label.clone(),
+                    stored.expires_at,
+                    stored.duration_secs,
+                    cancelled.clone(),
                 );
                 crate::executor::spawn_timer_thread(
-                    app_handle.clone(), stored.id, stored.label,
-                    stored.expires_at, stored.duration_secs, cancelled,
+                    app_handle.clone(),
+                    stored.id,
+                    stored.label,
+                    stored.expires_at,
+                    stored.duration_secs,
+                    cancelled,
                 );
             }
 
@@ -175,9 +189,17 @@ pub fn run() {
             use tauri_plugin_cli::CliExt;
             if let Ok(matches) = app.cli().matches() {
                 let args = &matches.args;
-                if args.get("notepad").map(|a| a.occurrences > 0).unwrap_or(false) {
+                if args
+                    .get("notepad")
+                    .map(|a| a.occurrences > 0)
+                    .unwrap_or(false)
+                {
                     ipc_server::toggle_note_window(app.handle());
-                } else if args.get("config").map(|a| a.occurrences > 0).unwrap_or(false) {
+                } else if args
+                    .get("config")
+                    .map(|a| a.occurrences > 0)
+                    .unwrap_or(false)
+                {
                     ipc_server::toggle_settings_window(app.handle());
                 } else if let Some(q) = args.get("with").and_then(|a| a.value.as_str()) {
                     if let Ok(mut slot) = PENDING_QUERY.lock() {

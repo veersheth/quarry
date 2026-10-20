@@ -15,8 +15,9 @@ static PATH_CACHE: Lazy<Mutex<HashMap<String, Option<&'static str>>>> =
 
 // Cache for the empty-query result, keyed by (history generation, pin count).
 // Pin count changes whenever pins are added or removed, invalidating the cache.
-static CACHE: Lazy<Mutex<((u64, usize), Option<SearchResult>)>> =
-    Lazy::new(|| Mutex::new(((u64::MAX, 0), None)));
+type ClipboardCache = ((u64, usize), Option<SearchResult>);
+
+static CACHE: Lazy<Mutex<ClipboardCache>> = Lazy::new(|| Mutex::new(((u64::MAX, 0), None)));
 
 fn cache_key() -> (u64, usize) {
     let gen = CLIPBOARD_MANAGER.generation();
@@ -35,17 +36,22 @@ pub fn warm() {
 }
 
 impl SearchProvider for ClipboardSearcher {
-    fn name(&self) -> String { "clipboard".to_string() }
+    fn name(&self) -> String {
+        "clipboard".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let query = query.trim().to_lowercase();
 
         if query == "clear" {
             return SearchResult::list(vec![ResultItem::new(
                 "Clear clipboard history?",
-                vec![Action::new("Clear", ActionData::RunFunction {
-                    function_name: "clear_clipboard".into(),
-                    params: vec![],
-                })],
+                vec![Action::new(
+                    "Clear",
+                    ActionData::RunFunction {
+                        function_name: "clear_clipboard".into(),
+                        params: vec![],
+                    },
+                )],
             )]);
         }
 
@@ -98,11 +104,19 @@ fn build_results(query: &str) -> SearchResult {
                 ResultItem::new(
                     pin.payload.clone(),
                     vec![
-                        Action::new("Copy", ActionData::CopyToClipboard { text: pin.payload.clone() }),
-                        Action::new("Unpin", ActionData::RunFunction {
-                            function_name: "unpin".into(),
-                            params: vec!["clipboard".into(), pin.name.clone()],
-                        }),
+                        Action::new(
+                            "Copy",
+                            ActionData::CopyToClipboard {
+                                text: pin.payload.clone(),
+                            },
+                        ),
+                        Action::new(
+                            "Unpin",
+                            ActionData::RunFunction {
+                                function_name: "unpin".into(),
+                                params: vec!["clipboard".into(), pin.name.clone()],
+                            },
+                        ),
                     ],
                 )
                 .description("pinned".to_string())
@@ -120,15 +134,21 @@ fn build_results(query: &str) -> SearchResult {
                     ResultItem::new(
                         format!("Image {}×{}", width, height),
                         vec![
-                            Action::new("Copy", ActionData::CopyImageToClipboard {
-                                base64_png: full,
-                                width,
-                                height,
-                            }),
-                            Action::new("Unpin", ActionData::RunFunction {
-                                function_name: "unpin".into(),
-                                params: vec!["clipboard_image".into(), pin.name.clone()],
-                            }),
+                            Action::new(
+                                "Copy",
+                                ActionData::CopyImageToClipboard {
+                                    base64_png: full,
+                                    width,
+                                    height,
+                                },
+                            ),
+                            Action::new(
+                                "Unpin",
+                                ActionData::RunFunction {
+                                    function_name: "unpin".into(),
+                                    params: vec!["clipboard_image".into(), pin.name.clone()],
+                                },
+                            ),
                         ],
                     )
                     .description("pinned".to_string())
@@ -156,14 +176,18 @@ fn build_results(query: &str) -> SearchResult {
                     ClipboardContent::Text { value } => seen_texts.insert(value.as_str()),
                     ClipboardContent::Image { hash, .. } => seen_hashes.insert(*hash),
                 };
-                if !is_new { return None; }
+                if !is_new {
+                    return None;
+                }
 
                 // Filter out pinned entries (shown above the history)
                 let is_pinned = match &entry.content {
                     ClipboardContent::Text { value } => pinned_texts.contains(value.as_str()),
                     ClipboardContent::Image { hash, .. } => pinned_hashes.contains(hash),
                 };
-                if is_pinned { return None; }
+                if is_pinned {
+                    return None;
+                }
 
                 if query.is_empty() {
                     Some((0i64, entry))
@@ -171,8 +195,10 @@ fn build_results(query: &str) -> SearchResult {
                     // Score against the display text (and OCR text for images)
                     let text_score = crate::search_utils::smart_match(&entry.display_text(), query);
                     let ocr_score = match &entry.content {
-                        ClipboardContent::Image { ocr_text: Some(ocr), .. } =>
-                            crate::search_utils::smart_match(ocr, query),
+                        ClipboardContent::Image {
+                            ocr_text: Some(ocr),
+                            ..
+                        } => crate::search_utils::smart_match(ocr, query),
                         _ => None,
                     };
                     let score = match (text_score, ocr_score) {
@@ -187,7 +213,7 @@ fn build_results(query: &str) -> SearchResult {
             .collect();
 
         if !query.is_empty() {
-            scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+            scored.sort_unstable_by_key(|item| std::cmp::Reverse(item.0));
         }
 
         let history_items: Vec<ResultItem> = scored
@@ -196,32 +222,47 @@ fn build_results(query: &str) -> SearchResult {
                 ClipboardContent::Text { value } => {
                     let is_pinned = crate::PINS.contains("clipboard", value);
                     let pin_action = if is_pinned {
-                        Action::new("Unpin", ActionData::RunFunction {
-                            function_name: "unpin".into(),
-                            params: vec!["clipboard".into(), value.clone()],
-                        })
+                        Action::new(
+                            "Unpin",
+                            ActionData::RunFunction {
+                                function_name: "unpin".into(),
+                                params: vec!["clipboard".into(), value.clone()],
+                            },
+                        )
                     } else {
-                        Action::new("Pin", ActionData::RunFunction {
-                            function_name: "pin".into(),
-                            params: vec!["clipboard".into(), value.clone(), value.clone()],
-                        })
+                        Action::new(
+                            "Pin",
+                            ActionData::RunFunction {
+                                function_name: "pin".into(),
+                                params: vec!["clipboard".into(), value.clone(), value.clone()],
+                            },
+                        )
                     };
                     let (icon, path_actions) = detect_path(value);
-                    let mut actions = vec![
-                        Action::new("Copy", ActionData::CopyToClipboard { text: value.clone() }),
-                    ];
+                    let mut actions = vec![Action::new(
+                        "Copy",
+                        ActionData::CopyToClipboard {
+                            text: value.clone(),
+                        },
+                    )];
                     actions.extend(path_actions);
                     actions.extend(transform_actions(value));
                     actions.extend([
                         pin_action,
-                        Action::new("Delete", ActionData::RunFunction {
-                            function_name: "delete_clipboard_entry".into(),
-                            params: vec![entry.timestamp.to_string()],
-                        }),
-                        Action::new("Clear entire clipboard", ActionData::RunFunction {
-                            function_name: "clear_clipboard".into(),
-                            params: vec![],
-                        }),
+                        Action::new(
+                            "Delete",
+                            ActionData::RunFunction {
+                                function_name: "delete_clipboard_entry".into(),
+                                params: vec![entry.timestamp.to_string()],
+                            },
+                        ),
+                        Action::new(
+                            "Clear entire clipboard",
+                            ActionData::RunFunction {
+                                function_name: "clear_clipboard".into(),
+                                params: vec![],
+                            },
+                        ),
                     ]);
                     // Truncate display name — full text lives in ACTION_REGISTRY for copying
                     // and is fetched lazily for the preview panel via get_action_text.
@@ -240,41 +281,63 @@ fn build_results(query: &str) -> SearchResult {
                     item
                 }
 
-                ClipboardContent::Image { width, height, ocr_text, hash, .. } => {
+                ClipboardContent::Image {
+                    width,
+                    height,
+                    ocr_text,
+                    hash,
+                    ..
+                } => {
                     let hash_str = hash.to_string();
                     let is_pinned = crate::PINS.contains("clipboard_image", &hash_str);
                     let pin_action = if is_pinned {
-                        Action::new("Unpin", ActionData::RunFunction {
-                            function_name: "unpin".into(),
-                            params: vec!["clipboard_image".into(), hash_str.clone()],
-                        })
+                        Action::new(
+                            "Unpin",
+                            ActionData::RunFunction {
+                                function_name: "unpin".into(),
+                                params: vec!["clipboard_image".into(), hash_str.clone()],
+                            },
+                        )
                     } else {
                         // Full image is fetched lazily at pin time, not here.
-                        Action::new("Pin", ActionData::RunFunction {
-                            function_name: "pin_clipboard_image".into(),
-                            params: vec![hash_str.clone()],
-                        })
+                        Action::new(
+                            "Pin",
+                            ActionData::RunFunction {
+                                function_name: "pin_clipboard_image".into(),
+                                params: vec![hash_str.clone()],
+                            },
+                        )
                     };
 
-                    let mut actions = vec![
-                        Action::new("Copy", ActionData::RunFunction {
+                    let mut actions = vec![Action::new(
+                        "Copy",
+                        ActionData::RunFunction {
                             function_name: "copy_clipboard_image".into(),
                             params: vec![hash_str.clone()],
-                        }),
-                    ];
+                        },
+                    )];
                     if let Some(text) = ocr_text {
-                        actions.push(Action::new("Copy Text", ActionData::CopyToClipboard { text: text.clone() }));
+                        actions.push(Action::new(
+                            "Copy Text",
+                            ActionData::CopyToClipboard { text: text.clone() },
+                        ));
                     }
                     actions.extend([
                         pin_action,
-                        Action::new("Delete", ActionData::RunFunction {
-                            function_name: "delete_clipboard_entry".into(),
-                            params: vec![entry.timestamp.to_string()],
-                        }),
-                        Action::new("Clear entire clipboard", ActionData::RunFunction {
-                            function_name: "clear_clipboard".into(),
-                            params: vec![],
-                        }),
+                        Action::new(
+                            "Delete",
+                            ActionData::RunFunction {
+                                function_name: "delete_clipboard_entry".into(),
+                                params: vec![entry.timestamp.to_string()],
+                            },
+                        ),
+                        Action::new(
+                            "Clear entire clipboard",
+                            ActionData::RunFunction {
+                                function_name: "clear_clipboard".into(),
+                                params: vec![],
+                            },
+                        ),
                     ]);
 
                     // Thumbnail is fetched lazily by the frontend using thumbnail_key.
@@ -294,8 +357,8 @@ fn build_results(query: &str) -> SearchResult {
     SearchResult {
         results,
         result_type: ResultType::Clipboard,
-            ..Default::default()
-}
+        ..Default::default()
+    }
 }
 
 fn resolve_path(value: &str) -> Option<std::path::PathBuf> {
@@ -319,13 +382,28 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
             return match icon {
                 Some(i) if *i == super::ICON_FOLDER => (
                     *icon,
-                    vec![Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) })],
+                    vec![Action::new(
+                        "Open Folder",
+                        ActionData::OpenUrl {
+                            url: format!("file://{}", path_str),
+                        },
+                    )],
                 ),
                 Some(i) if *i == super::ICON_FILE => {
-                    let parent = path.parent().map(|p| format!("file://{}", p.to_string_lossy()));
-                    let mut actions = vec![Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) })];
+                    let parent = path
+                        .parent()
+                        .map(|p| format!("file://{}", p.to_string_lossy()));
+                    let mut actions = vec![Action::new(
+                        "Open",
+                        ActionData::OpenUrl {
+                            url: format!("file://{}", path_str),
+                        },
+                    )];
                     if let Some(parent_url) = parent {
-                        actions.push(Action::new("Open Containing Folder", ActionData::OpenUrl { url: parent_url }));
+                        actions.push(Action::new(
+                            "Open Containing Folder",
+                            ActionData::OpenUrl { url: parent_url },
+                        ));
                     }
                     (*icon, actions)
                 }
@@ -339,13 +417,28 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
     let (icon, actions) = if path.is_dir() {
         (
             Some(super::ICON_FOLDER),
-            vec![Action::new("Open Folder", ActionData::OpenUrl { url: format!("file://{}", path_str) })],
+            vec![Action::new(
+                "Open Folder",
+                ActionData::OpenUrl {
+                    url: format!("file://{}", path_str),
+                },
+            )],
         )
     } else if path.is_file() {
-        let parent = path.parent().map(|p| format!("file://{}", p.to_string_lossy()));
-        let mut actions = vec![Action::new("Open", ActionData::OpenUrl { url: format!("file://{}", path_str) })];
+        let parent = path
+            .parent()
+            .map(|p| format!("file://{}", p.to_string_lossy()));
+        let mut actions = vec![Action::new(
+            "Open",
+            ActionData::OpenUrl {
+                url: format!("file://{}", path_str),
+            },
+        )];
         if let Some(parent_url) = parent {
-            actions.push(Action::new("Open Containing Folder", ActionData::OpenUrl { url: parent_url }));
+            actions.push(Action::new(
+                "Open Containing Folder",
+                ActionData::OpenUrl { url: parent_url },
+            ));
         }
         (Some(super::ICON_FILE), actions)
     } else {
@@ -379,42 +472,66 @@ fn transform_actions(value: &str) -> Vec<Action> {
 
     let upper = value.to_uppercase();
     if upper != value {
-        actions.push(Action::new("Uppercase", ActionData::CopyToClipboard { text: upper }));
+        actions.push(Action::new(
+            "Uppercase",
+            ActionData::CopyToClipboard { text: upper },
+        ));
     }
 
     let lower = value.to_lowercase();
     if lower != value {
-        actions.push(Action::new("Lowercase", ActionData::CopyToClipboard { text: lower }));
+        actions.push(Action::new(
+            "Lowercase",
+            ActionData::CopyToClipboard { text: lower },
+        ));
     }
 
     let trimmed = value.trim().to_string();
     if trimmed != value {
-        actions.push(Action::new("Trim whitespace", ActionData::CopyToClipboard { text: trimmed }));
+        actions.push(Action::new(
+            "Trim whitespace",
+            ActionData::CopyToClipboard { text: trimmed },
+        ));
     }
 
     let titled = title_case(value);
     if titled != value {
-        actions.push(Action::new("Title Case", ActionData::CopyToClipboard { text: titled }));
+        actions.push(Action::new(
+            "Title Case",
+            ActionData::CopyToClipboard { text: titled },
+        ));
     }
 
     let encoded = urlencoding::encode(value).to_string();
     if encoded != value {
-        actions.push(Action::new("URL encode", ActionData::CopyToClipboard { text: encoded }));
+        actions.push(Action::new(
+            "URL encode",
+            ActionData::CopyToClipboard { text: encoded },
+        ));
     }
 
     if let Ok(decoded) = urlencoding::decode(value) {
         let decoded = decoded.into_owned();
         if decoded != value {
-            actions.push(Action::new("URL decode", ActionData::CopyToClipboard { text: decoded }));
+            actions.push(Action::new(
+                "URL decode",
+                ActionData::CopyToClipboard { text: decoded },
+            ));
         }
     }
 
     let b64 = general_purpose::STANDARD.encode(value.as_bytes());
-    actions.push(Action::new("Base64 encode", ActionData::CopyToClipboard { text: b64 }));
+    actions.push(Action::new(
+        "Base64 encode",
+        ActionData::CopyToClipboard { text: b64 },
+    ));
 
     if let Ok(decoded) = general_purpose::STANDARD.decode(value.trim().as_bytes()) {
         if let Ok(s) = String::from_utf8(decoded) {
-            actions.push(Action::new("Base64 decode", ActionData::CopyToClipboard { text: s }));
+            actions.push(Action::new(
+                "Base64 decode",
+                ActionData::CopyToClipboard { text: s },
+            ));
         }
     }
 

@@ -1,6 +1,4 @@
 use tauri::Emitter;
-#[cfg(target_os = "linux")]
-use gdk;
 
 /// Inject a GTK CSS provider that themes the native CSD headerbar to match
 /// quarry's dark aesthetic. Called once at startup before windows are created.

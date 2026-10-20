@@ -96,12 +96,10 @@ impl ResultItem {
 pub enum ResultType {
     List,
     Grid,
-    WebSearch,
     Markdown,
     Clipboard,
     ColorPicker,
     Home,
-    Media,
     Math,
     Camera,
     Ai,

@@ -6,19 +6,30 @@ use fuzzy_matcher::FuzzyMatcher;
 use tauri::AppHandle;
 
 pub struct WebSearcher {
-    pub name:         String,
+    pub name: String,
     pub url_template: String,
-    pub icon:         Option<String>,
+    pub icon: Option<String>,
 }
 
 fn favicon_url(url_template: &str) -> Option<String> {
-    let domain = url_template.split("://").nth(1)?.split('/').next()?.split('?').next()?;
-    Some(format!("https://www.google.com/s2/favicons?domain={}&sz=64", domain))
+    let domain = url_template
+        .split("://")
+        .nth(1)?
+        .split('/')
+        .next()?
+        .split('?')
+        .next()?;
+    Some(format!(
+        "https://www.google.com/s2/favicons?domain={}&sz=64",
+        domain
+    ))
 }
 
 impl WebSearcher {
     fn effective_icon(&self) -> Option<String> {
-        self.icon.clone().or_else(|| favicon_url(&self.url_template))
+        self.icon
+            .clone()
+            .or_else(|| favicon_url(&self.url_template))
     }
 
     fn term_from_name<'a>(&self, name: &'a str) -> &'a str {
@@ -31,8 +42,9 @@ impl WebSearcher {
 
     fn make_item(&self, name: String, term: &str, description: impl Into<String>) -> ResultItem {
         let url = self.url_template.replace("{}", &urlencoding::encode(term));
-        let mut item = ResultItem::new(name, vec![Action::new("Open", ActionData::OpenUrl { url })])
-            .description(description);
+        let mut item =
+            ResultItem::new(name, vec![Action::new("Open", ActionData::OpenUrl { url })])
+                .description(description);
         if let Some(icon) = self.effective_icon() {
             item = item.icon(icon);
         }
@@ -41,7 +53,9 @@ impl WebSearcher {
 }
 
 impl SearchProvider for WebSearcher {
-    fn name(&self) -> String { self.name.clone() }
+    fn name(&self) -> String {
+        self.name.clone()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         let name_prefix = format!("Search {}:", self.name);
@@ -58,11 +72,7 @@ impl SearchProvider for WebSearcher {
             }
             item
         } else {
-            self.make_item(
-                format!("{} '{}'", name_prefix, q),
-                q,
-                "Open in browser",
-            )
+            self.make_item(format!("{} '{}'", name_prefix, q), q, "Open in browser")
         };
 
         let all_recent = get_recent_entries("", 200);
@@ -84,7 +94,7 @@ impl SearchProvider for WebSearcher {
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+        scored.sort_unstable_by_key(|item| std::cmp::Reverse(item.0));
 
         let mut results = vec![primary];
         for (_, entry) in scored.iter().take(7) {
@@ -95,7 +105,11 @@ impl SearchProvider for WebSearcher {
             results.push(self.make_item(
                 entry.name.clone(),
                 term,
-                format!("recent: {} time{}", entry.count, if entry.count == 1 { "" } else { "s" }),
+                format!(
+                    "recent: {} time{}",
+                    entry.count,
+                    if entry.count == 1 { "" } else { "s" }
+                ),
             ));
         }
 

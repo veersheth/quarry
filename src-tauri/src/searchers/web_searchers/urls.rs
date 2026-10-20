@@ -31,13 +31,18 @@ fn term_from_name(name: &str) -> &str {
 }
 
 fn make_item(label: String, url: String, description: impl Into<String>) -> ResultItem {
-    ResultItem::new(label, vec![Action::new("Open", ActionData::OpenUrl { url })])
-        .description(description)
-        .icon("")
+    ResultItem::new(
+        label,
+        vec![Action::new("Open", ActionData::OpenUrl { url })],
+    )
+    .description(description)
+    .icon("")
 }
 
 impl SearchProvider for URLSearcher {
-    fn name(&self) -> String { String::new() }
+    fn name(&self) -> String {
+        String::new()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
@@ -61,7 +66,7 @@ impl SearchProvider for URLSearcher {
                     }
                 })
                 .collect();
-            scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+            scored.sort_unstable_by_key(|item| std::cmp::Reverse(item.0));
 
             let results: Vec<ResultItem> = scored
                 .iter()
@@ -71,7 +76,11 @@ impl SearchProvider for URLSearcher {
                     make_item(
                         e.name.clone(),
                         normalise_url(term),
-                        format!("recent: {} time{}", e.count, if e.count == 1 { "" } else { "s" }),
+                        format!(
+                            "recent: {} time{}",
+                            e.count,
+                            if e.count == 1 { "" } else { "s" }
+                        ),
                     )
                 })
                 .collect();
@@ -89,18 +98,22 @@ impl SearchProvider for URLSearcher {
                 matcher.fuzzy_match(term, q).map(|s| (s, e))
             })
             .collect();
-        scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+        scored.sort_unstable_by_key(|item| std::cmp::Reverse(item.0));
 
         let mut results = vec![primary];
         for (_, entry) in scored.iter().take(7) {
             let term = term_from_name(&entry.name);
             if term.eq_ignore_ascii_case(q) {
-                continue; 
+                continue;
             }
             results.push(make_item(
                 entry.name.clone(),
                 normalise_url(term),
-                format!("recent: {} time{}", entry.count, if entry.count == 1 { "" } else { "s" }),
+                format!(
+                    "recent: {} time{}",
+                    entry.count,
+                    if entry.count == 1 { "" } else { "s" }
+                ),
             ));
         }
 

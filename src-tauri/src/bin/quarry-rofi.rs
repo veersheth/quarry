@@ -56,7 +56,7 @@ fn main() {
         stdin
             .lock()
             .lines()
-            .filter_map(|l| l.ok())
+            .map_while(Result::ok)
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .map(|l| parse_item(&l))

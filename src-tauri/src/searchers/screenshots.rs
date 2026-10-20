@@ -110,7 +110,10 @@ impl ScreenshotsSearcher {
 
     fn read_ocr_cache(path: &Path, mtime: u64) -> Option<String> {
         let cache = Self::ocr_cache_path(path, mtime);
-        std::fs::read_to_string(&cache).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+        std::fs::read_to_string(&cache)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
     }
 
     /// Spawn a background thread to OCR `path`. Skips if already cached,
@@ -127,7 +130,14 @@ impl ScreenshotsSearcher {
         OCR_IN_PROGRESS.insert(path.clone());
         std::thread::spawn(move || {
             let result = std::process::Command::new("tesseract")
-                .args([path.to_str().unwrap_or(""), "stdout", "--psm", "3", "-l", "eng"])
+                .args([
+                    path.to_str().unwrap_or(""),
+                    "stdout",
+                    "--psm",
+                    "3",
+                    "-l",
+                    "eng",
+                ])
                 .output();
             if let Ok(output) = result {
                 let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -155,7 +165,7 @@ impl ScreenshotsSearcher {
                 (p, m)
             })
             .collect();
-        files.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+        files.sort_unstable_by_key(|file| std::cmp::Reverse(file.1));
         files
     }
 
@@ -185,7 +195,9 @@ impl ScreenshotsSearcher {
             .unwrap_or(&path_str)
             .to_string();
 
-        let size_str = Self::file_size(&path).map(Self::format_size).unwrap_or_default();
+        let size_str = Self::file_size(&path)
+            .map(Self::format_size)
+            .unwrap_or_default();
         let dims_str = Self::image_dimensions(&path)
             .map(|(w, h)| format!("{}×{}", w, h))
             .unwrap_or_default();
@@ -196,15 +208,21 @@ impl ScreenshotsSearcher {
             vec![
                 Action::new(
                     "Open",
-                    ActionData::OpenUrl { url: format!("file://{}", path_str) },
+                    ActionData::OpenUrl {
+                        url: format!("file://{}", path_str),
+                    },
                 ),
                 Action::new(
                     "Copy Screenshot",
-                    ActionData::CopyImageFile { path: path_str.clone() },
+                    ActionData::CopyImageFile {
+                        path: path_str.clone(),
+                    },
                 ),
                 Action::new(
                     "Copy Path",
-                    ActionData::CopyToClipboard { text: path_str.clone() },
+                    ActionData::CopyToClipboard {
+                        text: path_str.clone(),
+                    },
                 ),
                 Action::new(
                     "Extract Text",
@@ -232,7 +250,9 @@ impl ScreenshotsSearcher {
 }
 
 impl SearchProvider for ScreenshotsSearcher {
-    fn name(&self) -> String { "screenshots".to_string() }
+    fn name(&self) -> String {
+        "screenshots".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let dir = Self::dir();
         let q = query.trim();
@@ -277,7 +297,7 @@ impl SearchProvider for ScreenshotsSearcher {
                 })
                 .collect();
 
-            scored.sort_unstable_by(|a, b| b.2.cmp(&a.2));
+            scored.sort_unstable_by_key(|item| std::cmp::Reverse(item.2));
             scored
                 .into_iter()
                 .take(MAX_DISPLAY)
@@ -288,15 +308,14 @@ impl SearchProvider for ScreenshotsSearcher {
         SearchResult {
             results,
             result_type: ResultType::Screenshots,
-                    ..Default::default()
-}
+            ..Default::default()
+        }
     }
 }
 
 fn path_hash(path: &Path, mtime: u64) -> u64 {
     let s = format!("{}:{}", path.to_string_lossy(), mtime);
-    s.bytes()
-        .fold(14695981039346656037u64, |h, b| {
-            h.wrapping_mul(1099511628211) ^ b as u64
-        })
+    s.bytes().fold(14695981039346656037u64, |h, b| {
+        h.wrapping_mul(1099511628211) ^ b as u64
+    })
 }

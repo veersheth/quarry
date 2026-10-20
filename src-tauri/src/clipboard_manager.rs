@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -53,7 +53,14 @@ impl ClipboardEntry {
         }
     }
 
-    fn new_image(thumbnail: String, full: String, width: u32, height: u32, hash: u64, ocr_text: Option<String>) -> Self {
+    fn new_image(
+        thumbnail: String,
+        full: String,
+        width: u32,
+        height: u32,
+        hash: u64,
+        ocr_text: Option<String>,
+    ) -> Self {
         Self {
             content: ClipboardContent::Image {
                 thumbnail,
@@ -71,7 +78,12 @@ impl ClipboardEntry {
     pub fn display_text(&self) -> String {
         match &self.content {
             ClipboardContent::Text { value } => value.clone(),
-            ClipboardContent::Image { width, height, ocr_text, .. } => {
+            ClipboardContent::Image {
+                width,
+                height,
+                ocr_text,
+                ..
+            } => {
                 let mut s = format!("image {}×{}", width, height);
                 if let Some(text) = ocr_text {
                     s.push(' ');
@@ -92,17 +104,21 @@ fn now_secs() -> u64 {
 
 /// Simple, fast non-cryptographic hash for image deduplication.
 fn hash_bytes(data: &[u8]) -> u64 {
-    use std::hash::{Hash, Hasher};
     use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
     let mut h = DefaultHasher::new();
     data.hash(&mut h);
     h.finish()
 }
 
 /// Encode raw RGBA bytes to a PNG byte vector, optionally scaling to `target_width`.
-fn encode_to_png(bytes: &[u8], width: u32, height: u32, target_width: Option<u32>) -> Option<Vec<u8>> {
-    let img: ImageBuffer<Rgba<u8>, _> =
-        ImageBuffer::from_raw(width, height, bytes.to_vec())?;
+fn encode_to_png(
+    bytes: &[u8],
+    width: u32,
+    height: u32,
+    target_width: Option<u32>,
+) -> Option<Vec<u8>> {
+    let img: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_raw(width, height, bytes.to_vec())?;
 
     let img = if let Some(tw) = target_width {
         if width > tw {
@@ -124,7 +140,10 @@ fn encode_to_png(bytes: &[u8], width: u32, height: u32, target_width: Option<u32
 }
 
 fn png_to_data_url(png: &[u8]) -> String {
-    format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(png))
+    format!(
+        "data:image/png;base64,{}",
+        general_purpose::STANDARD.encode(png)
+    )
 }
 
 /// Run tesseract on PNG bytes and return extracted text, or None if tesseract is
@@ -148,7 +167,11 @@ fn ocr_png(png_bytes: &[u8]) -> Option<String> {
 
     let output = child.wait_with_output().ok()?;
     let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if text.is_empty() { None } else { Some(text) }
+    if text.is_empty() {
+        None
+    } else {
+        Some(text)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -186,8 +209,13 @@ impl ClipboardManager {
     pub fn get_thumbnail(&self, hash: u64) -> Option<String> {
         let hist = self.history.lock().ok()?;
         hist.iter().find_map(|e| {
-            if let ClipboardContent::Image { thumbnail, hash: h, .. } = &e.content {
-                if *h == hash { return Some(thumbnail.clone()); }
+            if let ClipboardContent::Image {
+                thumbnail, hash: h, ..
+            } = &e.content
+            {
+                if *h == hash {
+                    return Some(thumbnail.clone());
+                }
             }
             None
         })
@@ -196,8 +224,17 @@ impl ClipboardManager {
     pub fn get_full_image(&self, hash: u64) -> Option<(String, u32, u32)> {
         let hist = self.history.lock().ok()?;
         hist.iter().find_map(|e| {
-            if let ClipboardContent::Image { full, width, height, hash: h, .. } = &e.content {
-                if *h == hash { return Some((full.clone(), *width, *height)); }
+            if let ClipboardContent::Image {
+                full,
+                width,
+                height,
+                hash: h,
+                ..
+            } = &e.content
+            {
+                if *h == hash {
+                    return Some((full.clone(), *width, *height));
+                }
             }
             None
         })
@@ -207,7 +244,15 @@ impl ClipboardManager {
     pub fn get_image_for_pin(&self, hash: u64) -> Option<(String, String, u32, u32)> {
         let hist = self.history.lock().ok()?;
         hist.iter().find_map(|e| {
-            if let ClipboardContent::Image { full, thumbnail, width, height, hash: h, .. } = &e.content {
+            if let ClipboardContent::Image {
+                full,
+                thumbnail,
+                width,
+                height,
+                hash: h,
+                ..
+            } = &e.content
+            {
                 if *h == hash {
                     return Some((full.clone(), thumbnail.clone(), *width, *height));
                 }
@@ -256,8 +301,7 @@ impl ClipboardManager {
         let generation = Arc::clone(&self.generation);
 
         thread::spawn(move || {
-            let mut clipboard =
-                arboard::Clipboard::new().expect("Failed to initialize clipboard");
+            let mut clipboard = arboard::Clipboard::new().expect("Failed to initialize clipboard");
 
             let mut last_text: Option<String> = None;
             let mut last_image_hash: Option<u64> = None;
@@ -284,14 +328,17 @@ impl ClipboardManager {
                                     if let Some(ref p) = storage_path {
                                         Self::save_to_disk_inner(&history, p);
                                     }
-                                    thread::spawn(|| crate::searchers::clipboard::warm());
+                                    thread::spawn(crate::searchers::clipboard::warm);
                                 }
                                 None => {
                                     hist.insert(0, ClipboardEntry::new_text(text.clone()));
                                     // Drop oldest text entries beyond the cap
                                     let mut text_count = 0usize;
                                     hist.retain(|e| match &e.content {
-                                        ClipboardContent::Text { .. } => { text_count += 1; text_count <= MAX_TEXT_ENTRIES }
+                                        ClipboardContent::Text { .. } => {
+                                            text_count += 1;
+                                            text_count <= MAX_TEXT_ENTRIES
+                                        }
                                         _ => true,
                                     });
                                     drop(hist);
@@ -299,7 +346,7 @@ impl ClipboardManager {
                                     if let Some(ref p) = storage_path {
                                         Self::save_to_disk_inner(&history, p);
                                     }
-                                    thread::spawn(|| crate::searchers::clipboard::warm());
+                                    thread::spawn(crate::searchers::clipboard::warm);
                                 }
                             }
                         }
@@ -348,16 +395,22 @@ impl ClipboardManager {
                     let mut hist = history.lock().unwrap();
 
                     // Deduplicate: if the most recent entry is the same image, skip
-                    let already_present = hist.first().map(|e| match &e.content {
-                        ClipboardContent::Image { hash: h, .. } => *h == hash,
-                        _ => false,
-                    }).unwrap_or(false);
+                    let already_present = hist
+                        .first()
+                        .map(|e| match &e.content {
+                            ClipboardContent::Image { hash: h, .. } => *h == hash,
+                            _ => false,
+                        })
+                        .unwrap_or(false);
 
                     if already_present {
                         continue;
                     }
 
-                    hist.insert(0, ClipboardEntry::new_image(thumbnail, full, w, h, hash, ocr_text));
+                    hist.insert(
+                        0,
+                        ClipboardEntry::new_image(thumbnail, full, w, h, hash, ocr_text),
+                    );
 
                     // Enforce image cap: remove oldest image entries beyond the limit
                     let mut image_count = 0usize;
@@ -375,7 +428,7 @@ impl ClipboardManager {
                     if let Some(ref p) = storage_path {
                         Self::save_to_disk_inner(&history, p);
                     }
-                    thread::spawn(|| crate::searchers::clipboard::warm());
+                    thread::spawn(crate::searchers::clipboard::warm);
                 }
             }
         });

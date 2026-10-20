@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UsageEntry {
     pub query: String,
-    pub action_id: String,  
+    pub action_id: String,
     pub name: String,
     pub last_used: u64,
     pub count: u32,
@@ -56,7 +56,7 @@ impl UsageHistory {
         {
             entry.count += 1;
             entry.last_used = now;
-            entry.name = name.to_string(); 
+            entry.name = name.to_string();
         } else {
             self.entries.push(UsageEntry {
                 query: query.to_string(),
@@ -76,27 +76,26 @@ impl UsageHistory {
         self.save();
     }
 
-    pub fn get_boost_score(&self, query: &str, action_id: &str, _name: &str) -> f32 {
+    fn get_boost_scores(&self, query: &str, action_ids: &HashSet<String>) -> HashMap<String, f32> {
         let query_lower = query.to_lowercase();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
-
-        let mut best_score = 0.0f32;
+        let mut scores = HashMap::new();
 
         for entry in &self.entries {
-            if entry.action_id != action_id {
+            if !action_ids.contains(&entry.action_id) {
                 continue;
             }
 
             // Calculate query similarity
+            let entry_query = entry.query.to_lowercase();
             let query_match = if query_lower.is_empty() {
                 0.5 // Neutral score for empty queries
-            } else if entry.query.to_lowercase().contains(&query_lower) 
-                   || query_lower.contains(&entry.query.to_lowercase()) {
+            } else if entry_query.contains(&query_lower) || query_lower.contains(&entry_query) {
                 1.0
-            } else if self.fuzzy_match(&entry.query, query) {
+            } else if fuzzy_match_lowercase(&entry_query, &query_lower) {
                 0.7
             } else {
                 0.0
@@ -115,24 +114,18 @@ impl UsageHistory {
             let recency_score = (1.0 / (1.0 + age_days / 30.0)) * 0.5;
 
             let total_score = query_match * (frequency_score + recency_score);
-            best_score = best_score.max(total_score);
+            let score = scores.entry(entry.action_id.clone()).or_insert(0.0f32);
+            *score = score.max(total_score);
         }
 
-        best_score
+        scores
     }
 
     fn fuzzy_match(&self, entry_query: &str, user_query: &str) -> bool {
         let entry_lower = entry_query.to_lowercase();
         let user_lower = user_query.to_lowercase();
-        
-        let entry_words: Vec<&str> = entry_lower.split_whitespace().collect();
-        let user_words: Vec<&str> = user_lower.split_whitespace().collect();
 
-        user_words.iter().all(|word| {
-            entry_words.iter().any(|entry_word| {
-                entry_word.contains(word) || word.contains(entry_word)
-            })
-        })
+        fuzzy_match_lowercase(&entry_lower, &user_lower)
     }
 
     pub fn get_recent_for_query(&self, query: &str, limit: usize) -> Vec<UsageEntry> {
@@ -150,33 +143,48 @@ impl UsageHistory {
             .collect();
 
         // Sort by last_used descending
-        relevant.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+        relevant.sort_by_key(|entry| std::cmp::Reverse(entry.last_used));
         relevant.truncate(limit);
         relevant
     }
 }
 
 pub fn boost_results_by_usage(
-    mut results: Vec<crate::types::ResultItem>,
+    results: Vec<crate::types::ResultItem>,
     query: &str,
     history: &UsageHistory,
 ) -> Vec<crate::types::ResultItem> {
-    // Score by stable action identity, keyed by ephemeral first action id for the sort lookup.
-    let mut scores: HashMap<String, f32> = HashMap::new();
-    for result in &results {
-        let stable = result.actions.first().map(|a| a.data.stable_id()).unwrap_or_default();
-        let score = history.get_boost_score(query, &stable, &result.name);
-        let key = result.actions.first().map(|a| a.id.clone()).unwrap_or_default();
-        scores.insert(key, score);
-    }
+    let action_ids: HashSet<String> = results
+        .iter()
+        .filter_map(|result| result.actions.first())
+        .map(|action| action.data.stable_id())
+        .collect();
+    let scores = history.get_boost_scores(query, &action_ids);
+    let mut scored: Vec<_> = results
+        .into_iter()
+        .map(|result| {
+            let score = result
+                .actions
+                .first()
+                .and_then(|action| scores.get(&action.data.stable_id()))
+                .copied()
+                .unwrap_or_default();
+            (result, score)
+        })
+        .collect();
+    scored.sort_by(|left, right| right.1.total_cmp(&left.1));
+    scored.into_iter().map(|(result, _)| result).collect()
+}
 
-    results.sort_by(|a, b| {
-        let score_a = scores.get(a.actions.first().map(|a| a.id.as_str()).unwrap_or("")).unwrap_or(&0.0);
-        let score_b = scores.get(b.actions.first().map(|a| a.id.as_str()).unwrap_or("")).unwrap_or(&0.0);
-        score_b.partial_cmp(score_a).unwrap_or(std::cmp::Ordering::Equal)
-    });
+fn fuzzy_match_lowercase(entry_query: &str, user_query: &str) -> bool {
+    let entry_words: Vec<&str> = entry_query.split_whitespace().collect();
+    let user_words: Vec<&str> = user_query.split_whitespace().collect();
 
-    results
+    user_words.iter().all(|word| {
+        entry_words
+            .iter()
+            .any(|entry_word| entry_word.contains(word) || word.contains(entry_word))
+    })
 }
 
 /// Read recent usage entries for a given searcher namespace (prefix on action_ids).

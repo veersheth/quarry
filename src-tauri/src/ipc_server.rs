@@ -21,8 +21,13 @@ enum IpcCommand {
     Hide,
     Ping,
     ToggleNote,
-    ShowWithQuery { query: String },
-    ShowRofi { items: Vec<RofiItem>, response_socket: String },
+    ShowWithQuery {
+        query: String,
+    },
+    ShowRofi {
+        items: Vec<RofiItem>,
+        response_socket: String,
+    },
 }
 
 #[derive(serde::Serialize)]
@@ -35,16 +40,16 @@ fn get_socket_path() -> PathBuf {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
         .or_else(|_| std::env::var("TMPDIR"))
         .unwrap_or_else(|_| "/tmp".to_string());
-    
+
     PathBuf::from(runtime_dir).join("quarry.sock")
 }
 
 pub fn start_ipc_server(app_handle: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
         let socket_path = get_socket_path();
-        
+
         let _ = std::fs::remove_file(&socket_path); // clean up old socket
-        
+
         let listener = match UnixListener::bind(&socket_path) {
             Ok(l) => l,
             Err(e) => {
@@ -52,7 +57,7 @@ pub fn start_ipc_server(app_handle: tauri::AppHandle) {
                 return;
             }
         };
-        
+
         // set socket permissions, unix only
         #[cfg(unix)]
         {
@@ -62,9 +67,9 @@ pub fn start_ipc_server(app_handle: tauri::AppHandle) {
                 let _ = std::fs::set_permissions(&socket_path, permissions);
             }
         }
-        
+
         println!("IPC server listening on: {}", socket_path.display());
-        
+
         loop {
             match listener.accept().await {
                 Ok((stream, _)) => {
@@ -83,9 +88,9 @@ async fn handle_client(stream: UnixStream, app_handle: tauri::AppHandle) {
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
-    
+
     match reader.read_line(&mut line).await {
-        Ok(0) => return, // closed connectaion
+        Ok(0) => (), // closed connection
         Ok(_) => {
             let response = match serde_json::from_str::<IpcCommand>(line.trim()) {
                 Ok(cmd) => handle_command(cmd, &app_handle),
@@ -94,7 +99,7 @@ async fn handle_client(stream: UnixStream, app_handle: tauri::AppHandle) {
                     message: format!("Invalid command: {}", e),
                 },
             };
-            
+
             let response_json = serde_json::to_string(&response).unwrap() + "\n";
             let _ = writer.write_all(response_json.as_bytes()).await;
         }
@@ -146,7 +151,10 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
                 message: format!("Shown with query: {}", query),
             }
         }
-        IpcCommand::ShowRofi { items, response_socket } => {
+        IpcCommand::ShowRofi {
+            items,
+            response_socket,
+        } => {
             use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
             let seq = crate::SEARCH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
@@ -178,7 +186,10 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
             app_handle.emit("quarry-rofi-socket", &response_socket).ok();
             app_handle.emit("quarry-rofi", &search_result).ok();
 
-            IpcResponse { success: true, message: "Rofi shown".to_string() }
+            IpcResponse {
+                success: true,
+                message: "Rofi shown".to_string(),
+            }
         }
     }
 }

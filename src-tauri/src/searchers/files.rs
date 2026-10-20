@@ -6,7 +6,7 @@ use notify::{RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 use tauri::AppHandle;
 use walkdir::WalkDir;
@@ -17,23 +17,32 @@ const MAX_RESULTS: usize = 10;
 const FALLBACK_REFRESH_SECS: u64 = 600;
 
 const SKIP_DIRS: &[&str] = &[
-    "node_modules", "__pycache__", ".git", ".svn", ".hg",
-    "target", "build", "dist", ".gradle", ".mvn", ".idea",
-    ".vscode", "venv", ".venv", "env", ".env", "vendor",
-    "bin", "obj", ".cache", "__MACOSX",
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".svn",
+    ".hg",
+    "target",
+    "build",
+    "dist",
+    ".gradle",
+    ".mvn",
+    ".idea",
+    ".vscode",
+    "venv",
+    ".venv",
+    "env",
+    ".env",
+    "vendor",
+    "bin",
+    "obj",
+    ".cache",
+    "__MACOSX",
 ];
 
 pub(crate) const SCRIPT_EXTENSIONS: &[&str] = &[
-    "sh", "bash", "zsh", "fish",
-    "py",
-    "rb",
-    "js", "mjs", "ts",
-    "pl", "pm",
-    "lua",
-    "ps1",
-    "bat", "cmd",
-    "r",
-    "php",
+    "sh", "bash", "zsh", "fish", "py", "rb", "js", "mjs", "ts", "pl", "pm", "lua", "ps1", "bat",
+    "cmd", "r", "php",
 ];
 
 static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
@@ -42,12 +51,10 @@ static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().igno
 // Background file index
 // ---------------------------------------------------------------------------
 
-struct FileIndex {
-    entries: Vec<(PathBuf, u64)>, // (path, mtime_secs)
-}
+type IndexedFile = (PathBuf, u64);
+type FileIndex = Arc<Vec<IndexedFile>>;
 
-static FILE_INDEX: Lazy<RwLock<FileIndex>> =
-    Lazy::new(|| RwLock::new(FileIndex { entries: Vec::new() }));
+static FILE_INDEX: Lazy<RwLock<FileIndex>> = Lazy::new(|| RwLock::new(Arc::new(Vec::new())));
 
 /// Spawn the file index background worker.
 ///
@@ -60,7 +67,7 @@ pub fn start_file_index() {
         // Initial build.
         let entries = build_index_entries();
         if let Ok(mut idx) = FILE_INDEX.write() {
-            idx.entries = entries;
+            *idx = Arc::new(entries);
         }
 
         let (tx, rx) = std::sync::mpsc::channel();
@@ -100,7 +107,7 @@ pub fn start_file_index() {
 
             let entries = build_index_entries();
             if let Ok(mut idx) = FILE_INDEX.write() {
-                idx.entries = entries;
+                *idx = Arc::new(entries);
             }
         }
     });
@@ -111,7 +118,7 @@ pub fn rebuild_index_now() {
     std::thread::spawn(|| {
         let entries = build_index_entries();
         if let Ok(mut idx) = FILE_INDEX.write() {
-            idx.entries = entries;
+            *idx = Arc::new(entries);
         }
     });
 }
@@ -127,8 +134,7 @@ fn build_index_entries() -> Vec<(PathBuf, u64)> {
             .into_iter()
             .filter_entry(|e| {
                 let name = e.file_name().to_str().unwrap_or("");
-                !name.starts_with('.')
-                    && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
             })
             .filter_map(|e| e.ok())
         {
@@ -146,15 +152,15 @@ pub struct FileSearcher;
 impl FileSearcher {
     fn search_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
-        for dir in [
-            dirs::download_dir(),
-            dirs::document_dir(),
-            dirs::desktop_dir(),
-        ] {
-            if let Some(p) = dir {
-                paths.push(p);
-            }
-        }
+        paths.extend(
+            [
+                dirs::download_dir(),
+                dirs::document_dir(),
+                dirs::desktop_dir(),
+            ]
+            .into_iter()
+            .flatten(),
+        );
         if let Some(home) = dirs::home_dir() {
             paths.push(home);
         }
@@ -190,7 +196,7 @@ impl FileSearcher {
                 (p, m)
             })
             .collect();
-        entries.sort_by(|a, b| b.1.cmp(&a.1));
+        entries.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         entries.into_iter().map(|(p, _)| p).collect()
     }
 
@@ -216,22 +222,19 @@ impl FileSearcher {
 
     fn collect_candidates(query_words: &[&str]) -> Vec<(PathBuf, i64)> {
         // Fast path: query the in-memory index
-        if let Ok(idx) = FILE_INDEX.read() {
-            if !idx.entries.is_empty() {
-                use rayon::prelude::*;
-                let mut hits: Vec<(PathBuf, i64, u64)> = idx
-                    .entries
-                    .par_iter()
-                    .filter_map(|(path, mtime)| {
-                        Self::score(query_words, path)
-                            .map(|s| (path.clone(), s, *mtime))
-                    })
-                    .collect();
-                hits.sort_unstable_by(|a, b| {
-                    b.1.cmp(&a.1).then_with(|| b.2.cmp(&a.2))
-                });
-                return hits.into_iter().map(|(p, s, _)| (p, s)).collect();
-            }
+        let index = FILE_INDEX.read().ok().map(|entries| Arc::clone(&entries));
+        if let Some(entries) = index.filter(|entries| !entries.is_empty()) {
+            use rayon::prelude::*;
+            let mut hits: Vec<(PathBuf, i64, u64)> = entries
+                .par_iter()
+                .filter_map(|(path, mtime)| {
+                    Self::score(query_words, path).map(|s| (path.clone(), s, *mtime))
+                })
+                .collect();
+            hits.sort_unstable_by_key(|(_, score, mtime)| {
+                (std::cmp::Reverse(*score), std::cmp::Reverse(*mtime))
+            });
+            return hits.into_iter().map(|(p, s, _)| (p, s)).collect();
         }
 
         // Fallback: walk the filesystem directly (index not ready yet)
@@ -245,31 +248,29 @@ impl FileSearcher {
                 .into_iter()
                 .filter_entry(|e| {
                     let name = e.file_name().to_str().unwrap_or("");
-                    !name.starts_with('.')
-                        && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
                 let path = entry.path().to_path_buf();
-                if seen.contains(&path) {
+                if !seen.insert(path.clone()) {
                     continue;
                 }
                 if let Some(score) = Self::score(query_words, &path) {
-                    seen.insert(path.clone());
                     hits.push((path, score));
                 }
             }
         }
 
-        hits.sort_by(|a, b| {
-            b.1.cmp(&a.1)
-                .then_with(|| mtime_secs(&b.0).cmp(&mtime_secs(&a.0)))
-        });
-        hits
+        sort_hits_by_score_and_mtime(hits)
     }
 
     fn icon_for(path: &Path) -> &'static str {
-        if path.is_dir() { super::ICON_FOLDER } else { super::ICON_FILE }
+        if path.is_dir() {
+            super::ICON_FOLDER
+        } else {
+            super::ICON_FILE
+        }
     }
 
     fn path_to_result(path: PathBuf) -> ResultItem {
@@ -296,7 +297,9 @@ impl FileSearcher {
         if is_script(&path) {
             actions.push(Action::new(
                 "Run",
-                ActionData::RunScript { path: path_str.clone() },
+                ActionData::RunScript {
+                    path: path_str.clone(),
+                },
             ));
             actions.push(open_action);
         } else {
@@ -343,9 +346,7 @@ impl FileSearcher {
         // Copy filename
         actions.push(Action::new(
             "Copy Filename",
-            ActionData::CopyToClipboard {
-                text: name.clone(),
-            },
+            ActionData::CopyToClipboard { text: name.clone() },
         ));
 
         let mut item = ResultItem::new(name, actions)
@@ -378,7 +379,9 @@ fn is_script(path: &Path) -> bool {
     }
 
     // Only allow scripts from the user scripts directory
-    let Some(scripts_dir) = get_user_scripts_dir() else { return false; };
+    let Some(scripts_dir) = get_user_scripts_dir() else {
+        return false;
+    };
 
     // Check if the file is in the scripts directory
     if !path.starts_with(&scripts_dir) {
@@ -410,7 +413,9 @@ fn is_script(path: &Path) -> bool {
 }
 
 impl SearchProvider for FileSearcher {
-    fn name(&self) -> String { "files".to_string() }
+    fn name(&self) -> String {
+        "files".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
@@ -489,25 +494,19 @@ impl SearchProvider for FileSearcher {
                 .into_iter()
                 .filter_entry(|e| {
                     let name = e.file_name().to_str().unwrap_or("");
-                    !name.starts_with('.')
-                        && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
                 let path = entry.path().to_path_buf();
-                if seen.contains(&path) {
+                if !seen.insert(path.clone()) {
                     continue;
                 }
                 if let Some(score) = Self::score(&query_words, &path) {
-                    seen.insert(path.clone());
                     hits.push((path, score));
                 }
             }
-            hits.sort_by(|a, b| {
-                b.1.cmp(&a.1)
-                    .then_with(|| mtime_secs(&b.0).cmp(&mtime_secs(&a.0)))
-            });
-            hits
+            sort_hits_by_score_and_mtime(hits)
         } else {
             Self::collect_candidates(&query_words)
         };
@@ -529,4 +528,20 @@ fn mtime_secs(path: &Path) -> u64 {
         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
         .unwrap_or(0)
+}
+
+fn sort_hits_by_score_and_mtime(hits: Vec<(PathBuf, i64)>) -> Vec<(PathBuf, i64)> {
+    let mut hits: Vec<_> = hits
+        .into_iter()
+        .map(|(path, score)| {
+            let modified = mtime_secs(&path);
+            (path, score, modified)
+        })
+        .collect();
+    hits.sort_unstable_by_key(|(_, score, modified)| {
+        (std::cmp::Reverse(*score), std::cmp::Reverse(*modified))
+    });
+    hits.into_iter()
+        .map(|(path, score, _)| (path, score))
+        .collect()
 }
