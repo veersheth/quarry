@@ -181,119 +181,130 @@
     searchInput?.select();
   }
 
-  onMount(async () => {
-    appWindow = getCurrentWindow();
-    await refresh();
-    invoke<string>("get_ai_prefix")
-      .then((p) => {
-        aiPrefix = p;
-      })
-      .catch(() => {});
+  onMount(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-    // use query from the commandline
-    invoke<string | null>("take_pending_query").then((q) => {
-      if (q) query.set(q);
-    }).catch(() => {});
-    const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
-      if (focused) {
-        mouseHasMoved.set(false);
-        refresh();
-      } else if (rofiMode) {
-        cancelRofi();
-      }
-    });
+    void (async () => {
+      appWindow = getCurrentWindow();
+      await refresh();
+      invoke<string>("get_ai_prefix")
+        .then((p) => {
+          aiPrefix = p;
+        })
+        .catch(() => {});
 
-    window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
+      // use query from the commandline
+      invoke<string | null>("take_pending_query").then((q) => {
+        if (q) query.set(q);
+      }).catch(() => {});
+      const unlisten = await appWindow.onFocusChanged(({ payload: focused }) => {
+        if (focused) {
+          mouseHasMoved.set(false);
+          refresh();
+        } else if (rofiMode) {
+          cancelRofi();
+        }
+      });
 
-    const blockZoom = (e: WheelEvent) => {
-      if (e.ctrlKey) e.preventDefault();
-    };
-    window.addEventListener("wheel", blockZoom, { passive: false });
+      window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
-    const unlistenModal = await listen<{ body: string; buttons?: { label: string; kind?: string; shell?: string }[] }>(
-      "quarry-modal",
-      (event) => {
-        openModal(event.payload.body, event.payload.buttons);
-      },
-    );
+      const blockZoom = (e: WheelEvent) => {
+        if (e.ctrlKey) e.preventDefault();
+      };
+      window.addEventListener("wheel", blockZoom, { passive: false });
 
-    const unlistenRofiSocket = await listen<string>(
-      "quarry-rofi-socket",
-      (event) => {
-        rofiResponseSocket = event.payload;
-      },
-    );
+      const unlistenModal = await listen<{ body: string; buttons?: { label: string; kind?: string; shell?: string }[] }>(
+        "quarry-modal",
+        (event) => {
+          openModal(event.payload.body, event.payload.buttons);
+        },
+      );
 
-    const unlistenRofi = await listen<import("../stores/search").SearchResult>(
-      "quarry-rofi",
-      (event) => {
-        const res = event.payload;
-        rofiAllItems = res.results;
-        rofiMode = true;
-        resultItems.set(res.results);
-        resultType.set(res.result_type);
-        query.set("");
-        activeIndex.set(0);
-      },
-    );
+      const unlistenRofiSocket = await listen<string>(
+        "quarry-rofi-socket",
+        (event) => {
+          rofiResponseSocket = event.payload;
+        },
+      );
 
-    // Remaining clipboard items arrive ~30ms after the first 30, keyed by seq.
-    // Insert in chunks across animation frames so the UI stays responsive.
-    const unlistenClipboardMore = await listen<{
-      seq: number;
-      results: import("../stores/search").ResultItem[];
-    }>("quarry-clipboard-more", ({ payload }) => {
-      if (payload.seq !== clipboardSeq) return;
-      const CHUNK = 40;
-      const seq = payload.seq;
-      let i = 0;
-      function appendNext() {
-        if (seq !== clipboardSeq) return;
-        const chunk = payload.results.slice(i, i + CHUNK);
-        if (!chunk.length) return;
-        resultItems.update(items => [...items, ...chunk]);
-        i += CHUNK;
-        if (i < payload.results.length) requestAnimationFrame(appendNext);
-      }
-      requestAnimationFrame(appendNext);
-    });
+      const unlistenRofi = await listen<import("../stores/search").SearchResult>(
+        "quarry-rofi",
+        (event) => {
+          const res = event.payload;
+          rofiAllItems = res.results;
+          rofiMode = true;
+          resultItems.set(res.results);
+          resultType.set(res.result_type);
+          query.set("");
+          activeIndex.set(0);
+        },
+      );
 
-    // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
-    // arrive before the file search completes - apply immediately if still relevant.
-    const unlistenFast = await listen<{
-      query: string;
-      results: import("../stores/search").ResultItem[];
-    }>("quarry-fast", ({ payload }) => {
-      if (!rofiMode && payload.query === $query.trim()) {
-        resultItems.set(payload.results);
-        resultType.set("List");
-        activeIndex.set(0);
-      }
-    });
+      // Remaining clipboard items arrive ~30ms after the first 30, keyed by seq.
+      // Insert in chunks across animation frames so the UI stays responsive.
+      const unlistenClipboardMore = await listen<{
+        seq: number;
+        results: import("../stores/search").ResultItem[];
+      }>("quarry-clipboard-more", ({ payload }) => {
+        if (payload.seq !== clipboardSeq) return;
+        const CHUNK = 40;
+        const seq = payload.seq;
+        let i = 0;
+        function appendNext() {
+          if (seq !== clipboardSeq) return;
+          const chunk = payload.results.slice(i, i + CHUNK);
+          if (!chunk.length) return;
+          resultItems.update(items => [...items, ...chunk]);
+          i += CHUNK;
+          if (i < payload.results.length) requestAnimationFrame(appendNext);
+        }
+        requestAnimationFrame(appendNext);
+      });
 
-    // Pre-fill query from a subsequent `quarry <query>` invocation.
-    const unlistenSetQuery = await listen<string>("quarry-set-query", ({ payload }) => {
-      query.set(payload);
-      searchInput?.focus();
-    });
+      // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
+      // arrive before the file search completes - apply immediately if still relevant.
+      const unlistenFast = await listen<{
+        query: string;
+        results: import("../stores/search").ResultItem[];
+      }>("quarry-fast", ({ payload }) => {
+        if (!rofiMode && payload.query === $query.trim()) {
+          resultItems.set(payload.results);
+          resultType.set("List");
+          activeIndex.set(0);
+        }
+      });
 
-    // Show QR code for a given text (triggered by shortcut or context menu action).
-    const unlistenQr = await listen<string>("quarry-show-qr", ({ payload }) => {
-      resultItems.set([{ name: payload, actions: [] }]);
-      resultType.set("QrCode");
-    });
+      // Pre-fill query from a subsequent `quarry <query>` invocation.
+      const unlistenSetQuery = await listen<string>("quarry-set-query", ({ payload }) => {
+        query.set(payload);
+        searchInput?.focus();
+      });
+
+      // Show QR code for a given text (triggered by shortcut or context menu action).
+      const unlistenQr = await listen<string>("quarry-show-qr", ({ payload }) => {
+        resultItems.set([{ name: payload, actions: [] }]);
+        resultType.set("QrCode");
+      });
+
+      cleanup = () => {
+        unlisten();
+        unlistenModal();
+        unlistenRofiSocket();
+        unlistenRofi();
+        unlistenClipboardMore();
+        unlistenFast();
+        unlistenSetQuery();
+        unlistenQr();
+        window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
+        window.removeEventListener("wheel", blockZoom);
+      };
+      if (cancelled) cleanup?.();
+    })();
 
     return () => {
-      unlisten.then((fn) => fn());
-      unlistenModal();
-      unlistenRofiSocket();
-      unlistenRofi();
-      unlistenClipboardMore();
-      unlistenFast();
-      unlistenSetQuery();
-      unlistenQr();
-      window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
-      window.removeEventListener("wheel", blockZoom);
+      cancelled = true;
+      cleanup?.();
     };
   });
 

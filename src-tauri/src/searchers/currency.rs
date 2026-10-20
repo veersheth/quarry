@@ -19,7 +19,6 @@ struct ConversionResponse {
     #[allow(dead_code)]
     amount: f64,
     base: String,
-    date: String,
     rates: HashMap<String, f64>,
 }
 

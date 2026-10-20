@@ -27,15 +27,14 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class="wrap"
+  role="presentation"
   class:drag-source={!!draggable_path}
   on:mousedown|preventDefault={(e) => {
     if (!draggable_path || e.button !== 0) return;
     invoke("start_drag", { path: draggable_path }).catch(console.error);
   }}
-  on:click={(e) => { if (draggable_path) e.stopPropagation(); }}
 >
   {#if error}
     <div class="avatar" style="--hue: {strHue(name)}">

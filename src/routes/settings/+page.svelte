@@ -176,7 +176,7 @@
       <div class="group">
         <div class="group-label">Background</div>
         <div class="field">
-          <label>Color</label>
+          <div class="field-label">Color</div>
           <div class="field-body">
             <div class="swatch" style="background:{config.theme.background_color}">
               <input type="color" value={toHex(config.theme.background_color)}
@@ -186,7 +186,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Opacity</label>
+          <div class="field-label">Opacity</div>
           <div class="field-body">
             <input type="range" min="0" max="1" step="0.01"
               bind:value={config.theme.background_opacity} class="slider" />
@@ -195,12 +195,12 @@
         </div>
       </div>
 
-      <div class="sep" />
+      <div class="sep"></div>
 
       <div class="group">
         <div class="group-label">Typography</div>
         <div class="field">
-          <label>Font color</label>
+          <div class="field-label">Font color</div>
           <div class="field-body">
             <div class="swatch" style="background:{config.theme.font_color}">
               <input type="color" value={toHex(config.theme.font_color)}
@@ -210,7 +210,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Font size</label>
+          <div class="field-label">Font size</div>
           <div class="field-body">
             <input type="number" min="8" max="32" bind:value={config.theme.font_size}
               class="inp inp-sm" />
@@ -219,12 +219,12 @@
         </div>
       </div>
 
-      <div class="sep" />
+      <div class="sep"></div>
 
       <div class="group">
         <div class="group-label">Border</div>
         <div class="field">
-          <label>Color</label>
+          <div class="field-label">Color</div>
           <div class="field-body">
             <div class="swatch" style="background:{config.theme.border_color}">
               <input type="color" value={toHex(config.theme.border_color)}
@@ -234,7 +234,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Radius</label>
+          <div class="field-label">Radius</div>
           <div class="field-body">
             <input type="range" min="0" max="40" step="1"
               bind:value={config.theme.border_radius} class="slider" />
@@ -243,7 +243,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Thickness</label>
+          <div class="field-label">Thickness</div>
           <div class="field-body">
             <input type="range" min="0" max="8" step="1"
               bind:value={config.theme.border_thickness} class="slider" />
@@ -253,12 +253,12 @@
         </div>
       </div>
 
-      <div class="sep" />
+      <div class="sep"></div>
 
       <div class="group">
         <div class="group-label">Active item</div>
         <div class="field">
-          <label>Background</label>
+          <div class="field-label">Background</div>
           <div class="field-body">
             <div class="swatch" style="background:{config.theme.active_bg_color}">
               <input type="color" value={toHex(config.theme.active_bg_color)}
@@ -268,7 +268,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Border color</label>
+          <div class="field-label">Border color</div>
           <div class="field-body">
             <div class="swatch" style="background:{config.theme.active_border_color}">
               <input type="color" value={toHex(config.theme.active_border_color)}
@@ -278,7 +278,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Item radius</label>
+          <div class="field-label">Item radius</div>
           <div class="field-body">
             <input type="range" min="0" max="20" step="1"
               bind:value={config.theme.item_border_radius} class="slider" />
@@ -313,13 +313,13 @@
             </button>
           </div>
           <div class="field">
-            <label>Trigger</label>
+            <div class="field-label">Trigger</div>
             <div class="field-body">
               <input class="inp inp-mono" bind:value={ws.trigger} placeholder="^keyword\s+(.*)$" />
             </div>
           </div>
           <div class="field" style="margin-bottom:0">
-            <label>URL</label>
+            <div class="field-label">URL</div>
             <div class="field-body">
               <input class="inp" bind:value={ws.url} placeholder={"https://example.com/search?q={}"} />
             </div>
@@ -329,7 +329,7 @@
 
       <button class="add-btn" on:click={addWebSearch}>+ Add web search</button>
 
-      <div class="sep" />
+      <div class="sep"></div>
       <div class="subsec">Default search</div>
       <p class="hint">Shown when no trigger matches.</p>
 
@@ -348,7 +348,7 @@
       </div>
 
       <div class="field" style="margin-top:12px">
-        <label>Max results per source</label>
+        <div class="field-label">Max results per source</div>
         <div class="field-body">
           <input type="number" min="1" max="10"
             bind:value={config.default_search.max_web_results} class="inp inp-sm" />
@@ -360,7 +360,7 @@
       <div class="group">
         <div class="group-label">AI</div>
         <div class="field">
-          <label>Groq API key</label>
+          <div class="field-label">Groq API key</div>
           <div class="field-body">
             {#if showApiKey}
               <input class="inp" bind:value={groqApiKey} placeholder="gsk_…" />
@@ -375,12 +375,12 @@
         <p class="hint indent">Used for the <code>ai</code> trigger. Get a free key at <code>console.groq.com</code>.</p>
       </div>
 
-      <div class="sep" />
+      <div class="sep"></div>
 
       <div class="group">
         <div class="group-label">Storage</div>
         <div class="field">
-          <label>Config path</label>
+          <div class="field-label">Config path</div>
           <div class="field-body">
             <input class="inp readonly" value="~/.config/quarry/config.toml" readonly />
           </div>
@@ -403,7 +403,7 @@
         in:fly={{ y: 16, duration: 350, opacity: 0, easing: backOut }}
         out:fly={{ y: 8, duration: 140, opacity: 0 }}
       >
-        <span class="toast-dot {toast.type}" />
+        <span class="toast-dot {toast.type}"></span>
         {toast.message}
       </div>
     {/each}
@@ -491,7 +491,7 @@
     margin-bottom: 10px;
   }
 
-  .field label {
+  .field-label {
     width: 168px;
     flex-shrink: 0;
     color: rgba(255, 255, 255, 0.42);

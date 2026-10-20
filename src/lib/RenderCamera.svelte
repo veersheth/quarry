@@ -81,6 +81,7 @@
         class:saving
         on:click={capture}
         title="Capture"
+        aria-label="Capture photo"
         disabled={saving}
       >
         <div class="shutter-inner"></div>

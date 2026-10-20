@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { addToast } from "../stores/toasts";
 
   export let initialColor = "";
@@ -9,12 +9,14 @@
   let isDraggingSL = false;
   let isDraggingHue = false;
 
-  function hexToRgb(hex) {
+  type HslColor = { h: number; s: number; l: number };
+
+  function hexToRgb(hex: string): { r: number; g: number; b: number } {
     let h = hex.replace("#", "");
     if (h.length === 3 || h.length === 4)
       h = h
         .split("")
-        .map((c) => c + c)
+        .map((c: string) => c + c)
         .join("");
     return {
       r: parseInt(h.slice(0, 2), 16),
@@ -23,7 +25,7 @@
     };
   }
 
-  function rgbToHsl(r, g, b) {
+  function rgbToHsl(r: number, g: number, b: number): HslColor {
     r /= 255;
     g /= 255;
     b /= 255;
@@ -54,7 +56,7 @@
     };
   }
 
-  function parseColor(str) {
+  function parseColor(str: string): HslColor | null {
     str = str.trim();
     if (!str) return null;
 
@@ -95,10 +97,10 @@
     }
   }
 
-  let slPickerEl;
-  let hueSliderEl;
+  let slPickerEl: HTMLDivElement;
+  let hueSliderEl: HTMLDivElement;
 
-  function hslToRgb(h, s, l) {
+  function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
     s /= 100;
     l /= 100;
     const c = (1 - Math.abs(2 * l - 1)) * s;
@@ -141,8 +143,8 @@
     };
   }
 
-  function rgbToHex(r, g, b) {
-    return "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("");
+  function rgbToHex(r: number, g: number, b: number): string {
+    return "#" + [r, g, b].map((x: number) => x.toString(16).padStart(2, "0")).join("");
   }
 
   $: currentColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
@@ -156,7 +158,7 @@
     return Math.max(0, Math.min(100, (1 - lightness / lightnessAtTop) * 100));
   })();
 
-  function handleSLPickerMove(e) {
+  function handleSLPickerMove(e: MouseEvent) {
     if (!slPickerEl) return;
     const rect = slPickerEl.getBoundingClientRect();
     const xRaw = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
@@ -169,14 +171,14 @@
     lightness = Math.round((1 - yNorm) * lightnessAtTop);
   }
 
-  function handleHueSliderMove(e) {
+  function handleHueSliderMove(e: MouseEvent) {
     if (!hueSliderEl) return;
     const rect = hueSliderEl.getBoundingClientRect();
     const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
     hue = Math.round((y / rect.height) * 360);
   }
 
-  function handleMouseMove(e) {
+  function handleMouseMove(e: MouseEvent) {
     if (isDraggingSL) handleSLPickerMove(e);
     if (isDraggingHue) handleHueSliderMove(e);
   }
@@ -186,7 +188,7 @@
     isDraggingHue = false;
   }
 
-  function copyText(text, label) {
+  function copyText(text: string, label: string) {
     navigator.clipboard.writeText(text);
     addToast(`Copied ${label}`);
   }
