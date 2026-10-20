@@ -28,6 +28,7 @@ pub mod emojis;
 pub mod files;
 pub mod fonts;
 pub mod lorem;
+pub mod meta;
 pub mod math;
 pub mod note;
 pub mod qrcode;
