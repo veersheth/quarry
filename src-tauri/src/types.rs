@@ -136,6 +136,7 @@ pub enum ActionData {
     LaunchApp { executable: String, args: Vec<String> },
     OpenUrl { url: String },
     CopyToClipboard { text: String },
+    PasteToApp { text: String },
     CopyImageToClipboard { base64_png: String, width: u32, height: u32 },
     CopyImageFile { path: String },
     RunFunction { function_name: String, params: Vec<String> },
@@ -159,6 +160,7 @@ impl ActionData {
             ActionData::LaunchApp { executable, .. } => format!("app:{}", executable),
             ActionData::OpenUrl { url } => format!("url:{}", url),
             ActionData::CopyToClipboard { text } => format!("copy:{:x}", djb2(text)),
+            ActionData::PasteToApp { text } => format!("paste:{:x}", djb2(text)),
             ActionData::CopyImageToClipboard { width, height, .. } => {
                 format!("copy-img:{}x{}", width, height)
             }

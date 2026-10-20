@@ -21,6 +21,7 @@
             cargo
             rustc
             cargo-tauri
+            wtype
 
             # Node.js and pnpm
             nodejs_24

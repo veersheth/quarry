@@ -9,6 +9,21 @@ use super::{
     toggle_rain_noise, ModalButton, ModalPayload,
 };
 
+fn clipboard_image_payload(hash: u64) -> Option<(String, u32, u32)> {
+    crate::CLIPBOARD_MANAGER.get_full_image(hash).or_else(|| {
+        let pin = crate::PINS
+            .get("clipboard_image")
+            .into_iter()
+            .find(|pin| pin.name == hash.to_string())?;
+        let image = serde_json::from_str::<serde_json::Value>(&pin.payload).ok()?;
+        Some((
+            image["full"].as_str()?.to_string(),
+            image["width"].as_u64()? as u32,
+            image["height"].as_u64()? as u32,
+        ))
+    })
+}
+
 pub(super) fn run_custom_function(
     function_name: &str,
     params: &[String],
@@ -193,9 +208,17 @@ pub(super) fn run_custom_function(
                 .first()
                 .and_then(|s| s.parse::<u64>().ok())
                 .ok_or("copy_clipboard_image requires a hash")?;
-            let (full, width, height) = crate::CLIPBOARD_MANAGER
-                .get_full_image(hash)
-                .ok_or("Image not found in clipboard history")?;
+            let (full, width, height) = clipboard_image_payload(hash)
+                .ok_or("Image not found in clipboard history or pins")?;
+            copy_image_to_clipboard(&full, width, height)
+        }
+        "paste_clipboard_image" => {
+            let hash = params
+                .first()
+                .and_then(|s| s.parse::<u64>().ok())
+                .ok_or("paste_clipboard_image requires an image hash")?;
+            let (full, width, height) = clipboard_image_payload(hash)
+                .ok_or("Image not found in clipboard history or pins")?;
             copy_image_to_clipboard(&full, width, height)
         }
         "pin_clipboard_image" => {

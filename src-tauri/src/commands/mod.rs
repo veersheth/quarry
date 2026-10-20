@@ -22,6 +22,7 @@ pub fn execute(
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
     let tag = match &action_data {
+        ActionData::PasteToApp { .. } => "paste",
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
         ActionData::RunFunction { function_name, .. } if function_name == "show_qr_clipboard" => {
@@ -31,6 +32,11 @@ pub fn execute(
             if function_name == "copy_clipboard_image" =>
         {
             "copied"
+        }
+        ActionData::RunFunction { function_name, .. }
+            if function_name == "paste_clipboard_image" =>
+        {
+            "paste"
         }
         ActionData::RunFunction { function_name, .. } if function_name.starts_with("copy_") => {
             "copied"
@@ -60,6 +66,75 @@ pub fn execute(
     }
 
     result.map(|_| tag.to_string())
+}
+
+/// Inject the paste shortcut into the application that was focused before Quarry.
+/// The frontend calls this after hiding the launcher so the previous window regains focus.
+#[tauri::command]
+pub fn paste_to_focused_app() -> Result<(), String> {
+    let terminal = active_window_is_terminal();
+    let mut command = std::process::Command::new("wtype");
+    if terminal {
+        command.args([
+            "-M", "ctrl", "-M", "shift", "v", "-m", "shift", "-m", "ctrl",
+        ]);
+    } else {
+        command.args(["-M", "ctrl", "v", "-m", "ctrl"]);
+    }
+
+    let output = command.output().map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            "Paste typing helper `wtype` was not found. Install it or run Quarry from its Nix dev shell.".to_string()
+        } else {
+            format!("Failed to start wtype: {error}")
+        }
+    })?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+fn active_window_is_terminal() -> bool {
+    let Ok(output) = std::process::Command::new("hyprctl")
+        .args(["-j", "activewindow"])
+        .output()
+    else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+
+    let Ok(window) = serde_json::from_slice::<serde_json::Value>(&output.stdout) else {
+        return false;
+    };
+    let class = ["class", "initialClass"]
+        .iter()
+        .filter_map(|key| window.get(key).and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    const TERMINAL_CLASSES: &[&str] = &[
+        "alacritty",
+        "contour",
+        "foot",
+        "footclient",
+        "ghostty",
+        "gnome-terminal",
+        "kitty",
+        "konsole",
+        "rio",
+        "st-",
+        "terminator",
+        "tilix",
+        "wezterm",
+        "xterm",
+        "urxvt",
+        "xfce4-terminal",
+    ];
+    TERMINAL_CLASSES.iter().any(|name| class.contains(name)) || class.contains("terminal")
 }
 
 #[tauri::command]

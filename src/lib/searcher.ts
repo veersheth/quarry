@@ -23,6 +23,18 @@ export async function execute(action_id: string, name: string, currentQuery: str
 
     if (result === "copied") {
       addToast("Copied to clipboard");
+    } else if (result === "paste") {
+      const window = getCurrentWindow();
+      await window.hide();
+      // Let the previously focused application receive focus before typing Ctrl+V.
+      await new Promise((resolve) => setTimeout(resolve, 140));
+      try {
+        await invoke("paste_to_focused_app");
+      } catch (error: any) {
+        await window.show();
+        await window.setFocus();
+        addToast(error?.message ?? "Failed to paste into the focused application", "error");
+      }
     } else if (result === "stay") {
       // action manages its own UI (e.g. show_modal) - keep window visible
     } else if (result === "error") {

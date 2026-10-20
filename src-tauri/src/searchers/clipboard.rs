@@ -105,6 +105,12 @@ fn build_results(query: &str) -> SearchResult {
                     pin.payload.clone(),
                     vec![
                         Action::new(
+                            "Paste",
+                            ActionData::PasteToApp {
+                                text: pin.payload.clone(),
+                            },
+                        ),
+                        Action::new(
                             "Copy",
                             ActionData::CopyToClipboard {
                                 text: pin.payload.clone(),
@@ -126,7 +132,6 @@ fn build_results(query: &str) -> SearchResult {
 
         for pin in &image_pins {
             if let Ok(img) = serde_json::from_str::<serde_json::Value>(&pin.payload) {
-                let full = img["full"].as_str().unwrap_or("").to_string();
                 let thumbnail = img["thumbnail"].as_str().unwrap_or("").to_string();
                 let width = img["width"].as_u64().unwrap_or(0) as u32;
                 let height = img["height"].as_u64().unwrap_or(0) as u32;
@@ -135,11 +140,17 @@ fn build_results(query: &str) -> SearchResult {
                         format!("Image {}×{}", width, height),
                         vec![
                             Action::new(
+                                "Paste",
+                                ActionData::RunFunction {
+                                    function_name: "paste_clipboard_image".into(),
+                                    params: vec![pin.name.clone()],
+                                },
+                            ),
+                            Action::new(
                                 "Copy",
-                                ActionData::CopyImageToClipboard {
-                                    base64_png: full,
-                                    width,
-                                    height,
+                                ActionData::RunFunction {
+                                    function_name: "copy_clipboard_image".into(),
+                                    params: vec![pin.name.clone()],
                                 },
                             ),
                             Action::new(
@@ -239,12 +250,20 @@ fn build_results(query: &str) -> SearchResult {
                         )
                     };
                     let (icon, path_actions) = detect_path(value);
-                    let mut actions = vec![Action::new(
-                        "Copy",
-                        ActionData::CopyToClipboard {
-                            text: value.clone(),
-                        },
-                    )];
+                    let mut actions = vec![
+                        Action::new(
+                            "Paste",
+                            ActionData::PasteToApp {
+                                text: value.clone(),
+                            },
+                        ),
+                        Action::new(
+                            "Copy",
+                            ActionData::CopyToClipboard {
+                                text: value.clone(),
+                            },
+                        ),
+                    ];
                     actions.extend(path_actions);
                     actions.extend(transform_actions(value));
                     actions.extend([
@@ -309,13 +328,22 @@ fn build_results(query: &str) -> SearchResult {
                         )
                     };
 
-                    let mut actions = vec![Action::new(
-                        "Copy",
-                        ActionData::RunFunction {
-                            function_name: "copy_clipboard_image".into(),
-                            params: vec![hash_str.clone()],
-                        },
-                    )];
+                    let mut actions = vec![
+                        Action::new(
+                            "Paste",
+                            ActionData::RunFunction {
+                                function_name: "paste_clipboard_image".into(),
+                                params: vec![hash_str.clone()],
+                            },
+                        ),
+                        Action::new(
+                            "Copy",
+                            ActionData::RunFunction {
+                                function_name: "copy_clipboard_image".into(),
+                                params: vec![hash_str.clone()],
+                            },
+                        ),
+                    ];
                     if let Some(text) = ocr_text {
                         actions.push(Action::new(
                             "Copy Text",

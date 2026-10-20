@@ -31,6 +31,7 @@ pub(crate) fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Resu
         ActionData::LaunchApp { executable, args } => launch_app(&executable, &args),
         ActionData::OpenUrl { url } => open_url(&url, app),
         ActionData::CopyToClipboard { text } => copy_to_clipboard(&text, app),
+        ActionData::PasteToApp { text } => copy_to_clipboard(&text, app),
         ActionData::CopyImageToClipboard {
             base64_png,
             width,
