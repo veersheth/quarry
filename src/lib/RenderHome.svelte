@@ -59,6 +59,7 @@
     display: grid;
     gap: 8px;
     padding: 4px 12px 4px;
+    margin-bottom: 8px;
   }
 
   .widget {

@@ -804,7 +804,7 @@
   }
 
   .image-ocr-text {
-    margin-top: 12px;
+    margin-top: 1em;
     width: 100%;
     box-sizing: border-box;
     padding: 12px 14px;

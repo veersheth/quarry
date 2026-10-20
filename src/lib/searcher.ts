@@ -33,7 +33,8 @@ export async function execute(action_id: string, name: string, currentQuery: str
       } catch (error: any) {
         await window.show();
         await window.setFocus();
-        addToast(error?.message ?? "Failed to paste into the focused application", "error");
+        console.error("Paste shortcut failed; clipboard content is available:", error);
+        addToast("Paste failed. Content copied to clipboard.", "error");
       }
     } else if (result === "stay") {
       // action manages its own UI (e.g. show_modal) - keep window visible

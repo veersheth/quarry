@@ -85,7 +85,7 @@
     background: var(--q-surface);
     text-align: left;
     color: var(--q-text-secondary);
-    border: 2px solid transparent;
+    border: 1px solid transparent;
   }
 
   .result-item.pinned {
@@ -94,7 +94,7 @@
 
   .result-item.active {
     background-color: var(--q-active-bg-color);
-    border: 2px solid var(--q-active-border-color);
+    border: 1px solid var(--q-active-border-color);
   }
 
   .result-item.pinned.active {
