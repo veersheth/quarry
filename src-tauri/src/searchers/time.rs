@@ -324,7 +324,7 @@ fn tz_result(m: &TzMatch, is_pinned: bool) -> ResultItem {
             pin_action,
         ],
     )
-    .description(format!("{} ,{}", m.label, format_tz_label(m.tz)))
+    .description(format!("{}, {}", m.label, format_tz_label(m.tz)))
     .icon(clock_icon(m.tz));
 
     if is_pinned {
