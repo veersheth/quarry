@@ -2,8 +2,10 @@ use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
+use std::path::Path;
 use std::sync::RwLock;
 use tauri::AppHandle;
+use base64::Engine;
 
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
@@ -15,20 +17,72 @@ fn clean_exec_field(exec: &str) -> String {
         .join(" ")
 }
 
-fn resolve_icon(icon_name: &str) -> Option<String> {
-    if icon_name.starts_with('/') {
-        return if std::path::Path::new(icon_name).exists() {
-            Some(icon_name.to_string())
-        } else {
-            None
-        };
+static ICON_THEME: Lazy<Option<String>> = Lazy::new(|| {
+    // GTK settings files are commonly used to configure icon themes on
+    // non-GNOME desktops (including wlroots compositors). Prefer those over
+    // gsettings, which may report its default theme even when GTK is themed
+    // through settings.ini.
+    let config_dir = dirs::config_dir()?;
+    for gtk_version in ["gtk-4.0", "gtk-3.0"] {
+        let settings = config_dir.join(gtk_version).join("settings.ini");
+        if let Some(theme) = read_gtk_icon_theme(&settings) {
+            return Some(theme);
+        }
     }
 
-    freedesktop_icons::lookup(icon_name)
-        .with_size(64)
-        .with_theme("hicolor")
-        .find()
-        .and_then(|p| p.to_str().map(|s| s.to_string()))
+    freedesktop_icons::default_theme_gtk()
+});
+
+fn read_gtk_icon_theme(path: &Path) -> Option<String> {
+    let contents = std::fs::read_to_string(path).ok()?;
+    let mut in_settings = false;
+    for line in contents.lines() {
+        let line = line.trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            in_settings = line == "[Settings]";
+        } else if in_settings {
+            if let Some(value) = line.strip_prefix("gtk-icon-theme-name=") {
+                let theme = value
+                    .trim()
+                    .trim_matches(|character| character == '\"' || character == '\'');
+                if !theme.is_empty() {
+                    return Some(theme.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn resolve_icon(icon_name: &str) -> Option<String> {
+    let path = if icon_name.starts_with('/') {
+        Path::new(icon_name).exists().then(|| Path::new(icon_name).to_path_buf())
+    } else {
+        let lookup = freedesktop_icons::lookup(icon_name).with_size(64);
+        match ICON_THEME.as_deref() {
+            Some(theme) => lookup.with_theme(theme).find(),
+            None => lookup.find(),
+        }
+    }?;
+
+    // Tauri's asset:// URLs are cross-origin from the http://localhost dev
+    // server in Linux WebKitGTK. Embed the small app icon instead, so WebKit
+    // can load it without relying on the asset protocol or its path scope.
+    let extension = path.extension()?.to_str()?.to_ascii_lowercase();
+    let mime = match extension.as_str() {
+        "svg" => "image/svg+xml",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "xpm" => "image/x-xpixmap",
+        _ => return None,
+    };
+    let bytes = std::fs::read(path).ok()?;
+    Some(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
 }
 
 #[derive(Clone)]

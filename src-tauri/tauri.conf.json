@@ -38,7 +38,18 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "/usr/share/icons/**",
+          "/usr/local/share/icons/**",
+          "/usr/share/pixmaps/**",
+          "$HOME/.local/share/icons/**",
+          "$HOME/.icons/**",
+          "$HOME/.nix-profile/share/icons/**",
+          "$HOME/.local/share/flatpak/exports/share/icons/**",
+          "/var/lib/flatpak/exports/share/icons/**",
+          "/nix/store/**",
+          "/run/current-system/sw/share/icons/**"
+        ]
       },
       "csp": null
     }

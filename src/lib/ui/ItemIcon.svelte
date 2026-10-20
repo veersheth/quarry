@@ -11,6 +11,16 @@
 
   let loaded = false;
   let error = false;
+  let previousSrc: string | undefined;
+
+  // Result rows are rendered from unkeyed each blocks, so Svelte may reuse this
+  // component for a different app. Clear the old image state when its source
+  // changes, otherwise a stale fallback avatar can remain behind the new icon.
+  $: if (src !== previousSrc) {
+    previousSrc = src;
+    loaded = false;
+    error = false;
+  }
 
   function nameInitial(n: string): string {
     return n.trim().charAt(0).toUpperCase() || "?";
