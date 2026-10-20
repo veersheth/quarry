@@ -634,7 +634,12 @@
             <Chip>{meta}</Chip>
           {/each}
         {/if}
-        <Timestamp value={activeItem.description} />
+        <div class="footer-trailing">
+          <Timestamp value={activeItem.description} />
+          {#if activeItem.pinned}
+            <Chip accent="rgba(200, 220, 255, 1)">Pinned</Chip>
+          {/if}
+        </div>
       </FooterBar>
     {/if}
   </div>
@@ -663,6 +668,7 @@
     gap: 10px;
     padding: 8px 10px;
     border-radius: var(--q-item-border-radius);
+    border: 1px solid transparent;
   }
 
   .result-item.pinned {
@@ -676,6 +682,17 @@
 
   .result-item.pinned.active {
     border-color: var(--q-pin-border-active);
+  }
+
+  .footer-trailing {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .footer-trailing :global(.ts) {
+    margin-left: 0;
   }
 
   .type-icon {
