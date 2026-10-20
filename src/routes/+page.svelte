@@ -567,8 +567,7 @@
     padding: 0 20px;
     height: 56px;
     flex-shrink: 0;
-    margin-bottom: 8px;
-    border-bottom: 1px solid var(--q-divider);
+    margin-bottom: 4px;
     position: relative;
     overflow: hidden;
   }

@@ -505,7 +505,7 @@
 
   .result-list {
     flex: 0 0 224px;
-    border-right: 1px solid var(--q-divider-dark);
+    border-right: 1px solid rgba(0,0, 0, 0);
     overflow-y: auto;
     padding: 5px 10px;
     display: flex;
@@ -635,6 +635,7 @@
   }
 
   .image-ocr-text {
+    margin-top: 12px;
     width: 100%;
     box-sizing: border-box;
     padding: 12px 14px;
@@ -648,6 +649,7 @@
     background: var(--q-code-bg);
     border: 1px solid var(--q-divider-dark);
     border-radius: 10px;
+    opacity: 0.4;
   }
 
   .color-hero {
@@ -686,31 +688,32 @@
   }
 
   .url-card {
-    width: 100%;
+    width: min(100%, 520px);
+    max-height: 100%;
+    box-sizing: border-box;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     background: var(--q-code-bg);
-    /* border: 1px solid var(--q-divider-dark); */
-    border-radius: 14px;
-    padding: 20px;
+    border: 1px solid var(--q-divider-dark);
+    border-radius: 10px;
+    overflow: hidden;
   }
 
   .inner-url-card {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    max-height: 100%;
-    padding: 12px 12px 20px;
-    gap: 12px;
+    min-height: 0;
+    padding: 16px;
+    gap: 14px;
   }
 
   .url-thumb-wrap {
-    position: relative;
-    width: 40%;
-    border-radius: 10px;
+    width: 100%;
+    max-height: 180px;
+    aspect-ratio: 16 / 7;
     overflow: hidden;
     background: var(--q-thumb-bg);
-    aspect-ratio: 16 / 9;
     flex-shrink: 0;
   }
 
@@ -724,29 +727,55 @@
   .url-header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+  }
+
+  .url-favicon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    border-radius: 4px;
+    flex-shrink: 0;
   }
 
   .url-hostname {
-    font-size: 1.05em;
-    font-weight: 600;
-    color: var(--q-font-color);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--q-text-secondary);
+    font-size: 0.85em;
   }
 
   .url-full {
-    word-break: break-all;
-    font-family: var(--q-mono);
-    opacity: 0.8;
+    color: var(--q-font-color);
+    font-size: 0.92em;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
 
   .url-open {
-    font-size: 0.78em;
-    color: #fff;
-    text-decoration: underline;
-    opacity: 0.6;
+    display: inline-flex;
+    align-items: center;
     align-self: flex-start;
+    border: 1px solid var(--q-divider-dark);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--q-text-secondary);
+    font-size: 0.8em;
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease;
   }
-  .url-open:hover { opacity: 1; }
+  .url-open:hover {
+    background: var(--q-surface-dark);
+    color: var(--q-font-color);
+  }
+  .url-open:focus-visible {
+    outline: 2px solid var(--q-font-color);
+    outline-offset: 2px;
+  }
 
   .email-card {
     width: 100%;
