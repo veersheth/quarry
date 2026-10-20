@@ -19,6 +19,6 @@
 
 <style>
   .toast-container {
-    font-family: "Inter", "Segoe UI", "Adwaita Sans", "Noto Color Emoji", sans-serif;
+    font-family: var(--q-sans);
   }
 </style>

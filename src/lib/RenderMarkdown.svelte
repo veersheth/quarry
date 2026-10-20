@@ -31,7 +31,7 @@
     height: 100%;
     overflow-y: auto;
     color: rgba(255, 255, 255, 0.9);
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: var(--q-sans, system-ui, sans-serif);
     line-height: 1.6;
     font-size: var(--q-font-size, 15px);
   }

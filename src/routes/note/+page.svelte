@@ -237,7 +237,7 @@
   :global(.editor-wrap .cm-editor) {
     flex: 1;
     min-height: 0;
-    font-family: Inter, "Segoe UI", "Adwaita Sans", sans-serif;
+    font-family: var(--q-sans);
     font-size: var(--q-font-size, 15px);
   }
 
