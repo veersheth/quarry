@@ -744,6 +744,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    position: relative;
   }
 
   .preview-area {
@@ -751,14 +752,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    /* Leave room for the image shadow so the preview area's overflow clip
+       doesn't cut it off at the edges. */
+    padding: 40px 40px 88px;
+    box-sizing: border-box;
     overflow: hidden;
     min-height: 0;
   }
 
   .preview-area.image-fullsize {
     display: block;
-    padding: 12px;
+    padding: 40px 40px 88px;
+    box-sizing: border-box;
     overflow-y: auto;
   }
 

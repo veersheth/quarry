@@ -136,7 +136,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 12px;
-    padding: 4px 10px 10px;
+    /* Active-item shadows need clear space inside this scroll viewport. */
+    padding: 24px;
     overflow-y: auto;
     min-height: 0;
   }
