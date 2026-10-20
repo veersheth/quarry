@@ -73,6 +73,76 @@
   }
 
   $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType, previewText) : [];
+  $: imageFooterMeta = activeItem && contentType === "image"
+    ? getImageFooterMeta(activeItem, previewImage)
+    : [];
+
+  type ClipboardFileMetadata = {
+    name: string;
+    path: string;
+    kind: string;
+    extension: string | null;
+    size_bytes: number | null;
+    modified_unix: number | null;
+  };
+
+  let fileMetadata: ClipboardFileMetadata | null = null;
+
+  $: {
+    fileMetadata = null;
+    if (activeItem && contentType === "file" && previewText) {
+      const itemName = activeItem.name;
+      const path = previewText.trim();
+      invoke<ClipboardFileMetadata | null>("get_clipboard_file_metadata", { path })
+        .then((metadata) => {
+          if (activeItem?.name === itemName && previewText?.trim() === path) {
+            fileMetadata = metadata;
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  }
+
+  function formatModifiedTime(timestamp: number): string {
+    return new Date(timestamp * 1000).toLocaleString();
+  }
+
+  function parentPath(path: string): string {
+    const separator = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+    return separator > 0 ? path.slice(0, separator) : path;
+  }
+
+  function getImageFooterMeta(item: ResultItem, imageData: string | null): string[] {
+    const details: string[] = [];
+    const dimensions = item.name.match(/(\d+)\s*[×x]\s*(\d+)/i);
+    if (dimensions) details.push(`${dimensions[1]} × ${dimensions[2]} px`);
+    details.push("PNG");
+
+    if (imageData) {
+      const comma = imageData.indexOf(",");
+      const header = imageData.slice(0, comma);
+      const encoded = imageData.slice(comma + 1);
+      if (comma !== -1 && header.includes(";base64")) {
+        const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+        const bytes = Math.floor(encoded.length * 3 / 4) - padding;
+        details.push(bytes < 1024
+          ? `${bytes} B`
+          : bytes < 1024 * 1024
+            ? `${(bytes / 1024).toFixed(1)} KB`
+            : `${(bytes / (1024 * 1024)).toFixed(1)} MB`);
+      }
+    }
+
+    if (item.ocr_text) details.push(`${item.ocr_text.length.toLocaleString()} chars`);
+    return details;
+  }
 
   type UrlMeta = {
     favicon: string | null;
@@ -185,6 +255,7 @@
 
   type ContentType =
     | "image"
+    | "file"
     | "color"
     | "url"
     | "email"
@@ -194,6 +265,7 @@
 
   function detectType(item: (typeof listitems)[0]): ContentType {
     if (item.thumbnail || item.thumbnail_key) return "image";
+    if (isFileItem(item)) return "file";
     const v = item.name?.trim() ?? "";
     if (getValidColor(v)) return "color";
     if (isURL(v)) return "url";
@@ -201,6 +273,12 @@
     if (isJSON(v)) return "json";
     if (v.includes("\n")) return "multiline";
     return "text";
+  }
+
+  function isFileItem(item: (typeof listitems)[0]): boolean {
+    return item.actions.some((action) =>
+      ["Open", "Open Folder", "Open Containing Folder"].includes(action.name),
+    );
   }
 
   function isURL(v: string): boolean {
@@ -234,8 +312,11 @@
     try {
       const u = new URL(v);
       return {
+        protocol: u.protocol.replace(":", "").toUpperCase(),
         hostname: u.hostname,
-        path: u.pathname + u.search + u.hash,
+        path: u.pathname || "/",
+        query: u.search.slice(1),
+        fragment: u.hash.slice(1),
         display: u.hostname.replace(/^www\./, ""),
       };
     } catch {
@@ -304,11 +385,7 @@
         return parts;
       }
       case "url": {
-        const parsed = parseURL(v);
-        const ytId = youtubeVideoId(v);
-        const parts = parsed ? [parsed.display].filter(Boolean) : [];
-        if (ytId) parts.push("youtube");
-        return parts;
+        return [];
       }
       case "email": {
         const p = parseEmail(v);
@@ -391,18 +468,21 @@
 
   <div class="info-panel">
     {#if activeItem}
-      <div class="preview-area" class:image-fullsize={contentType === "image"}>
+      <div
+        class="preview-area"
+        class:image-fullsize={contentType === "image"}
+      >
         {#if contentType === "image"}
-          <div class="image-preview-content">
+          <div class="image-preview-stage">
             <img
               class="image-preview"
               src={previewImage ?? activeItem.thumbnail ?? ""}
               alt={activeItem.name}
             />
-            {#if activeItem.ocr_text}
-              <div class="image-ocr-text">{activeItem.ocr_text}</div>
-            {/if}
           </div>
+          {#if activeItem.ocr_text}
+            <div class="image-ocr-text">{activeItem.ocr_text}</div>
+          {/if}
         {:else if contentType === "color"}
           <div class="color-hero">
             <div class="checkerboard">
@@ -413,38 +493,64 @@
             </div>
             <code class="color-value">{activeItem.name}</code>
           </div>
+        {:else if contentType === "file"}
+          {@const path = fileMetadata?.path ?? previewText ?? activeItem.name}
+          <div class="file-card">
+            <div class="file-heading">
+              {#if activeItem.icon}
+                <img class="file-preview-icon" src={iconSrc(activeItem.icon)} alt="" />
+              {:else}
+                <div class="file-preview-icon file-icon-fallback">FILE</div>
+              {/if}
+              <div class="file-name">{fileMetadata?.name ?? path.split(/[\\/]/).filter(Boolean).at(-1) ?? path}</div>
+            </div>
+            <table class="file-details">
+              <tbody>
+                <tr>
+                  <th scope="row">Kind</th>
+                  <td>{fileMetadata?.kind ?? "File"}</td>
+                </tr>
+                {#if fileMetadata?.size_bytes !== null && fileMetadata?.size_bytes !== undefined}
+                  <tr>
+                    <th scope="row">Size</th>
+                    <td>{formatFileSize(fileMetadata.size_bytes)}</td>
+                  </tr>
+                {/if}
+                {#if fileMetadata?.modified_unix !== null && fileMetadata?.modified_unix !== undefined}
+                  <tr>
+                    <th scope="row">Modified</th>
+                    <td>{formatModifiedTime(fileMetadata.modified_unix)}</td>
+                  </tr>
+                {/if}
+                <tr>
+                  <th scope="row">Path</th>
+                  <td class="file-path">{path}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Location</th>
+                  <td class="file-path">{parentPath(path)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         {:else if contentType === "url"}
           {@const parsed = parseURL(activeItem.name)}
           {@const meta = getUrlMeta(activeItem.name)}
           {@const ytId = youtubeVideoId(activeItem.name)}
           {#if parsed}
             <div class="url-card">
-              <div class="inner-url-card">
-                <div class="url-header">
-                  {#if meta?.favicon}
-                    <img
-                      class="url-favicon"
-                      src={meta.favicon}
-                      alt=""
-                      on:error={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  {/if}
-                  <span class="url-hostname">{parsed.display}</span>
-                </div>
-
-                <div class="url-full">{previewText ?? activeItem.name}</div>
-
-                <!-- svelte-ignore a11y_invalid_attribute -->
-                <a
-                  class="url-open"
-                  href={activeItem.name}
-                  target="_blank"
-                  rel="noopener"
-                >
-                  open in browser
-                </a>
+              <div class="url-heading">
+                {#if meta?.favicon}
+                  <img
+                    class="url-favicon"
+                    src={meta.favicon}
+                    alt=""
+                    on:error={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                {/if}
+                <span class="url-hostname">{parsed.display}</span>
               </div>
               {#if meta?.thumbnail}
                 <div class="url-thumb-wrap">
@@ -460,6 +566,32 @@
                   />
                 </div>
               {/if}
+              <table class="file-details">
+                <tbody>
+                  <tr><th scope="row">Protocol</th><td>{parsed.protocol}</td></tr>
+                  <tr><th scope="row">Domain</th><td>{parsed.hostname}</td></tr>
+                  <tr><th scope="row">Path</th><td class="file-path">{parsed.path}</td></tr>
+                  {#if ytId}
+                    <tr><th scope="row">Platform</th><td>YouTube</td></tr>
+                  {/if}
+                  {#if parsed.query}
+                    <tr><th scope="row">Query</th><td class="file-path">{parsed.query}</td></tr>
+                  {/if}
+                  {#if parsed.fragment}
+                    <tr><th scope="row">Fragment</th><td class="file-path">{parsed.fragment}</td></tr>
+                  {/if}
+                  <tr><th scope="row">URL</th><td class="file-path">{previewText ?? activeItem.name}</td></tr>
+                </tbody>
+              </table>
+              <!-- svelte-ignore a11y_invalid_attribute -->
+              <a
+                class="url-open"
+                href={activeItem.name}
+                target="_blank"
+                rel="noopener"
+              >
+                Open in browser
+              </a>
             </div>
           {/if}
         {:else if contentType === "email"}
@@ -486,10 +618,22 @@
       </div>
 
       <FooterBar>
-        <Chip mono accent={TYPE_ACCENT[contentType] ?? "#DDD"}>{contentType}</Chip>
-        {#each footerMeta as meta}
-          <Chip>{meta}</Chip>
-        {/each}
+        {#if contentType === "file"}
+          {#if fileMetadata?.extension}
+            <Chip mono>{fileMetadata.extension.toUpperCase()}</Chip>
+          {/if}
+        {:else}
+          <Chip mono accent={TYPE_ACCENT[contentType] ?? "#DDD"}>{contentType}</Chip>
+        {/if}
+        {#if contentType === "image"}
+          {#each imageFooterMeta as meta}
+            <Chip>{meta}</Chip>
+          {/each}
+        {:else}
+          {#each footerMeta as meta}
+            <Chip>{meta}</Chip>
+          {/each}
+        {/if}
         <Timestamp value={activeItem.description} />
       </FooterBar>
     {/if}
@@ -566,7 +710,7 @@
   }
 
   .icon-pill {
-    font-size: 0.6em;
+    font-size: 1.0em;
     font-family: var(--q-mono);
     padding: 2px 5px;
     border-radius: 5px;
@@ -618,12 +762,12 @@
     overflow-y: auto;
   }
 
-  .image-preview-content {
+  .image-preview-stage {
+    position: relative;
+    height: 100%;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    min-height: 100%;
+    justify-content: center;
   }
 
   .image-preview {
@@ -631,7 +775,10 @@
     width: auto;
     height: auto;
     max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38), 0 0 24px rgba(220, 220, 220, 0.16);
   }
 
   .image-ocr-text {
@@ -639,7 +786,7 @@
     width: 100%;
     box-sizing: border-box;
     padding: 12px 14px;
-    font-size: 0.9em;
+    font-size: 1em;
     line-height: 1.55;
     color: var(--q-text-secondary);
     white-space: pre-wrap;
@@ -677,6 +824,88 @@
 
   .main-swatch { width: 100%; height: 100%; }
 
+  .file-card,
+  .url-card {
+    width: min(100%, 560px);
+    max-height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+
+  .file-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .file-preview-icon {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    box-sizing: border-box;
+    object-fit: contain;
+  }
+
+  .file-icon-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--q-text-muted);
+    font-size: 1em;
+    font-weight: 600;
+    border: 1px solid var(--q-divider-dark);
+    border-radius: 5px;
+  }
+
+  .file-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--q-font-color);
+    font-size: 1em;
+    font-weight: 600;
+  }
+
+  .file-details {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 0.9em;
+  }
+
+  .file-details tr {
+    border-bottom: 1px solid var(--q-divider-dark);
+  }
+
+  .file-details th,
+  .file-details td {
+    padding: 9px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .file-details th {
+    width: 110px;
+    color: var(--q-text-secondary);
+    font-weight: 500;
+  }
+
+  .file-details td {
+    color: var(--q-text-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .file-details td.file-path {
+    color: var(--q-text-secondary);
+    font-family: var(--q-mono);
+    font-size: 0.9em;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+
   .color-value {
     font-family: var(--q-mono);
     font-size: 1.1em;
@@ -687,33 +916,13 @@
     border: 1px solid var(--q-border-dark);
   }
 
-  .url-card {
-    width: min(100%, 520px);
-    max-height: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    background: var(--q-code-bg);
-    border: 1px solid var(--q-divider-dark);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .inner-url-card {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    min-height: 0;
-    padding: 16px;
-    gap: 14px;
-  }
-
   .url-thumb-wrap {
     width: 100%;
     max-height: 180px;
     aspect-ratio: 16 / 7;
     overflow: hidden;
     background: var(--q-thumb-bg);
+    border-radius: 8px;
     flex-shrink: 0;
   }
 
@@ -724,17 +933,17 @@
     display: block;
   }
 
-  .url-header {
+  .url-heading {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
   }
 
   .url-favicon {
-    width: 18px;
-    height: 18px;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
-    border-radius: 4px;
+    border-radius: 6px;
     flex-shrink: 0;
   }
 
@@ -743,17 +952,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--q-text-secondary);
-    font-size: 0.85em;
-  }
-
-  .url-full {
     color: var(--q-font-color);
-    font-size: 0.92em;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-    user-select: text !important;
-    -webkit-user-select: text !important;
+    font-size: 1em;
+    font-weight: 600;
   }
 
   .url-open {

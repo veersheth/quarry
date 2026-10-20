@@ -9,8 +9,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-// Max raw RGBA bytes (~4MB = ~1000x1000 image) before we skip storing
-const MAX_IMAGE_BYTES: usize = 4_000_000;
+// Max raw RGBA bytes (~4MP) before we skip storing
+const MAX_IMAGE_BYTES: usize = 16_000_000;
 // Max images kept in history
 const MAX_IMAGE_ENTRIES: usize = 20;
 // Max text entries kept in history

@@ -135,6 +135,55 @@ pub fn get_action_text(action_id: String) -> Option<String> {
     }
 }
 
+#[derive(serde::Serialize)]
+pub struct ClipboardFileMetadata {
+    name: String,
+    path: String,
+    kind: &'static str,
+    extension: Option<String>,
+    size_bytes: Option<u64>,
+    modified_unix: Option<u64>,
+}
+
+#[tauri::command]
+pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata> {
+    let file_path = std::path::Path::new(&path);
+    let metadata = std::fs::metadata(file_path).ok()?;
+    let is_directory = metadata.is_dir();
+    let name = file_path
+        .file_name()
+        .and_then(|part| part.to_str())
+        .unwrap_or(&path)
+        .to_string();
+    let extension = if is_directory {
+        None
+    } else {
+        file_path
+            .extension()
+            .and_then(|part| part.to_str())
+            .map(str::to_string)
+    };
+    let size_bytes = if is_directory {
+        None
+    } else {
+        Some(metadata.len())
+    };
+    let modified_unix = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_secs());
+
+    Some(ClipboardFileMetadata {
+        name,
+        path,
+        kind: if is_directory { "Folder" } else { "File" },
+        extension,
+        size_bytes,
+        modified_unix,
+    })
+}
+
 #[tauri::command]
 pub fn clear_clipboard_history() -> Result<(), String> {
     CLIPBOARD_MANAGER.clear_history();

@@ -16,7 +16,8 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    cancel_rofi, clear_clipboard_history, exec_func, execute, get_action_text, get_ai_prefix,
+    cancel_rofi, clear_clipboard_history, exec_func, execute, get_action_text,
+    get_clipboard_file_metadata, get_ai_prefix,
     get_clipboard_image, get_clipboard_thumbnail, get_config, get_groq_api_key, get_theme,
     read_note, save_capture,
     save_config, save_groq_api_key, search, start_drag, take_pending_query, write_note,
@@ -219,6 +220,7 @@ pub fn run() {
             get_clipboard_thumbnail,
             get_clipboard_image,
             get_action_text,
+            get_clipboard_file_metadata,
             get_theme,
             get_config,
             get_ai_prefix,
