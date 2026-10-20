@@ -485,17 +485,23 @@
           {/if}
         {:else if contentType === "color"}
           <div class="color-hero">
-            <div class="checkerboard">
-              <div
-                class="main-swatch"
-                style:background-color={activeColor}
-              ></div>
+            <div
+              class="color-orb-scene"
+              role="img"
+              aria-label={`Color preview: ${activeItem.name}`}
+              style={`--orb-color: ${activeColor}`}
+            >
+              <div class="orb-glow"></div>
+              <div class="color-orb"></div>
             </div>
             <code class="color-value">{activeItem.name}</code>
           </div>
         {:else if contentType === "file"}
           {@const path = fileMetadata?.path ?? previewText ?? activeItem.name}
           <div class="file-card">
+            {#if activeItem.icon}
+              <img class="card-icon-glow" src={iconSrc(activeItem.icon)} alt="" aria-hidden="true" />
+            {/if}
             <div class="file-heading">
               {#if activeItem.icon}
                 <img class="file-preview-icon" src={iconSrc(activeItem.icon)} alt="" />
@@ -539,6 +545,17 @@
           {@const ytId = youtubeVideoId(activeItem.name)}
           {#if parsed}
             <div class="url-card">
+              {#if meta?.favicon}
+                <img
+                  class="card-icon-glow"
+                  src={meta.favicon}
+                  alt=""
+                  aria-hidden="true"
+                  on:error={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              {/if}
               <div class="url-heading">
                 {#if meta?.favicon}
                   <img
@@ -828,33 +845,65 @@
     gap: 24px;
   }
 
-  .checkerboard {
-    width: 200px;
-    height: 200px;
-    border-radius: 111px;
-    background-image:
-      linear-gradient(45deg, var(--q-surface-dark) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--q-surface-dark) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--q-surface-dark) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--q-surface-dark) 75%);
-    background-size: 20px 20px;
-    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-    background-color: var(--q-thumb-bg);
-    overflow: hidden;
-    border: 1px solid var(--q-border-dark);
+  .color-orb-scene {
+    position: relative;
+    display: grid;
+    width: 250px;
+    height: 250px;
+    place-items: center;
+    isolation: isolate;
   }
 
-  .main-swatch { width: 100%; height: 100%; }
+  .color-orb {
+    position: relative;
+    width: 176px;
+    height: 176px;
+    border-radius: 50%;
+    background: var(--orb-color);
+    box-shadow: 0 0 60px 2px color-mix(in srgb, var(--orb-color) 72%, transparent);
+  }
 
   .file-card,
   .url-card {
+    position: relative;
+    isolation: isolate;
     width: min(100%, 560px);
     max-height: 100%;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 16px;
     overflow-y: auto;
+    padding: 12px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 15px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 42%),
+      var(--q-code-bg);
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+  }
+
+  .card-icon-glow {
+    position: absolute;
+    z-index: 0;
+    top: 10px;
+    left: 10px;
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    filter: blur(18px) saturate(1.45);
+    opacity: 0.2;
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  .file-card > :not(.card-icon-glow),
+  .url-card > :not(.card-icon-glow) {
+    position: relative;
+    z-index: 1;
   }
 
   .file-heading {
@@ -893,18 +942,25 @@
 
   .file-details {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
-    font-size: 0.9em;
+    font-size: 1em;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.12);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
   }
 
-  .file-details tr {
-    border-bottom: 1px solid var(--q-divider-dark);
+  .file-details tr:not(:last-child) th,
+  .file-details tr:not(:last-child) td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
   }
 
   .file-details th,
   .file-details td {
-    padding: 9px 8px;
+    padding: 11px 10px;
     text-align: left;
     vertical-align: top;
   }
@@ -913,6 +969,10 @@
     width: 110px;
     color: var(--q-text-secondary);
     font-weight: 500;
+    font-size: 0.9em;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.018);
   }
 
   .file-details td {
@@ -923,7 +983,7 @@
   .file-details td.file-path {
     color: var(--q-text-secondary);
     font-family: var(--q-mono);
-    font-size: 0.9em;
+    font-size: 0.98em;
     user-select: text !important;
     -webkit-user-select: text !important;
   }
@@ -945,6 +1005,8 @@
     overflow: hidden;
     background: var(--q-thumb-bg);
     border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
     flex-shrink: 0;
   }
 
@@ -983,16 +1045,21 @@
     display: inline-flex;
     align-items: center;
     align-self: flex-start;
-    border: 1px solid var(--q-divider-dark);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 18px 14px;
+    background: linear-gradient(rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
     color: var(--q-text-secondary);
     font-size: 0.8em;
     text-decoration: none;
-    transition: background-color 120ms ease, color 120ms ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+    margin: auto;
+    width: 90%;
   }
   .url-open:hover {
     background: var(--q-surface-dark);
+    border-color: rgba(255, 255, 255, 0.18);
     color: var(--q-font-color);
   }
   .url-open:focus-visible {

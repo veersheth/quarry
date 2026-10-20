@@ -1,7 +1,5 @@
 use base64::Engine;
 use freedesktop_desktop_entry::{default_paths, get_languages_from_env, Iter};
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
 use std::path::Path;
 use std::sync::RwLock;
@@ -272,18 +270,18 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
     item
 }
 
-fn fuzzy_score_app(matcher: &SkimMatcherV2, app: &CachedApp, query: &str) -> i64 {
-    let q = query.to_lowercase();
-    let name_score = matcher
-        .fuzzy_match(&app.name.to_lowercase(), &q)
-        .unwrap_or(0)
-        * 2;
-    let desc_score = app
-        .description
-        .as_deref()
-        .and_then(|d| matcher.fuzzy_match(&d.to_lowercase(), &q))
-        .unwrap_or(0);
-    name_score.max(desc_score)
+fn fuzzy_score_app(app: &CachedApp, query: &str) -> i64 {
+    let mut fields = vec![app.name.as_str()];
+    if let Some(description) = app.description.as_deref() {
+        fields.push(description);
+    }
+
+    let Some(all_fields_score) = crate::search_utils::match_all_tokens(&fields, query) else {
+        return 0;
+    };
+    let name_score =
+        crate::search_utils::match_all_tokens(&[app.name.as_str()], query).unwrap_or(0);
+    all_fields_score + name_score
 }
 
 impl SearchProvider for AppSearcher {
@@ -329,9 +327,6 @@ impl SearchProvider for AppSearcher {
             return SearchResult::list(results);
         }
 
-        let matcher = SkimMatcherV2::default().ignore_case();
-        let q = query.to_lowercase();
-
         // Score apps and their actions together, then interleave by score.
         enum ScoredItem<'a> {
             App(&'a CachedApp, i64),
@@ -341,18 +336,19 @@ impl SearchProvider for AppSearcher {
         let mut scored: Vec<ScoredItem> = Vec::new();
 
         for app in guard.iter() {
-            let app_score = fuzzy_score_app(&matcher, app, query);
+            let app_score = fuzzy_score_app(app, query);
             if app_score > 0 {
                 scored.push(ScoredItem::App(app, app_score));
             }
 
             for action in &app.app_actions {
                 // Score against "App Name Action Name" and plain action name.
-                let combined = format!("{} {}", app.name, action.name).to_lowercase();
-                let action_score = matcher
-                    .fuzzy_match(&combined, &q)
-                    .or_else(|| matcher.fuzzy_match(&action.name.to_lowercase(), &q))
-                    .unwrap_or(0);
+                let combined = format!("{} {}", app.name, action.name);
+                let action_score = crate::search_utils::match_all_tokens(
+                    &[combined.as_str(), action.name.as_str()],
+                    query,
+                )
+                .unwrap_or(0);
                 if action_score > 0 {
                     scored.push(ScoredItem::Action(app, action, action_score));
                 }

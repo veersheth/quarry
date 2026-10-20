@@ -49,6 +49,9 @@ pub(crate) fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Resu
             name,
             response_socket,
         } => rofi_select(&name, &response_socket),
+        ActionData::SetQuery { .. } => {
+            Err("Search query actions are handled by the frontend".into())
+        }
         ActionData::None => Ok(()),
     }
 }

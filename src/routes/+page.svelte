@@ -46,6 +46,7 @@
   let searchTimer: ReturnType<typeof setTimeout>;
   let uiScale = 1.0;
   let clipboardSeq = 0;
+  let searchRequest = 0;
 
   // Rofi mode: bypass backend search, filter items locally
   let rofiMode = false;
@@ -60,6 +61,10 @@
       return i;
     }
     return 0;
+  }
+
+  function nextSearchRequest(): number {
+    return ++searchRequest;
   }
 
   function filterRofiItems(q: string) {
@@ -232,6 +237,9 @@
       const unlistenRofi = await listen<import("../stores/search").SearchResult>(
         "quarry-rofi",
         (event) => {
+          nextSearchRequest();
+          clearTimeout(searchTimer);
+          isLoading = false;
           const res = event.payload;
           rofiAllItems = res.results;
           rofiMode = true;
@@ -263,19 +271,6 @@
         requestAnimationFrame(appendNext);
       });
 
-      // Fast partial results from the default searcher (apps/system/shortcuts/bookmarks)
-      // arrive before the file search completes - apply immediately if still relevant.
-      const unlistenFast = await listen<{
-        query: string;
-        results: import("../stores/search").ResultItem[];
-      }>("quarry-fast", ({ payload }) => {
-        if (!rofiMode && payload.query === $query.trim()) {
-          resultItems.set(payload.results);
-          resultType.set("List");
-          activeIndex.set(0);
-        }
-      });
-
       // Pre-fill query from a subsequent `quarry <query>` invocation.
       const unlistenSetQuery = await listen<string>("quarry-set-query", ({ payload }) => {
         query.set(payload);
@@ -294,7 +289,6 @@
         unlistenRofiSocket();
         unlistenRofi();
         unlistenClipboardMore();
-        unlistenFast();
         unlistenSetQuery();
         unlistenQr();
         window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
@@ -314,18 +308,22 @@
   }
 
   $: if ($query !== undefined) {
+    const requestId = nextSearchRequest();
     if (rofiMode) {
+      isLoading = false;
       filterRofiItems($query);
       activeIndex.set(0);
     } else {
       isLoading = true;
+      resultItems.set([]);
+      activeIndex.set(0);
       clearTimeout(searchTimer);
       clipboardSeq = 0;
       const capturedQuery = $query;
       searchTimer = setTimeout(() => {
         search(capturedQuery)
           .then((res) => {
-            if (res === null) return;
+            if (requestId !== searchRequest || capturedQuery !== $query || res === null) return;
             resultItems.set(res.results);
             resultType.set(res.result_type);
             searcherName.set(res.searcher ?? "");
@@ -335,11 +333,14 @@
             }
           })
           .catch((err) => {
+            if (requestId !== searchRequest || capturedQuery !== $query) return;
             console.error("Search error:", err);
             resultItems.set([]);
           })
           .finally(() => {
-            isLoading = false;
+            if (requestId === searchRequest && capturedQuery === $query) {
+              isLoading = false;
+            }
           });
       }, 80);
     }

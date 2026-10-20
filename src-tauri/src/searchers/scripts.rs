@@ -90,7 +90,7 @@ impl SearchProvider for ScriptsSearcher {
     }
 
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
-        let query = query.trim().to_lowercase();
+        let query = query.trim();
 
         let Some(dir) = scripts_dir() else {
             let path = crate::CONFIG
@@ -136,7 +136,12 @@ impl SearchProvider for ScriptsSearcher {
                         .file_name()
                         .map(|n| n.to_string_lossy().into_owned())
                         .unwrap_or_default();
-                    crate::search_utils::smart_match(&name, &query).map(|s| (p, s))
+                    let relative = p
+                        .strip_prefix(&dir)
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| name.clone());
+                    crate::search_utils::match_all_tokens(&[&name, &relative], &query)
+                        .map(|score| (p, score))
                 })
                 .collect();
             scored.sort_by_key(|item| std::cmp::Reverse(item.1));

@@ -1,31 +1,20 @@
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
 use rayon;
 use regex::Regex;
-use serde::Serialize;
 use std::collections::HashSet;
 use std::sync::mpsc;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::searchers::{
     apps::AppSearcher, bookmarks::BookmarksSearcher, currency::CurrencySearcher,
-    emojis::EmojiSearcher, files::FileSearcher, math::MathSearcher, scripts::ScriptsSearcher,
-    shell::ShellSearcher, shortcuts::ShortcutsSearcher, system::SystemSearcher,
+    emojis::EmojiSearcher, files::FileSearcher, math::MathSearcher, meta::MetaSearcher,
+    scripts::ScriptsSearcher, shortcuts::ShortcutsSearcher, system::SystemSearcher,
     web_searchers::WebSearcher, SearchProvider,
 };
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
 static CURRENCY_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)^(\d[\d,.]*)?\s*([a-z]{3})\s+(?:to\s+)?([a-z]{3})$").unwrap());
-
-static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
-
-#[derive(Serialize, Clone)]
-struct FastPartial {
-    query: String,
-    results: Vec<ResultItem>,
-}
 
 /// Source type for scoring - apps/shortcuts always beat files at equal fuzzy quality.
 #[derive(Clone, Copy)]
@@ -38,111 +27,125 @@ enum Source {
     File,
 }
 
+impl Source {
+    fn tie_breaker(self) -> i64 {
+        match self {
+            Self::App => 50,
+            Self::Shortcut => 40,
+            Self::System => 30,
+            Self::Bookmark => 20,
+            Self::Script => 10,
+            Self::File => 0,
+        }
+    }
+}
+
+fn field_score(field: &str, token: &str) -> i64 {
+    crate::search_utils::token_match_score(field, token)
+}
+
 struct SearchTerms {
-    lower: String,
+    source_query: String,
     normalized: String,
+    tokens: Vec<String>,
 }
 
 impl SearchTerms {
     fn new(query: &str) -> Self {
+        let source_query = strip_intent_prefix(query);
+        let source_query = if source_query.is_empty() {
+            query.trim()
+        } else {
+            source_query
+        }
+        .to_string();
+        let normalized = crate::search_utils::normalize_text(&source_query);
+        let tokens: Vec<String> = normalized.split_whitespace().map(str::to_string).collect();
         Self {
-            lower: query.to_lowercase(),
-            normalized: crate::search_utils::normalize_text(query),
+            source_query,
+            tokens,
+            normalized,
         }
     }
+}
+
+fn strip_intent_prefix(query: &str) -> &str {
+    let mut remainder = query.trim_start();
+    loop {
+        let Some((word, rest)) = remainder.split_once(char::is_whitespace) else {
+            return if is_search_intent(remainder) {
+                ""
+            } else {
+                remainder
+            };
+        };
+        if !is_search_intent(word) {
+            return remainder;
+        }
+        remainder = rest.trim_start();
+    }
+}
+
+fn is_search_intent(word: &str) -> bool {
+    matches!(
+        word.to_ascii_lowercase().as_str(),
+        "find" | "launch" | "open" | "run" | "show" | "start" | "switch" | "to"
+    )
 }
 
 pub struct DefaultSearcher;
 
 impl DefaultSearcher {
-    /// Score an item against a query, taking source type into account.
-    ///
-    /// Score = raw_skim × match_quality_multiplier × type_multiplier
-    ///
-    /// match_quality tiers (for name field):
-    ///   exact match        → 4.0×
-    ///   prefix match       → 2.5×  ("ghost" → "ghostty")
-    ///   word-start match   → 1.8×  ("chr" → "Google Chrome", "chrome" word starts with "chr")
-    ///   substring match    → 1.3×  ("file" somewhere in name)
-    ///   fuzzy-only         → 1.0×
-    ///
-    /// type multipliers:
-    ///   App 2.0, Shortcut 1.7, System 1.2, Bookmark 1.0, File 0.75
-    ///
-    /// This means "ghostty" (app, prefix match) will always beat "ghosts-yummy.txt"
-    /// (file, also prefix match) because 2.0 >> 0.75, and skim scores shorter/denser
-    /// matches higher anyway. Files only beat apps when their fuzzy score is dramatically
-    /// higher and the app has only a weak match.
     fn score_item(item: &ResultItem, terms: &SearchTerms, source: Source) -> i64 {
-        let q = terms.lower.as_str();
-        let name = item.name.to_lowercase();
-        let desc = item.description.as_deref().unwrap_or("").to_lowercase();
-
-        // Also try normalized matching for better results
-        let norm_name = crate::search_utils::normalize_text(&item.name);
-        let norm_query = terms.normalized.as_str();
-
-        let raw_name = MATCHER.fuzzy_match(&name, q).unwrap_or(0);
-        let raw_desc = MATCHER.fuzzy_match(&desc, q).unwrap_or(0);
-        let raw_norm = MATCHER.fuzzy_match(&norm_name, norm_query).unwrap_or(0);
-
-        if raw_name == 0 && raw_desc == 0 && raw_norm == 0 {
+        if terms.tokens.is_empty() {
             return 0;
         }
 
-        // Name match quality - determines how "intentional" the match looks
-        let name_quality: f64 = if !q.is_empty() && raw_name > 0 {
-            if name == q {
-                4.0
-            } else if name.starts_with(q) {
-                2.5
-            } else if name.split_whitespace().any(|w| w.starts_with(q)) {
-                // word-start: "chr" matches the "Chrome" word in "Google Chrome"
-                1.8
-            } else if name.contains(q) {
-                1.3
-            } else {
-                1.0 // scattered fuzzy
+        let name = crate::search_utils::normalize_text(&item.name);
+        let description = item
+            .description
+            .as_deref()
+            .map(crate::search_utils::normalize_text)
+            .unwrap_or_default();
+        let action_names = item
+            .actions
+            .iter()
+            .map(|action| crate::search_utils::normalize_text(&action.name))
+            .filter(|name| {
+                !matches!(
+                    name.as_str(),
+                    "add" | "copy" | "delete" | "launch" | "open" | "paste" | "run" | "select"
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let mut score = 0;
+        for token in &terms.tokens {
+            let name_score = field_score(&name, token);
+            let description_score = field_score(&description, token) * 55 / 100;
+            let action_score = action_names
+                .iter()
+                .map(|action| field_score(action, token) * 65 / 100)
+                .max()
+                .unwrap_or(0);
+            let best = name_score.max(description_score).max(action_score);
+            if best == 0 {
+                return 0;
             }
-        } else if !norm_query.is_empty() && raw_norm > 0 {
-            // Check normalized matches too
-            if norm_name == norm_query {
-                3.5 // slightly lower than exact original match
-            } else if norm_name.starts_with(norm_query) {
-                2.2
-            } else if norm_name
-                .split_whitespace()
-                .any(|w| w.starts_with(norm_query))
-            {
-                1.6
-            } else if norm_name.contains(norm_query) {
-                1.1
-            } else {
-                0.8 // normalized fuzzy gets lower priority
-            }
-        } else {
-            1.0
-        };
+            score += best;
+        }
 
-        // Name counts double; desc is a tiebreaker only
-        // Use the best score from original or normalized matching
-        let best_name_score = raw_name.max(raw_norm);
-        let base = if best_name_score > 0 {
-            (best_name_score as f64 * name_quality * 2.0) as i64
-        } else {
-            raw_desc
-        };
+        if name == terms.normalized {
+            score += 1_200;
+        } else if name.starts_with(&terms.normalized) {
+            score += 500;
+        } else if name.contains(&terms.normalized) {
+            score += 250;
+        }
 
-        let type_mult: f64 = match source {
-            Source::App => 2.0,
-            Source::Shortcut => 1.7,
-            Source::System => 1.2,
-            Source::Bookmark => 1.0,
-            Source::Script => 0.9,
-            Source::File => 0.75,
-        };
-
-        (base as f64 * type_mult) as i64
+        // Source is only a small tie-breaker. A strong file-name match should
+        // beat a weak app-description match.
+        score + source.tie_breaker()
     }
 
     fn score_items(
@@ -169,7 +172,12 @@ impl DefaultSearcher {
         seen: &mut HashSet<String>,
     ) -> Vec<ResultItem> {
         let mut flat: Vec<(ResultItem, i64)> = groups.into_iter().flatten().collect();
-        flat.sort_unstable_by_key(|item| std::cmp::Reverse(item.1));
+        flat.sort_by(|left, right| {
+            right.1.cmp(&left.1).then_with(|| {
+                crate::search_utils::normalize_text(&left.0.name)
+                    .cmp(&crate::search_utils::normalize_text(&right.0.name))
+            })
+        });
         flat.into_iter()
             .filter_map(|(item, _)| {
                 if seen.insert(item.name.to_lowercase()) {
@@ -345,6 +353,13 @@ impl SearchProvider for DefaultSearcher {
     fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
+        if q.split_whitespace()
+            .next()
+            .is_some_and(|word| word.eq_ignore_ascii_case("search"))
+        {
+            return MetaSearcher.search(q, app);
+        }
+
         if q.is_empty() {
             let mut results = crate::searchers::home::home_items(app);
 
@@ -383,8 +398,8 @@ impl SearchProvider for DefaultSearcher {
         }
 
         let app_clone = app.clone();
-        let q_owned = q.to_string();
         let terms = SearchTerms::new(q);
+        let q_owned = terms.source_query.clone();
         let my_seq = crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed);
 
         // Kick off file search in a rayon thread immediately so it runs
@@ -417,7 +432,8 @@ impl SearchProvider for DefaultSearcher {
         );
         let script_results = ScriptsSearcher.search(&q_owned, app).results;
 
-        // Emit fast partial results with the same scoring as the final pass
+        // Keep the ranked sources until file results are ready. The command layer
+        // assigns executable action IDs only after the complete result set exists.
         let mut scored_sources = vec![
             Self::score_items(app_results, &terms, Source::App),
             Self::score_items(shortcut_results, &terms, Source::Shortcut),
@@ -425,18 +441,6 @@ impl SearchProvider for DefaultSearcher {
             Self::score_items(bookmark_results, &terms, Source::Bookmark),
             Self::score_items(script_results, &terms, Source::Script),
         ];
-
-        {
-            let mut seen = HashSet::new();
-            let fast = Self::merge_scored(scored_sources.to_vec(), &mut seen);
-            let _ = app.emit(
-                "quarry-fast",
-                FastPartial {
-                    query: q.to_string(),
-                    results: fast,
-                },
-            );
-        }
 
         if crate::SEARCH_SEQ.load(std::sync::atomic::Ordering::Relaxed) != my_seq {
             return SearchResult::list(vec![]);
@@ -448,32 +452,30 @@ impl SearchProvider for DefaultSearcher {
         let mut seen = HashSet::new();
         scored_sources.push(Self::score_items(file_results, &terms, Source::File));
         let mut combined = Self::merge_scored(scored_sources, &mut seen);
+        let has_primary_matches = !combined.is_empty();
 
         // Supplementary results - appended after ranked items, not competing by score
-        let mut emojis = EmojiSearcher.search(q, app).results;
+        let mut emojis = EmojiSearcher.search(&q_owned, app).results;
         emojis.truncate(6);
         combined.extend(emojis);
 
-        let mut math = MathSearcher.search(q, app).results;
+        let mut math = MathSearcher.search(&q_owned, app).results;
         math.truncate(2);
         combined.extend(math);
 
         // Currency result is so specific that if it matches we surface it first
-        if CURRENCY_RE.is_match(q) {
-            let mut res = CurrencySearcher.search(q, app).results;
+        if CURRENCY_RE.is_match(&q_owned) {
+            let mut res = CurrencySearcher.search(&q_owned, app).results;
             res.truncate(1);
             let tail = combined;
             combined = res;
             combined.extend(tail);
         }
 
-        if q.len() >= 3 {
-            let mut sh = ShellSearcher.search(q, app).results;
-            sh.truncate(2);
-            combined.extend(sh);
-        }
-
-        if q.len() >= 2 {
+        // Browser searches are a fallback. When Quarry found a local match,
+        // keep the result list focused and let the meta-search action switch
+        // explicitly to a configured web engine.
+        if !has_primary_matches && q_owned.len() >= 2 {
             let cfg_guard = crate::CONFIG.read().unwrap();
             let cfg = &*cfg_guard;
             let max = cfg.default_search.max_web_results;
@@ -484,7 +486,7 @@ impl SearchProvider for DefaultSearcher {
                         url_template: ws.url.clone(),
                         icon: ws.icon.clone(),
                     };
-                    let mut results = searcher.search(q, app).results;
+                    let mut results = searcher.search(&q_owned, app).results;
                     results.truncate(max);
                     combined.extend(results);
                 }

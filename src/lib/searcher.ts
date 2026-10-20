@@ -1,7 +1,7 @@
 // lib/searcher.ts
 import { invoke } from "@tauri-apps/api/core";
 import type { SearchResult } from "../stores/search";
-import { resultItems, resultType } from "../stores/search";
+import { query as searchQuery, resultItems, resultType } from "../stores/search";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { addToast } from "../stores/toasts";
 
@@ -21,7 +21,9 @@ export async function execute(action_id: string, name: string, currentQuery: str
       query: currentQuery,
     });
 
-    if (result === "copied") {
+    if (result.startsWith("set-query:")) {
+      searchQuery.set(result.slice("set-query:".length));
+    } else if (result === "copied") {
       addToast("Copied to clipboard");
     } else if (result === "paste") {
       const window = getCurrentWindow();

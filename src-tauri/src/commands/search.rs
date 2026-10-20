@@ -125,7 +125,7 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
     let query_clone = query.clone();
     let app_for_search = app.clone();
 
-    let result = tauri::async_runtime::spawn_blocking(move || {
+    let (result, is_default_search) = tauri::async_runtime::spawn_blocking(move || {
         let mut result = None;
         let triggers = Arc::clone(&TRIGGERS.read().unwrap());
 
@@ -139,20 +139,30 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
             }
         }
 
-        result.unwrap_or_else(|| {
-            use crate::searchers::default::DefaultSearcher;
-            DefaultSearcher.search(&query_clone, &app_for_search)
-        })
+        match result {
+            Some(result) => (result, false),
+            None => {
+                use crate::searchers::default::DefaultSearcher;
+                (DefaultSearcher.search(&query_clone, &app_for_search), true)
+            }
+        }
     })
     .await
     .ok()?;
 
     let mut search_result = result;
 
-    if !matches!(
-        search_result.result_type,
-        crate::types::ResultType::Clipboard | crate::types::ResultType::Grid
-    ) {
+    // Home results contain ordered sections and widgets; the home searcher already
+    // applies its own recent-item ordering, so global usage boosting would break
+    // both section placement and the frontend's widget index mapping.
+    if !is_default_search
+        && !matches!(
+            search_result.result_type,
+            crate::types::ResultType::Clipboard
+                | crate::types::ResultType::Grid
+                | crate::types::ResultType::Home
+        )
+    {
         if let Ok(history) = USAGE_HISTORY.read() {
             search_result.results = boost_results_by_usage(search_result.results, &query, &history);
         }

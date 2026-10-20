@@ -80,6 +80,67 @@ pub fn smart_match(text: &str, query: &str) -> Option<i64> {
     None
 }
 
+/// Score one normalized query token against normalized text.
+/// Direct matches always outrank fuzzy matches, and fuzzy matching is disabled
+/// for very short tokens to avoid broad, surprising result sets.
+pub fn token_match_score(normalized_text: &str, normalized_token: &str) -> i64 {
+    if normalized_text.is_empty() || normalized_token.is_empty() {
+        return 0;
+    }
+
+    let words = normalized_text.split_whitespace();
+    if words.clone().any(|word| word == normalized_token) {
+        return 1_000;
+    }
+    if normalized_text.starts_with(normalized_token) {
+        return 850;
+    }
+    if words.clone().any(|word| word.starts_with(normalized_token)) {
+        return 800;
+    }
+    if normalized_text.contains(normalized_token) {
+        return 700;
+    }
+
+    if normalized_token.chars().count() >= 3 {
+        MATCHER
+            .fuzzy_match(normalized_text, normalized_token)
+            .filter(|score| *score > 0)
+            .map(|score| 250 + score.min(200))
+            .unwrap_or(0)
+    } else {
+        0
+    }
+}
+
+/// Require every query token to match at least one field. This gives natural
+/// word-order-independent matching without accepting a result for only part of
+/// a multiword query.
+pub fn match_all_tokens(fields: &[&str], query: &str) -> Option<i64> {
+    let normalized_fields: Vec<String> = fields.iter().map(|field| normalize_text(field)).collect();
+    let tokens: Vec<String> = normalize_text(query)
+        .split_whitespace()
+        .map(str::to_string)
+        .collect();
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let mut total = 0;
+    for token in tokens {
+        let best = normalized_fields
+            .iter()
+            .map(|field| token_match_score(field, &token))
+            .max()
+            .unwrap_or(0);
+        if best == 0 {
+            return None;
+        }
+        total += best;
+    }
+    Some(total)
+}
+
 /// Multi-field smart matching - returns the best score from any field
 #[allow(dead_code)]
 pub fn smart_match_multi(fields: &[&str], query: &str) -> Option<i64> {

@@ -145,6 +145,7 @@ pub enum ActionData {
     RunScript { path: String },
     OpenInTerminal { path: String },
     RofiSelect { name: String, response_socket: String },
+    SetQuery { query: String },
 }
 
 impl ActionData {
@@ -173,6 +174,7 @@ impl ActionData {
             ActionData::RunScript { path } => format!("script:{}", path),
             ActionData::OpenInTerminal { path } => format!("terminal:{}", path),
             ActionData::RofiSelect { .. } => "rofi:select".to_string(),
+            ActionData::SetQuery { query } => format!("searcher:{}", query),
             ActionData::None => "none".to_string(),
         }
     }

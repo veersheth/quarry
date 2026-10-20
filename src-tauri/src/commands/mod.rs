@@ -21,6 +21,10 @@ pub fn execute(
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
+    if let ActionData::SetQuery { query } = &action_data {
+        return Ok(format!("set-query:{}", query));
+    }
+
     let tag = match &action_data {
         ActionData::PasteToApp { .. } => "paste",
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
