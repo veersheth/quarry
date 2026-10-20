@@ -971,7 +971,7 @@
     font-weight: 500;
     font-size: 0.9em;
     letter-spacing: 0.035em;
-    text-transform: uppercase;
+    <!-- text-transform: uppercase; -->
     background: rgba(255, 255, 255, 0.018);
   }
 

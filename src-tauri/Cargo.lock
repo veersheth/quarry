@@ -4209,6 +4209,7 @@ dependencies = [
  "lazy_static",
  "notify",
  "once_cell",
+ "quick-xml 0.42.0",
  "rayon",
  "regex",
  "reqwest 0.12.28",

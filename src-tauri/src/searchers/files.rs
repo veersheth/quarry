@@ -4,6 +4,8 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use notify::{RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
+use quick_xml::events::Event;
+use quick_xml::{Reader, XmlVersion};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -150,6 +152,84 @@ fn build_index_entries() -> Vec<(PathBuf, u64)> {
 pub struct FileSearcher;
 
 impl FileSearcher {
+    fn recent_files() -> Vec<ResultItem> {
+        let Some(path) = dirs::data_local_dir().map(|dir| dir.join("recently-used.xbel")) else {
+            return vec![];
+        };
+        let Ok(contents) = fs::read_to_string(path) else {
+            return vec![];
+        };
+
+        let mut reader = Reader::from_str(&contents);
+        reader.config_mut().trim_text(true);
+        let mut recent = Vec::new();
+
+        loop {
+            match reader.read_event() {
+                Ok(Event::Start(bookmark)) | Ok(Event::Empty(bookmark))
+                    if bookmark.name().as_ref() == "bookmark" =>
+                {
+                    let mut href = None;
+                    let mut visited = None;
+                    let mut modified = None;
+                    let mut added = None;
+                    for attribute in bookmark.attributes().flatten() {
+                        let value = match attribute.normalized_value(XmlVersion::Implicit1_0) {
+                            Ok(value) => value.into_owned(),
+                            Err(_) => continue,
+                        };
+                        match attribute.key.as_ref() {
+                            "href" => href = Some(value),
+                            "visited" => visited = Some(value),
+                            "modified" => modified = Some(value),
+                            "added" => added = Some(value),
+                            _ => {}
+                        }
+                    }
+
+                    if let Some(path) = href.as_deref().and_then(Self::path_from_file_url) {
+                        let timestamp = visited
+                            .as_deref()
+                            .or(modified.as_deref())
+                            .or(added.as_deref())
+                            .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+                            .map(|value| value.timestamp())
+                            .unwrap_or_default();
+                        recent.push((timestamp, path));
+                    }
+                }
+                Ok(Event::Eof) | Err(_) => break,
+                _ => {}
+            }
+        }
+
+        recent.sort_by_key(|(visited, _)| std::cmp::Reverse(*visited));
+        let mut seen = std::collections::HashSet::new();
+        recent
+            .into_iter()
+            .filter_map(|(_, path)| {
+                if !path.exists() || !seen.insert(path.clone()) {
+                    return None;
+                }
+                Some(Self::path_to_result(path))
+            })
+            .take(MAX_RESULTS)
+            .collect()
+    }
+
+    fn path_from_file_url(href: &str) -> Option<PathBuf> {
+        let path = href.strip_prefix("file://")?;
+        let path = path
+            .strip_prefix("localhost/")
+            .map(|path| format!("/{path}"))
+            .unwrap_or_else(|| path.to_string());
+        if !Path::new(&path).is_absolute() {
+            return None;
+        }
+        let decoded = urlencoding::decode(&path).ok()?;
+        Some(PathBuf::from(decoded.as_ref()))
+    }
+
     fn search_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
         paths.extend(
@@ -419,7 +499,7 @@ impl SearchProvider for FileSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
-            return SearchResult::list(vec![]);
+            return SearchResult::list(Self::recent_files());
         }
 
         if trimmed.ends_with('/') {
