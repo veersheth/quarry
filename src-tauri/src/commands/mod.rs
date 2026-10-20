@@ -120,6 +120,14 @@ pub fn get_clipboard_thumbnail(hash: String) -> Option<String> {
 }
 
 #[tauri::command]
+pub fn get_clipboard_image(hash: String) -> Option<String> {
+    let hash: u64 = hash.parse().ok()?;
+    CLIPBOARD_MANAGER
+        .get_full_image(hash)
+        .map(|(image, _, _)| image)
+}
+
+#[tauri::command]
 pub fn get_action_text(action_id: String) -> Option<String> {
     match ACTION_REGISTRY.get_action(&action_id)? {
         ActionData::CopyToClipboard { text } => Some(text),

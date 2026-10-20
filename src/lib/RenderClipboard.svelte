@@ -47,20 +47,20 @@
   }
 
   // Lazy-loaded data for the selected item
-  let previewThumb: string | null = null;
+  let previewImage: string | null = null;
   let previewText: string | null = null;
 
   $: {
-    previewThumb = null;
+    previewImage = null;
     previewText = null;
     if (activeItem) {
       if (activeItem.thumbnail_key && !activeItem.thumbnail) {
-        previewThumb = thumbCache.get(activeItem.thumbnail_key) ?? null;
-        if (!previewThumb) {
-          invoke<string | null>("get_clipboard_thumbnail", { hash: activeItem.thumbnail_key })
-            .then(t => { if (t) previewThumb = t; })
-            .catch(() => {});
-        }
+        const imageHash = activeItem.thumbnail_key;
+        invoke<string | null>("get_clipboard_image", { hash: imageHash })
+          .then(image => {
+            if (activeItem?.thumbnail_key === imageHash && image) previewImage = image;
+          })
+          .catch(() => {});
       } else {
         const copyAction = activeItem.actions.find(a => a.name === "Copy");
         if (copyAction) {
@@ -73,9 +73,6 @@
   }
 
   $: footerMeta = activeItem ? getFooterMeta(activeItem, contentType, previewText) : [];
-
-  let showOcrText = false;
-  $: if (activeItem) showOcrText = false;
 
   type UrlMeta = {
     favicon: string | null;
@@ -394,36 +391,18 @@
 
   <div class="info-panel">
     {#if activeItem}
-      {#if contentType === "image" && activeItem.ocr_text}
-        <div class="view-tabs">
-          <button
-            class="view-tab"
-            class:active={!showOcrText}
-            on:click={() => (showOcrText = false)}
-          >
-            Image
-          </button>
-          <button
-            class="view-tab"
-            class:active={showOcrText}
-            on:click={() => (showOcrText = true)}
-          >
-            Text
-          </button>
-        </div>
-      {/if}
-
       <div class="preview-area" class:image-fullsize={contentType === "image"}>
         {#if contentType === "image"}
-          {#if activeItem.ocr_text && showOcrText}
-            <div class="image-ocr-text">{activeItem.ocr_text}</div>
-          {:else}
+          <div class="image-preview-content">
             <img
               class="image-preview"
-              src={previewThumb ?? activeItem.thumbnail ?? ""}
+              src={previewImage ?? activeItem.thumbnail ?? ""}
               alt={activeItem.name}
             />
-          {/if}
+            {#if activeItem.ocr_text}
+              <div class="image-ocr-text">{activeItem.ocr_text}</div>
+            {/if}
+          </div>
         {:else if contentType === "color"}
           <div class="color-hero">
             <div class="checkerboard">
@@ -634,55 +613,41 @@
   }
 
   .preview-area.image-fullsize {
-    padding: 0;
+    display: block;
+    padding: 12px;
+    overflow-y: auto;
+  }
+
+  .image-preview-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    min-height: 100%;
   }
 
   .image-preview {
-    width: 100%;
-    height: 100%;
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
     object-fit: contain;
   }
 
   .image-ocr-text {
     width: 100%;
-    height: 100%;
-    overflow-y: auto;
-    padding: 16px 20px;
-    font-size: 0.85em;
-    line-height: 1.7;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    font-size: 0.9em;
+    line-height: 1.55;
     color: var(--q-text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
     user-select: text !important;
     -webkit-user-select: text !important;
-  }
-
-  .view-tabs {
-    display: flex;
-    flex-shrink: 0;
-    gap: 2px;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--q-surface-dark);
-    color: var(--q-text-dim);
-  }
-
-  .view-tab {
-    flex: 1;
-    padding: 5px 0;
-    font-size: 0.78em;
-    color: var(--q-text-dim);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    letter-spacing: 0.03em;
-  }
-
-  .view-tab:hover { color: var(--q-text-dim-active); }
-
-  .view-tab.active {
-    color: var(--q-font-color);
     background: var(--q-code-bg);
-    border-color: var(--q-border-dark);
+    border: 1px solid var(--q-divider-dark);
+    border-radius: 10px;
   }
 
   .color-hero {
