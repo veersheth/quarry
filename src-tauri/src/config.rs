@@ -233,6 +233,7 @@ pub struct TriggerConfig {
     pub camera:       String,
     pub bookmarks:    String,
     pub files:        String,
+    pub fonts:        String,
     pub clipboard:    String,
     pub emojis:       String,
     pub shell:        String,
@@ -260,6 +261,7 @@ impl Default for TriggerConfig {
             camera:       r"^cam$".into(),
             bookmarks:    r"^bk\s+(.*)$".into(),
             files:        r"^f\s+(.*)$".into(),
+            fonts:        r"^font(?:\s+(.*))?$".into(),
             clipboard:    r"^cp\s+(.*)$".into(),
             emojis:       r"^em\s+(.*)$".into(),
             shell:        r"^!\s+(.*)$".into(),
@@ -415,6 +417,7 @@ glow                  = "rgba(50, 50, 50, 1)"
 camera       = '^cam$'
 bookmarks    = '^bk\s+(.*)$'
 files        = '^f\s+(.*)$'
+fonts        = '^font(?:\s+(.*))?$'
 clipboard    = '^cp\s+(.*)$'
 emojis       = '^em\s+(.*)$'
 shell        = '^!\s+(.*)$'

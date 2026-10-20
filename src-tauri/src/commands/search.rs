@@ -14,6 +14,7 @@ use crate::searchers::currency::CurrencySearcher;
 use crate::searchers::dictionary::DictionarySearcher;
 use crate::searchers::emojis::EmojiSearcher;
 use crate::searchers::files::FileSearcher;
+use crate::searchers::fonts::FontsSearcher;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::math::MathSearcher;
 use crate::searchers::note::NoteSearcher;
@@ -71,6 +72,7 @@ fn build_triggers(cfg: &config::Config) -> Vec<Trigger> {
     push!(v, &t.camera, "camera", CameraSearcher);
     push!(v, &t.bookmarks, "bookmarks", BookmarksSearcher);
     push!(v, &t.files, "files", FileSearcher);
+    push!(v, &t.fonts, "fonts", FontsSearcher);
     push!(v, &t.clipboard, "clipboard", ClipboardSearcher);
     push!(v, &t.emojis, "emojis", EmojiSearcher);
     push!(v, &t.shell, "shell", ShellSearcher);

@@ -105,6 +105,7 @@ pub enum ResultType {
     Ai,
     Screenshots,
     QrCode,
+    Fonts,
 }
 
 #[derive(Debug, Serialize, Clone)]

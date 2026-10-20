@@ -26,6 +26,7 @@ pub mod default;
 pub mod dictionary;
 pub mod emojis;
 pub mod files;
+pub mod fonts;
 pub mod lorem;
 pub mod math;
 pub mod note;

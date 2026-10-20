@@ -20,7 +20,7 @@
   }
 
   interface TriggerConfig {
-    camera: string; bookmarks: string; files: string; clipboard: string;
+    camera: string; bookmarks: string; files: string; fonts: string; clipboard: string;
     emojis: string; shell: string; lorem: string; math: string;
     dictionary: string; system: string; color_picker: string; apps: string;
     url: string; currency: string; note: string; ai: string;
@@ -82,6 +82,7 @@
   const TRIGGER_LABELS: [keyof TriggerConfig, string][] = [
     ["apps",         "Apps"],
     ["files",        "Files"],
+    ["fonts",        "Fonts"],
     ["clipboard",    "Clipboard"],
     ["emojis",       "Emojis"],
     ["bookmarks",    "Bookmarks"],

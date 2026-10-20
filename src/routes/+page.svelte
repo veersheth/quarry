@@ -34,6 +34,7 @@
   import RenderAiChat from "$lib/RenderAiChat.svelte";
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import RenderQrCode from "$lib/RenderQrCode.svelte";
+  import RenderFonts from "$lib/RenderFonts.svelte";
   import Modal from "$lib/Modal.svelte";
   import { strHue } from "$lib/utils";
 
@@ -428,6 +429,12 @@
           />
         {:else if $resultType === "QrCode"}
           <RenderQrCode listitems={$resultItems} />
+        {:else if $resultType === "Fonts"}
+          <RenderFonts
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else}
           Oops
         {/if}

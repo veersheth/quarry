@@ -28,6 +28,7 @@
             pnpm
 
             # GTK and related libraries (runtime)
+            fontconfig
             glib
             gtk3
             webkitgtk_4_1
