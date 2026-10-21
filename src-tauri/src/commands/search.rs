@@ -29,7 +29,7 @@ use crate::searchers::timer::TimerSearcher;
 use crate::searchers::web_searchers::{URLSearcher, WebSearcher};
 use crate::searchers::SearchProvider;
 use crate::types::SearchResult;
-use crate::usage_tracker::boost_results_by_usage;
+use crate::usage_tracker::{boost_results_by_usage, personalize_default_results};
 use crate::{ACTION_REGISTRY, CONFIG, SEARCH_SEQ, USAGE_HISTORY};
 
 type Trigger = (Regex, Arc<dyn SearchProvider + Send + Sync>);
@@ -155,16 +155,18 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
     // Home results contain ordered sections and widgets; the home searcher already
     // applies its own recent-item ordering, so global usage boosting would break
     // both section placement and the frontend's widget index mapping.
-    if !is_default_search
-        && !matches!(
-            search_result.result_type,
-            crate::types::ResultType::Clipboard
-                | crate::types::ResultType::Grid
-                | crate::types::ResultType::Home
-        )
-    {
+    if !matches!(
+        search_result.result_type,
+        crate::types::ResultType::Clipboard
+            | crate::types::ResultType::Grid
+            | crate::types::ResultType::Home
+    ) {
         if let Ok(history) = USAGE_HISTORY.read() {
-            search_result.results = boost_results_by_usage(search_result.results, &query, &history);
+            search_result.results = if is_default_search {
+                personalize_default_results(search_result.results, &query, &history)
+            } else {
+                boost_results_by_usage(search_result.results, &query, &history)
+            };
         }
     }
 

@@ -9,6 +9,7 @@ pub struct UsageEntry {
     pub query: String,
     pub action_id: String,
     pub name: String,
+    /// Unix timestamp in milliseconds (older stored seconds are migrated on load).
     pub last_used: u64,
     pub count: u32,
 }
@@ -30,9 +31,22 @@ impl UsageHistory {
     pub fn load() -> Self {
         let path = Self::get_storage_path();
         if let Ok(contents) = fs::read_to_string(&path) {
-            serde_json::from_str(&contents).unwrap_or_default()
+            let mut history: Self = serde_json::from_str(&contents).unwrap_or_default();
+            history.migrate_timestamps_to_milliseconds();
+            history
         } else {
             Self::default()
+        }
+    }
+
+    fn migrate_timestamps_to_milliseconds(&mut self) {
+        // Older history stored Unix seconds. Millisecond timestamps make
+        // ordering reflect rapid consecutive launches as well.
+        const MILLISECOND_TIMESTAMP_THRESHOLD: u64 = 1_000_000_000_000;
+        for entry in &mut self.entries {
+            if entry.last_used < MILLISECOND_TIMESTAMP_THRESHOLD {
+                entry.last_used = entry.last_used.saturating_mul(1_000);
+            }
         }
     }
 
@@ -46,8 +60,8 @@ impl UsageHistory {
     pub fn record_usage(&mut self, query: &str, action_id: &str, name: &str) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+            .unwrap_or_default()
+            .as_millis() as u64;
 
         if let Some(entry) = self
             .entries
@@ -81,7 +95,7 @@ impl UsageHistory {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs();
+            .as_millis() as u64;
         let mut scores = HashMap::new();
 
         for entry in &self.entries {
@@ -109,8 +123,8 @@ impl UsageHistory {
             let frequency_score = (entry.count as f32).ln_1p() * 0.3;
 
             // Recency score (decay over 30 days)
-            let age_seconds = now.saturating_sub(entry.last_used);
-            let age_days = age_seconds as f32 / 86400.0;
+            let age_millis = now.saturating_sub(entry.last_used);
+            let age_days = age_millis as f32 / (86400.0 * 1_000.0);
             let recency_score = (1.0 / (1.0 + age_days / 30.0)) * 0.5;
 
             let total_score = query_match * (frequency_score + recency_score);
@@ -174,6 +188,44 @@ pub fn boost_results_by_usage(
         .collect();
     scored.sort_by(|left, right| right.1.total_cmp(&left.1));
     scored.into_iter().map(|(result, _)| result).collect()
+}
+
+/// Personalize default-search ordering without letting usage history override
+/// the relevance ranking. A frequently chosen result can move up a few places,
+/// while its lexical match still determines its general neighborhood.
+pub fn personalize_default_results(
+    results: Vec<crate::types::ResultItem>,
+    query: &str,
+    history: &UsageHistory,
+) -> Vec<crate::types::ResultItem> {
+    let action_ids: HashSet<String> = results
+        .iter()
+        .filter_map(|result| result.actions.first())
+        .map(|action| action.data.stable_id())
+        .collect();
+    let boosts = history.get_boost_scores(query, &action_ids);
+    let mut ranked: Vec<_> = results
+        .into_iter()
+        .enumerate()
+        .map(|(position, result)| {
+            let usage_boost = result
+                .actions
+                .first()
+                .and_then(|action| boosts.get(&action.data.stable_id()))
+                .copied()
+                .unwrap_or_default();
+            // Treat the usage score as a small number of positions, not as a
+            // replacement for the default searcher's relevance score.
+            let adjusted_position = position as f32 - usage_boost * 3.0;
+            (result, adjusted_position, position)
+        })
+        .collect();
+    ranked.sort_by(|left, right| {
+        left.1
+            .total_cmp(&right.1)
+            .then_with(|| left.2.cmp(&right.2))
+    });
+    ranked.into_iter().map(|(result, _, _)| result).collect()
 }
 
 fn fuzzy_match_lowercase(entry_query: &str, user_query: &str) -> bool {

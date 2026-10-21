@@ -289,27 +289,23 @@ fn item_from_usage(
     None
 }
 
-/// Build the unified "Recent" feed from all usage history, sorted by a combined
-/// recency + frequency score. Returns `(items, seen_names)` where `seen_names`
-/// is used to deduplicate the Apps section below.
+/// Build the unified "Recent" feed in last-run order. Frequency is deliberately
+/// not part of this ordering: using something often should not make it appear
+/// newer than an action the user just ran. Returns `(items, seen_names)` where
+/// `seen_names` is used to deduplicate the Apps section below.
 fn unified_recent(
     all_apps: &[ResultItem],
     all_shortcuts: &[ResultItem],
     limit: usize,
 ) -> (Vec<ResultItem>, HashSet<String>) {
-    // Pull a larger pool so deduplication and filtering don't leave us short
-    let mut usage = crate::usage_tracker::get_recent_entries("", 200);
-
-    // Combined score: recency weighted heavily, with a frequency bonus.
-    // log(count) * 2 days — so something used 10× gets ~4.6 days of bonus.
-    usage.sort_unstable_by(|a, b| {
-        let score = |e: &crate::usage_tracker::UsageEntry| {
-            let freq_bonus = (e.count as f64).ln_1p() * 2.0 * 86400.0;
-            e.last_used as f64 + freq_bonus
-        };
-        score(b)
-            .partial_cmp(&score(a))
-            .unwrap_or(std::cmp::Ordering::Equal)
+    // The usage store is bounded to 1,000 entries. Read all of it so recent
+    // copy/paste and other non-displayable actions cannot crowd out shortcuts.
+    let mut usage = crate::usage_tracker::get_recent_entries("", 1_000);
+    usage.sort_by(|a, b| {
+        b.last_used
+            .cmp(&a.last_used)
+            .then_with(|| a.action_id.cmp(&b.action_id))
+            .then_with(|| a.query.cmp(&b.query))
     });
 
     let app_by_name: std::collections::HashMap<String, &ResultItem> = all_apps
