@@ -353,10 +353,8 @@ impl SearchProvider for DefaultSearcher {
     fn search(&self, query: &str, app: &AppHandle) -> SearchResult {
         let q = query.trim();
 
-        if q.split_whitespace()
-            .next()
-            .is_some_and(|word| word.eq_ignore_ascii_case("search"))
-        {
+        let first_word = q.split_whitespace().next().unwrap_or_default();
+        if first_word.eq_ignore_ascii_case("search") {
             return MetaSearcher.search(q, app);
         }
 
@@ -492,6 +490,9 @@ impl SearchProvider for DefaultSearcher {
                 }
             }
         }
+
+        let searcher_suggestions = MetaSearcher::suggestions(&q_owned);
+        combined.splice(0..0, searcher_suggestions);
 
         SearchResult::list(combined)
     }
