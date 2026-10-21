@@ -88,6 +88,24 @@ pub fn setup_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Err
     .build()?;
 
     let window = webview.as_ref().window().clone();
+
+    // The window starts hidden so GTK has not mapped it yet. On Wayland,
+    // configure it as a layer surface before the first show; on X11 and
+    // compositors without wlr-layer-shell, keep normal Tauri window behavior.
+    #[cfg(target_os = "linux")]
+    if gtk_layer_shell::is_supported() {
+        use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+
+        if let Ok(gtk_window) = window.gtk_window() {
+            gtk_window.init_layer_shell();
+            gtk_window.set_namespace("quarry");
+            gtk_window.set_layer(Layer::Overlay);
+            gtk_window.set_anchor(Edge::Top, true);
+            gtk_window.set_layer_shell_margin(Edge::Top, 80);
+            gtk_window.set_keyboard_mode(KeyboardMode::Exclusive);
+        }
+    }
+
     webview.on_window_event(move |event| {
         match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

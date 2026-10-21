@@ -59,7 +59,7 @@
     "targets": "all",
     "linux": {
       "deb": {
-        "depends": ["fontconfig"]
+        "depends": ["fontconfig", "libgtk-layer-shell0"]
       }
     },
     "icon": [
