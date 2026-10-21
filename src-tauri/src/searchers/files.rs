@@ -2,7 +2,8 @@ use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-use notify::{RecursiveMode, Watcher};
+use notify::event::EventKind;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 use quick_xml::events::Event;
 use quick_xml::{Reader, XmlVersion};
@@ -15,10 +16,8 @@ use walkdir::WalkDir;
 
 const MAX_DEPTH: usize = 4;
 const MAX_RESULTS: usize = 10;
-// Fallback full-rebuild interval (catches anything inotify misses, e.g. FUSE mounts).
-const FALLBACK_REFRESH_SECS: u64 = 600;
-// Avoid rescanning the home directory repeatedly during bursts of file events.
-const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
+// A rare recovery scan catches events lost to kernel queue overflow or unusual filesystems.
+const FALLBACK_REFRESH_SECS: u64 = 3600;
 
 const SKIP_DIRS: &[&str] = &[
     "node_modules",
@@ -61,81 +60,241 @@ type FileIndex = Arc<Vec<IndexedFile>>;
 static FILE_INDEX: Lazy<RwLock<FileIndex>> = Lazy::new(|| RwLock::new(Arc::new(Vec::new())));
 static USER_SCRIPTS_DIR: Lazy<Option<PathBuf>> = Lazy::new(get_user_scripts_dir);
 
-/// Spawn the file index background worker.
-///
-/// Strategy: build the index immediately, then watch for filesystem events via
-/// inotify (Linux) / FSEvents (macOS). On any event, debounce 500 ms then
-/// rebuild only what changed. A fallback full-rebuild fires every 10 minutes to
-/// catch anything inotify misses (FUSE mounts, kernel queue overflows, etc.).
+/// Build the index once, then maintain it from filesystem events.
 pub fn start_file_index() {
     std::thread::spawn(|| {
-        // Initial build.
-        let entries = build_index_entries();
+        let roots = FileSearcher::search_paths();
+        let (entries, directories) = build_index_snapshot(&roots);
         if let Ok(mut idx) = FILE_INDEX.write() {
             *idx = Arc::new(entries);
         }
 
-        // A bounded channel coalesces event bursts instead of queueing one
-        // rebuild request for every filesystem notification.
-        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        let (tx, rx) = std::sync::mpsc::sync_channel(4096);
+        let overflowed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let callback_overflowed = Arc::clone(&overflowed);
 
-        // Try to set up inotify/FSEvents watcher. If it fails (e.g. watch
-        // limit exhausted), we fall through to the polling fallback silently.
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             if let Ok(event) = res {
-                if event.paths.iter().any(|path| should_refresh_for_path(path)) {
-                    // Ignore full/disconnected channel errors. One pending
-                    // marker is enough to request a rebuild.
-                    let _ = tx.try_send(());
+                if should_refresh_for_event(&event) {
+                    if tx.try_send(event).is_err() {
+                        callback_overflowed.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
                 }
             }
         });
 
-        if let Ok(ref mut w) = watcher {
-            for path in FileSearcher::search_paths() {
-                let _ = w.watch(&path, RecursiveMode::Recursive);
-            }
+        let mut watcher = watcher.ok();
+        let mut watched = std::collections::HashSet::new();
+        if let Some(watcher) = watcher.as_mut() {
+            watch_directories(watcher, directories, &mut watched);
         }
 
-        let fallback = Duration::from_secs(FALLBACK_REFRESH_SECS);
-        let debounce = Duration::from_millis(500);
-        let mut last_refresh = std::time::Instant::now();
-
         loop {
-            // Wait for either an inotify event or the fallback timeout.
-            match rx.recv_timeout(fallback) {
-                Ok(_) => {
-                    // Wait for a quiet period so one save operation produces
-                    // one rebuild, even when it emits many filesystem events.
-                    loop {
-                        match rx.recv_timeout(debounce) {
-                            Ok(_) => continue,
-                            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
-                            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
-                        }
+            match rx.recv_timeout(Duration::from_secs(FALLBACK_REFRESH_SECS)) {
+                Ok(first) => {
+                    let mut events = vec![first];
+                    while let Ok(event) = rx.recv_timeout(Duration::from_millis(150)) {
+                        events.push(event);
                     }
 
-                    // Cap full scans during sustained file activity. Events
-                    // that arrive during the cooldown are coalesced below.
-                    let cooldown = MIN_REFRESH_INTERVAL.saturating_sub(last_refresh.elapsed());
-                    if !cooldown.is_zero() {
-                        std::thread::sleep(cooldown);
-                        while rx.try_recv().is_ok() {}
+                    if overflowed.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                        let (entries, directories) = build_index_snapshot(&roots);
+                        replace_index(entries);
+                        if let Some(watcher) = watcher.as_mut() {
+                            reset_watches(watcher, directories, &mut watched);
+                        }
+                        continue;
+                    }
+
+                    for event in events {
+                        apply_event(event, &roots, watcher.as_mut(), &mut watched);
                     }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    // Fallback: no events for 10 minutes, rebuild anyway.
+                    let (entries, directories) = build_index_snapshot(&roots);
+                    replace_index(entries);
+                    if let Some(watcher) = watcher.as_mut() {
+                        reset_watches(watcher, directories, &mut watched);
+                    }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
-
-            let entries = build_index_entries();
-            if let Ok(mut idx) = FILE_INDEX.write() {
-                *idx = Arc::new(entries);
-            }
-            last_refresh = std::time::Instant::now();
         }
     });
+}
+
+fn watch_directories(
+    watcher: &mut RecommendedWatcher,
+    directories: impl IntoIterator<Item = PathBuf>,
+    watched: &mut std::collections::HashSet<PathBuf>,
+) {
+    for path in directories {
+        if watched.insert(path.clone())
+            && watcher.watch(&path, RecursiveMode::NonRecursive).is_err()
+        {
+            watched.remove(&path);
+        }
+    }
+}
+
+fn reset_watches(
+    watcher: &mut RecommendedWatcher,
+    directories: Vec<PathBuf>,
+    watched: &mut std::collections::HashSet<PathBuf>,
+) {
+    for path in watched.drain() {
+        let _ = watcher.unwatch(&path);
+    }
+    watch_directories(watcher, directories, watched);
+}
+
+fn apply_event(
+    event: notify::Event,
+    roots: &[PathBuf],
+    mut watcher: Option<&mut RecommendedWatcher>,
+    watched: &mut std::collections::HashSet<PathBuf>,
+) {
+    for path in event.paths {
+        if !is_within_roots(&path, roots) || !should_refresh_for_path(&path) {
+            continue;
+        }
+        if path.exists() {
+            if path.is_dir() {
+                if let Ok(metadata) = fs::metadata(&path) {
+                    upsert_indexed_file(path.clone(), mtime_secs_from_metadata(&metadata));
+                }
+                let Some(max_depth) = remaining_depth(&path, roots) else {
+                    continue;
+                };
+                let (entries, directories) = scan_subtree(&path, max_depth);
+                if let Ok(mut index) = FILE_INDEX.write() {
+                    let index = Arc::make_mut(&mut index);
+                    index.retain(|(existing, _)| !existing.starts_with(&path));
+                    index.extend(entries);
+                }
+                if let Some(watcher) = watcher.as_deref_mut() {
+                    watch_directories(watcher, directories, watched);
+                }
+            } else if let Ok(metadata) = fs::metadata(&path) {
+                if metadata.is_file() {
+                    upsert_indexed_file(path, mtime_secs_from_metadata(&metadata));
+                }
+            }
+        } else {
+            let stale: Vec<_> = watched
+                .iter()
+                .filter(|existing| existing.starts_with(&path))
+                .cloned()
+                .collect();
+            if let Some(watcher) = watcher.as_deref_mut() {
+                for stale_path in &stale {
+                    let _ = watcher.unwatch(stale_path);
+                }
+            }
+            for stale_path in stale {
+                watched.remove(&stale_path);
+            }
+            if let Ok(mut index) = FILE_INDEX.write() {
+                Arc::make_mut(&mut index).retain(|(existing, _)| !existing.starts_with(&path));
+            }
+        }
+    }
+}
+
+fn build_index_snapshot(roots: &[PathBuf]) -> (Vec<IndexedFile>, Vec<PathBuf>) {
+    let mut files = Vec::new();
+    let mut directories = Vec::new();
+    let mut seen_files = std::collections::HashSet::new();
+    let mut seen_directories = std::collections::HashSet::new();
+
+    for root in roots {
+        let (root_files, root_directories) = scan_subtree(root, MAX_DEPTH);
+        for (path, modified) in root_files {
+            if seen_files.insert(path.clone()) {
+                files.push((path, modified));
+            }
+        }
+        for path in root_directories {
+            if seen_directories.insert(path.clone()) {
+                directories.push(path);
+            }
+        }
+    }
+    (files, directories)
+}
+
+fn scan_subtree(root: &Path, max_depth: usize) -> (Vec<IndexedFile>, Vec<PathBuf>) {
+    let mut files = Vec::new();
+    let mut directories = Vec::new();
+    for entry in WalkDir::new(root)
+        .max_depth(max_depth)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|entry| {
+            let name = entry.file_name().to_str().unwrap_or("");
+            entry.depth() == 0 || (!name.starts_with('.') && !SKIP_DIRS.contains(&name))
+        })
+        .filter_map(Result::ok)
+    {
+        let path = entry.path().to_path_buf();
+        if entry.file_type().is_dir() {
+            files.push((path.clone(), mtime_secs(&path)));
+            if entry.depth() < max_depth {
+                directories.push(path);
+            }
+        } else if entry.file_type().is_file() {
+            files.push((path.clone(), mtime_secs(&path)));
+        }
+    }
+    (files, directories)
+}
+
+fn is_within_roots(path: &Path, roots: &[PathBuf]) -> bool {
+    roots.iter().any(|root| path.starts_with(root))
+}
+
+fn remaining_depth(path: &Path, roots: &[PathBuf]) -> Option<usize> {
+    let root = roots
+        .iter()
+        .filter(|root| path.starts_with(root.as_path()))
+        .max_by_key(|root| root.components().count())?;
+    let depth = path.strip_prefix(root).ok()?.components().count();
+    (depth < MAX_DEPTH).then_some(MAX_DEPTH - depth)
+}
+
+fn mtime_secs_from_metadata(metadata: &fs::Metadata) -> u64 {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
+}
+
+fn upsert_indexed_file(path: PathBuf, modified: u64) {
+    if let Ok(mut index) = FILE_INDEX.write() {
+        let files = Arc::make_mut(&mut index);
+        if let Some(entry) = files.iter_mut().find(|(existing, _)| *existing == path) {
+            entry.1 = modified;
+        } else {
+            files.push((path, modified));
+        }
+    }
+}
+
+fn replace_index(entries: Vec<IndexedFile>) {
+    if let Ok(mut index) = FILE_INDEX.write() {
+        *index = Arc::new(entries);
+    }
+}
+
+fn should_refresh_for_event(event: &notify::Event) -> bool {
+    let changes_index = matches!(
+        &event.kind,
+        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+    );
+
+    changes_index && event.paths.iter().any(|path| should_refresh_for_path(path))
 }
 
 fn should_refresh_for_path(path: &Path) -> bool {
@@ -272,13 +431,17 @@ impl FileSearcher {
         // A home-directory scan already covers its standard folders. Watching
         // them separately duplicated scans and generated duplicate events.
         paths.extend(
-            [dirs::download_dir(), dirs::document_dir(), dirs::desktop_dir()]
-                .into_iter()
-                .flatten()
-                .filter(|path| match home.as_ref() {
-                    Some(home) => !path.starts_with(home),
-                    None => true,
-                }),
+            [
+                dirs::download_dir(),
+                dirs::document_dir(),
+                dirs::desktop_dir(),
+            ]
+            .into_iter()
+            .flatten()
+            .filter(|path| match home.as_ref() {
+                Some(home) => !path.starts_with(home),
+                None => true,
+            }),
         );
         if let Some(home) = home {
             paths.push(home);

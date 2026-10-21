@@ -11,9 +11,10 @@ use std::time::Duration;
 
 // Max raw RGBA bytes (~4MP) before we skip storing
 const MAX_IMAGE_BYTES: usize = 16_000_000;
-// Polling an image clipboard requires copying and hashing its full pixel buffer.
-// One-second polling keeps history responsive without doing that twice a second.
+// Polling an image clipboard copies and hashes its full pixel buffer. Keep text
+// updates responsive, but check image data less often to reduce idle work.
 const MONITOR_POLL_INTERVAL: Duration = Duration::from_secs(1);
+const IMAGE_POLL_INTERVAL: Duration = Duration::from_secs(3);
 // Max images kept in history
 const MAX_IMAGE_ENTRIES: usize = 20;
 // Max text entries kept in history
@@ -308,14 +309,19 @@ impl ClipboardManager {
 
             let mut last_text: Option<String> = None;
             let mut last_image_hash: Option<u64> = None;
+            let mut last_image_text: Option<String> = None;
+            let mut last_image_check = std::time::Instant::now();
 
             loop {
                 thread::sleep(MONITOR_POLL_INTERVAL);
 
                 // --- Text ---
+                let mut observed_text = None;
                 if let Ok(text) = clipboard.get_text() {
+                    observed_text = Some(text.clone());
                     if last_text.as_ref() != Some(&text) {
-                        if !text.trim().is_empty() && text.len() < 1_000_000 {
+                        let has_text = !text.trim().is_empty();
+                        if has_text && text.len() < 1_000_000 {
                             let mut hist = history.lock().unwrap();
                             let existing = hist.iter().position(|e| match &e.content {
                                 ClipboardContent::Text { value } => value == &text,
@@ -354,13 +360,24 @@ impl ClipboardManager {
                             }
                         }
                         last_text = Some(text);
-                        // Clear image tracking so an image copied after this text is detected
-                        last_image_hash = None;
-                        continue; // clipboard holds text, skip image check this tick
+                        if has_text {
+                            // If this is an image's text representation, keep its
+                            // hash so it is not re-encoded and OCR'd every poll.
+                            if last_image_text.as_ref() != last_text.as_ref() {
+                                last_image_hash = None;
+                                last_image_text = None;
+                            }
+                            continue; // clipboard holds text, skip image check this tick
+                        }
                     }
                 }
 
                 // --- Image ---
+                if last_image_check.elapsed() < IMAGE_POLL_INTERVAL {
+                    continue;
+                }
+                last_image_check = std::time::Instant::now();
+
                 if let Ok(img_data) = clipboard.get_image() {
                     let raw: &[u8] = &img_data.bytes;
                     let w = img_data.width as u32;
@@ -377,6 +394,7 @@ impl ClipboardManager {
                         continue; // same image, nothing to do
                     }
                     last_image_hash = Some(hash);
+                    last_image_text = observed_text;
                     last_text = None; // reset text tracking
 
                     // Build thumbnail and full PNG on this thread (CPU-bound but rare)
