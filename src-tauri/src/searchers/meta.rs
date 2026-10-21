@@ -70,13 +70,19 @@ impl MetaSearcher {
             return None;
         }
 
-        let target_query = words
+        let mut target_query = words
             .iter()
             .skip(1)
             .copied()
             .skip_while(|word| matches!(word.to_ascii_lowercase().as_str(), "in" | "for" | "using"))
             .collect::<Vec<_>>()
             .join(" ");
+        if matches!(
+            target_query.to_ascii_lowercase().as_str(),
+            "searcher" | "searchers"
+        ) {
+            target_query.clear();
+        }
 
         let mut scored: Vec<(SearchTarget, i64)> = Self::targets()
             .into_iter()
@@ -89,13 +95,37 @@ impl MetaSearcher {
                 .cmp(left_score)
                 .then_with(|| left.name.cmp(&right.name))
         });
-        Some(
-            scored
-                .into_iter()
-                .take(12)
-                .map(|(target, _)| target)
-                .collect(),
+        Some(scored.into_iter().map(|(target, _)| target).collect())
+    }
+
+    pub fn suggestions(query: &str) -> Vec<ResultItem> {
+        let query = query.trim();
+        let meta_query = if matches!(
+            query.to_ascii_lowercase().as_str(),
+            "searcher" | "searchers"
+        ) {
+            "search".to_string()
+        } else {
+            format!("search {query}")
+        };
+        Self::search_targets(&meta_query)
+            .unwrap_or_default()
+            .into_iter()
+            .map(Self::target_to_result)
+            .collect()
+    }
+
+    fn target_to_result(target: SearchTarget) -> ResultItem {
+        ResultItem::new(
+            format!("Search {}", target.name),
+            vec![Action::new(
+                "Switch Searcher",
+                ActionData::SetQuery {
+                    query: target.trigger,
+                },
+            )],
         )
+        .description(format!("Continue in {} search", target.name))
     }
 }
 
@@ -109,21 +139,7 @@ impl SearchProvider for MetaSearcher {
             return SearchResult::list(Vec::new());
         };
 
-        let results = targets
-            .into_iter()
-            .map(|target| {
-                ResultItem::new(
-                    format!("Search {}", target.name),
-                    vec![Action::new(
-                        "Switch Searcher",
-                        ActionData::SetQuery {
-                            query: target.trigger,
-                        },
-                    )],
-                )
-                .description(format!("Continue in {} search", target.name))
-            })
-            .collect();
+        let results = targets.into_iter().map(Self::target_to_result).collect();
 
         SearchResult::list(results)
     }
