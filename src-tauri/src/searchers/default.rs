@@ -381,7 +381,11 @@ impl SearchProvider for DefaultSearcher {
 
             if !other_apps.is_empty() {
                 results.push(make_header("Apps"));
-                results.extend(other_apps);
+                results.extend(
+                    other_apps
+                        .into_iter()
+                        .map(|item| item.group("apps-section")),
+                );
             }
 
             return SearchResult {

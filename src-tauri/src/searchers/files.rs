@@ -17,6 +17,8 @@ const MAX_DEPTH: usize = 4;
 const MAX_RESULTS: usize = 10;
 // Fallback full-rebuild interval (catches anything inotify misses, e.g. FUSE mounts).
 const FALLBACK_REFRESH_SECS: u64 = 600;
+// Avoid rescanning the home directory repeatedly during bursts of file events.
+const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 
 const SKIP_DIRS: &[&str] = &[
     "node_modules",
@@ -57,6 +59,7 @@ type IndexedFile = (PathBuf, u64);
 type FileIndex = Arc<Vec<IndexedFile>>;
 
 static FILE_INDEX: Lazy<RwLock<FileIndex>> = Lazy::new(|| RwLock::new(Arc::new(Vec::new())));
+static USER_SCRIPTS_DIR: Lazy<Option<PathBuf>> = Lazy::new(get_user_scripts_dir);
 
 /// Spawn the file index background worker.
 ///
@@ -72,14 +75,19 @@ pub fn start_file_index() {
             *idx = Arc::new(entries);
         }
 
-        let (tx, rx) = std::sync::mpsc::channel();
+        // A bounded channel coalesces event bursts instead of queueing one
+        // rebuild request for every filesystem notification.
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
 
         // Try to set up inotify/FSEvents watcher. If it fails (e.g. watch
         // limit exhausted), we fall through to the polling fallback silently.
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-            if res.is_ok() {
-                // Ignore send errors - receiver may have gone away.
-                let _ = tx.send(());
+            if let Ok(event) = res {
+                if event.paths.iter().any(|path| should_refresh_for_path(path)) {
+                    // Ignore full/disconnected channel errors. One pending
+                    // marker is enough to request a rebuild.
+                    let _ = tx.try_send(());
+                }
             }
         });
 
@@ -91,15 +99,29 @@ pub fn start_file_index() {
 
         let fallback = Duration::from_secs(FALLBACK_REFRESH_SECS);
         let debounce = Duration::from_millis(500);
+        let mut last_refresh = std::time::Instant::now();
 
         loop {
             // Wait for either an inotify event or the fallback timeout.
             match rx.recv_timeout(fallback) {
                 Ok(_) => {
-                    // Drain any events that piled up during the debounce window,
-                    // then rebuild once.
-                    std::thread::sleep(debounce);
-                    while rx.try_recv().is_ok() {}
+                    // Wait for a quiet period so one save operation produces
+                    // one rebuild, even when it emits many filesystem events.
+                    loop {
+                        match rx.recv_timeout(debounce) {
+                            Ok(_) => continue,
+                            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
+                            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+
+                    // Cap full scans during sustained file activity. Events
+                    // that arrive during the cooldown are coalesced below.
+                    let cooldown = MIN_REFRESH_INTERVAL.saturating_sub(last_refresh.elapsed());
+                    if !cooldown.is_zero() {
+                        std::thread::sleep(cooldown);
+                        while rx.try_recv().is_ok() {}
+                    }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     // Fallback: no events for 10 minutes, rebuild anyway.
@@ -111,8 +133,21 @@ pub fn start_file_index() {
             if let Ok(mut idx) = FILE_INDEX.write() {
                 *idx = Arc::new(entries);
             }
+            last_refresh = std::time::Instant::now();
         }
     });
+}
+
+fn should_refresh_for_path(path: &Path) -> bool {
+    let is_user_scripts_path = USER_SCRIPTS_DIR
+        .as_ref()
+        .is_some_and(|scripts_dir| path.starts_with(scripts_dir));
+    path.components().all(|component| {
+        let Some(name) = component.as_os_str().to_str() else {
+            return true;
+        };
+        (is_user_scripts_path || !name.starts_with('.')) && !SKIP_DIRS.contains(&name)
+    })
 }
 
 /// Trigger an immediate index rebuild outside the normal refresh cycle.
@@ -232,24 +267,31 @@ impl FileSearcher {
 
     fn search_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
+        let home = dirs::home_dir();
+
+        // A home-directory scan already covers its standard folders. Watching
+        // them separately duplicated scans and generated duplicate events.
         paths.extend(
-            [
-                dirs::download_dir(),
-                dirs::document_dir(),
-                dirs::desktop_dir(),
-            ]
-            .into_iter()
-            .flatten(),
+            [dirs::download_dir(), dirs::document_dir(), dirs::desktop_dir()]
+                .into_iter()
+                .flatten()
+                .filter(|path| match home.as_ref() {
+                    Some(home) => !path.starts_with(home),
+                    None => true,
+                }),
         );
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = home {
             paths.push(home);
         }
 
         // Include the user scripts directory for script discovery
-        if let Some(scripts_dir) = get_user_scripts_dir() {
-            paths.push(scripts_dir);
+        if let Some(scripts_dir) = USER_SCRIPTS_DIR.as_ref().cloned() {
+            if !paths.contains(&scripts_dir) {
+                paths.push(scripts_dir);
+            }
         }
 
+        paths.sort();
         paths.dedup();
         paths
     }
@@ -459,7 +501,7 @@ fn is_script(path: &Path) -> bool {
     }
 
     // Only allow scripts from the user scripts directory
-    let Some(scripts_dir) = get_user_scripts_dir() else {
+    let Some(scripts_dir) = USER_SCRIPTS_DIR.as_ref() else {
         return false;
     };
 

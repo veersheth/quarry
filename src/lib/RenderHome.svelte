@@ -4,6 +4,7 @@
   import { mouseHasMoved } from "../stores/search";
   import { runItemAction } from "./keyHandler";
   import RenderList from "./RenderList.svelte";
+  import RenderApps from "./RenderApps.svelte";
   import ItemIcon from "./ui/ItemIcon.svelte";
 
   export let listitems: ResultItem[] = [];
@@ -12,9 +13,26 @@
     | ((e: MouseEvent, item: ResultItem) => void)
     | undefined = undefined;
 
+  type Segment = { kind: "list" | "grid"; items: ResultItem[]; offset: number };
+
   $: widgets = listitems.filter(i => i.group === "widget");
-  $: apps    = listitems.filter(i => i.group !== "widget");
+  $: apps = listitems.filter(i => i.group !== "widget");
   $: cols    = Math.min(widgets.length, 4);
+  $: segments = makeSegments(apps);
+
+  function makeSegments(items: ResultItem[]): Segment[] {
+    const result: Segment[] = [];
+    for (const [index, item] of items.entries()) {
+      const kind = item.group === "apps-section" ? "grid" : "list";
+      const last = result[result.length - 1];
+      if (last?.kind === kind) {
+        last.items.push(item);
+      } else {
+        result.push({ kind, items: [item], offset: index });
+      }
+    }
+    return result;
+  }
 
   $: { listitems; mouseHasMoved.set(false); }
 </script>
@@ -45,14 +63,23 @@
   </div>
 {/if}
 
-{#if apps.length > 0}
-  <RenderList
-    listitems={apps}
-    {activeIndex}
-    indexOffset={widgets.length}
-    {onContextMenu}
-  />
-{/if}
+{#each segments as segment}
+  {#if segment.kind === "grid"}
+    <RenderApps
+      listitems={segment.items}
+      {activeIndex}
+      indexOffset={widgets.length + segment.offset}
+      {onContextMenu}
+    />
+  {:else}
+    <RenderList
+      listitems={segment.items}
+      {activeIndex}
+      indexOffset={widgets.length + segment.offset}
+      {onContextMenu}
+    />
+  {/if}
+{/each}
 
 <style>
   .widget-row {

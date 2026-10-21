@@ -96,6 +96,7 @@ impl ResultItem {
 pub enum ResultType {
     List,
     Grid,
+    Apps,
     Markdown,
     Clipboard,
     ColorPicker,

@@ -4,6 +4,7 @@
 
   export let icon: string;
   export let name: string = "";
+  export let size: number = 20;
   /** If set, the icon becomes a drag handle for native file drag. */
   export let draggable_path: string | undefined = undefined;
 
@@ -29,6 +30,8 @@
 
 <div
   class="wrap"
+  style:width={`${size}px`}
+  style:height={`${size}px`}
   role="presentation"
   class:drag-source={!!draggable_path}
   on:mousedown|preventDefault={(e) => {
@@ -55,8 +58,6 @@
 <style>
   .wrap {
     position: relative;
-    width: 20px;
-    height: 20px;
     flex-shrink: 0;
   }
 

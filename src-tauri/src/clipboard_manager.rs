@@ -11,6 +11,9 @@ use std::time::Duration;
 
 // Max raw RGBA bytes (~4MP) before we skip storing
 const MAX_IMAGE_BYTES: usize = 16_000_000;
+// Polling an image clipboard requires copying and hashing its full pixel buffer.
+// One-second polling keeps history responsive without doing that twice a second.
+const MONITOR_POLL_INTERVAL: Duration = Duration::from_secs(1);
 // Max images kept in history
 const MAX_IMAGE_ENTRIES: usize = 20;
 // Max text entries kept in history
@@ -307,7 +310,7 @@ impl ClipboardManager {
             let mut last_image_hash: Option<u64> = None;
 
             loop {
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(MONITOR_POLL_INTERVAL);
 
                 // --- Text ---
                 if let Ok(text) = clipboard.get_text() {

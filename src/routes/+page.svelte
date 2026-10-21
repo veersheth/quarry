@@ -8,6 +8,7 @@
   import RenderList from "$lib/RenderList.svelte";
   import RenderHome from "$lib/RenderHome.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
+  import RenderApps from "$lib/RenderApps.svelte";
   import ContextMenu from "$lib/ContextMenu.svelte";
   import {
     query,
@@ -392,6 +393,12 @@
           />
         {:else if $resultType === "Grid"}
           <RenderEmojis
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
+        {:else if $resultType === "Apps"}
+          <RenderApps
             listitems={$resultItems}
             {activeIndex}
             onContextMenu={handleContextMenu}

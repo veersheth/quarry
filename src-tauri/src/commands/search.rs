@@ -159,6 +159,7 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         search_result.result_type,
         crate::types::ResultType::Clipboard
             | crate::types::ResultType::Grid
+            | crate::types::ResultType::Apps
             | crate::types::ResultType::Home
     ) {
         if let Ok(history) = USAGE_HISTORY.read() {
