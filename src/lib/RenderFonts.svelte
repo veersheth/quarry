@@ -4,6 +4,7 @@
   import { mouseHasMoved } from "../stores/search";
   import FooterBar from "./ui/FooterBar.svelte";
   import Chip from "./ui/Chip.svelte";
+  import SidebarRenderer from "./SidebarRenderer.svelte";
 
   export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
@@ -20,8 +21,8 @@
   }
 </script>
 
-<div class="clipboard">
-  <div class="result-list">
+<SidebarRenderer>
+  <div slot="list" class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -50,7 +51,7 @@
     {/each}
   </div>
 
-  <div class="info-panel">
+  <div slot="detail" class="info-panel">
     {#if activeItem}
       <div class="preview-area">
         <div class="specimen" style={fontStyle}>
@@ -73,17 +74,10 @@
       </div>
     {/if}
   </div>
-</div>
+</SidebarRenderer>
 
 <style>
-  .clipboard {
-    display: flex;
-    height: 100%;
-    color: var(--q-font-color);
-  }
-
   .result-list {
-    flex: 0 0 224px;
     border-right: 1px solid rgba(0, 0, 0, 0);
     overflow-y: auto;
     padding: 5px 10px;

@@ -1,184 +1,92 @@
 <script lang="ts">
   import { writable, type Writable } from "svelte/store";
   import type { ResultItem } from "../stores/search";
-  import { mouseHasMoved } from "../stores/search";
-  import { runItemAction } from "./keyHandler";
+  import GridRenderer from "./GridRenderer.svelte";
 
   export let listitems: ResultItem[] = [];
   export let activeIndex: Writable<number> = writable(0);
   export let onContextMenu:
-    | ((e: MouseEvent, item: ResultItem) => void)
+    | ((event: MouseEvent, item: ResultItem) => void)
     | undefined = undefined;
 
-  $: featured = listitems.filter((i) => i.group === "featured");
-  $: all = listitems.filter((i) => i.group !== "featured");
-
-  $: featuredOffset = 0;
+  $: featured = listitems.filter((item) => item.group === "featured");
+  $: all = listitems.filter((item) => item.group !== "featured");
   $: allOffset = featured.length;
-
-  $: {
-    listitems;
-    mouseHasMoved.set(false);
-  }
-
-  function handleClick(item: ResultItem) {
-    runItemAction(item);
-  }
 </script>
-
 
 <div class="emoji-layout">
   {#if featured.length > 0}
-    <div class="featured-strip">
-      {#each featured as item, i}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div
-          class="featured-item"
-          class:active={featuredOffset + i === $activeIndex}
-          class:pinned={item.pinned}
-          data-active={featuredOffset + i === $activeIndex}
-          on:mouseenter={() => {
-            if ($mouseHasMoved) activeIndex.set(featuredOffset + i);
-          }}
-          on:click={() => handleClick(item)}
-          on:contextmenu={(e) => {
-            e.preventDefault();
-            onContextMenu?.(e, item);
-          }}
-        >
-          <span class="emoji">{item.name}</span>
-        </div>
-      {/each}
-    </div>
+    <GridRenderer
+      listitems={featured}
+      {activeIndex}
+      layout="strip"
+      minCellWidth={48}
+      gap={6}
+      padding="10px 10px 8px"
+      cellPadding="0"
+      cellMinHeight="48px"
+      {onContextMenu}
+      let:item
+    >
+      <span class="emoji featured-emoji">{item.name}</span>
+    </GridRenderer>
     <div class="section-divider"></div>
   {/if}
 
-  <div class="result-grid">
-    {#each all as item, i}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <div
-        class="grid-item"
-        class:active={allOffset + i === $activeIndex}
-        class:pinned={item.pinned}
-        data-active={allOffset + i === $activeIndex}
-        on:mouseenter={() => {
-          if ($mouseHasMoved) activeIndex.set(allOffset + i);
-        }}
-        on:click={() => handleClick(item)}
-        on:contextmenu={(e) => {
-          e.preventDefault();
-          onContextMenu?.(e, item);
-        }}
-      >
-        <span class="emoji">{item.name}</span>
-      </div>
-    {/each}
-  </div>
+  <GridRenderer
+    listitems={all}
+    {activeIndex}
+    indexOffset={allOffset}
+    minCellWidth={90}
+    gap={12}
+    padding="24px"
+    cellPadding="28px 16px"
+    {onContextMenu}
+    let:item
+  >
+    <span class="emoji">{item.name}</span>
+  </GridRenderer>
 </div>
 
 <style>
   .emoji-layout {
     display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding: 10px;
     height: 95%;
+    min-height: 0;
+    flex-direction: column;
+    padding: 10px;
   }
 
-  .featured-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 10px 10px 8px;
-    flex-shrink: 0;
+  .emoji-layout :global(.grid-cell) {
+    flex-direction: column;
   }
 
-  .featured-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .emoji-layout :global(.grid-renderer:not(.strip)) {
+    flex: 1;
+  }
+
+  .emoji-layout :global(.grid-renderer.strip .grid-cell) {
+    flex: 0 0 48px;
     width: 48px;
-    height: 48px;
-    border-radius: var(--q-item-border-radius);
-    border: 1px solid var(--q-border-subtle);
-    flex-shrink: 0;
-    transition: transform 100ms ease;
-  }
-
-  .featured-item.pinned {
-    border-color: var(--q-pin-border);
-  }
-
-  .featured-item.active {
-    background-color: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
-    box-shadow: 0 0 12px 2px var(--q-glow);
-    transform: scale(1.08);
-  }
-
-  .featured-item.pinned.active {
-    border-color: var(--q-pin-border-active);
   }
 
   .section-divider {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     gap: 8px;
-    padding: 0 10px 6px;
     margin: 10px;
-    flex-shrink: 0;
-  }
-
-  /* ── Full grid ── */
-  .result-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 12px;
-    /* Active-item shadows need clear space inside this scroll viewport. */
-    padding: 24px;
-    overflow-y: auto;
-    min-height: 0;
-  }
-
-  .grid-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 28px 16px;
-    border-radius: var(--q-item-border-radius);
-    border: 1px solid var(--q-border-subtle);
-    text-align: center;
-    transition:
-      transform 100ms ease,
-      border-radius 100ms ease;
-  }
-
-  .grid-item.pinned {
-    border-color: var(--q-pin-border);
-  }
-
-  .grid-item.active {
-    background-color: var(--q-active-bg-color);
-    box-shadow: 0 0 20px 4px var(--q-glow);
-    border: 1px solid var(--q-active-border-color);
-    transform: scale(1.05);
-  }
-
-  .grid-item.pinned.active {
-    border-color: var(--q-pin-border-active);
+    padding: 0 10px 6px;
   }
 
   .emoji {
+    margin-bottom: 6px;
     font-size: 2em;
     line-height: 1;
-    margin-bottom: 6px;
   }
 
-  .featured-item .emoji {
-    font-size: 1.5em;
+  .featured-emoji {
     margin-bottom: 0;
+    font-size: 1.5em;
   }
 </style>

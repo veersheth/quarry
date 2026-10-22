@@ -7,6 +7,7 @@
   import FooterBar from "./ui/FooterBar.svelte";
   import Chip from "./ui/Chip.svelte";
   import Timestamp from "./ui/Timestamp.svelte";
+  import SidebarRenderer from "./SidebarRenderer.svelte";
 
   const TYPE_ACCENT: Record<string, string> = {
     text:      "#888",
@@ -399,8 +400,8 @@
   }
 </script>
 
-<div class="clipboard">
-  <div class="result-list">
+<SidebarRenderer>
+  <div slot="list" class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -466,7 +467,7 @@
     {/each}
   </div>
 
-  <div class="info-panel">
+  <div slot="detail" class="info-panel">
     {#if activeItem}
       <div
         class="preview-area"
@@ -660,17 +661,10 @@
       </FooterBar>
     {/if}
   </div>
-</div>
+</SidebarRenderer>
 
 <style>
-  .clipboard {
-    display: flex;
-    height: 100%;
-    color: var(--q-font-color);
-  }
-
   .result-list {
-    flex: 0 0 224px;
     border-right: 1px solid rgba(0,0, 0, 0);
     overflow-y: auto;
     padding: 5px 10px;
