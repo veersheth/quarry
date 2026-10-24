@@ -22,6 +22,10 @@ pub fn execute(
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
 
     if let ActionData::SetQuery { query } = &action_data {
+        if let Ok(mut history) = USAGE_HISTORY.write() {
+            let display_name = name.as_deref().unwrap_or("Search");
+            history.record_usage("searcher", &action_data.stable_id(), display_name);
+        }
         return Ok(format!("set-query:{}", query));
     }
 

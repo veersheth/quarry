@@ -291,13 +291,12 @@ fn item_from_usage(
 
 /// Build the unified "Recent" feed in last-run order. Frequency is deliberately
 /// not part of this ordering: using something often should not make it appear
-/// newer than an action the user just ran. Returns `(items, seen_names)` where
-/// `seen_names` is used to deduplicate the Apps section below.
+/// newer than an action the user just ran.
 fn unified_recent(
     all_apps: &[ResultItem],
     all_shortcuts: &[ResultItem],
     limit: usize,
-) -> (Vec<ResultItem>, HashSet<String>) {
+) -> Vec<ResultItem> {
     // The usage store is bounded to 1,000 entries. Read all of it so recent
     // copy/paste and other non-displayable actions cannot crowd out shortcuts.
     let mut usage = crate::usage_tracker::get_recent_entries("", 1_000);
@@ -338,9 +337,7 @@ fn unified_recent(
         }
     }
 
-    let included_names: HashSet<String> = items.iter().map(|i| i.name.to_lowercase()).collect();
-
-    (items, included_names)
+    items
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -357,6 +354,12 @@ impl SearchProvider for DefaultSearcher {
         if q.is_empty() {
             let mut results = crate::searchers::home::home_items(app);
 
+            let recent_searchers = MetaSearcher::recent_searchers(4);
+            if !recent_searchers.is_empty() {
+                results.push(make_header("Searchers"));
+                results.extend(recent_searchers);
+            }
+
             let all_apps = AppSearcher.search("", app).results;
 
             // Collect all known shortcut items (built-in shortcuts + bookmarks + system actions)
@@ -366,26 +369,11 @@ impl SearchProvider for DefaultSearcher {
             all_shortcuts.extend(SystemSearcher.search("", app).results);
 
             // Unified recent feed (apps + calcs, sorted by time)
-            let (recent_items, recent_names) = unified_recent(&all_apps, &all_shortcuts, 8);
+            let recent_items = unified_recent(&all_apps, &all_shortcuts, 10);
 
             if !recent_items.is_empty() {
                 results.push(make_header("Recent"));
                 results.extend(recent_items);
-            }
-
-            // Apps section: apps not already shown in Recent
-            let other_apps: Vec<_> = all_apps
-                .into_iter()
-                .filter(|item| !recent_names.contains(&item.name.to_lowercase()))
-                .collect();
-
-            if !other_apps.is_empty() {
-                results.push(make_header("Apps"));
-                results.extend(
-                    other_apps
-                        .into_iter()
-                        .map(|item| item.group("apps-section")),
-                );
             }
 
             return SearchResult {

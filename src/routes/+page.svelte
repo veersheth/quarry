@@ -284,6 +284,36 @@
         resultType.set("QrCode");
       });
 
+      const unlistenDictionaryProgress = await listen<{
+        stage: string;
+      }>("quarry-dictionary-progress", ({ payload }) => {
+        if (
+          payload.stage !== "complete" ||
+          $searcherName !== "dictionary" ||
+          $resultItems[0]?.name !== "Preparing the local dictionary"
+        ) {
+          return;
+        }
+
+        const requestId = nextSearchRequest();
+        const capturedQuery = $query;
+        isLoading = true;
+        search(capturedQuery)
+          .then((res) => {
+            if (requestId !== searchRequest || capturedQuery !== $query || res === null) return;
+            resultItems.set(res.results);
+            resultType.set(res.result_type);
+            searcherName.set(res.searcher ?? "");
+            activeIndex.set(0);
+          })
+          .catch((error) => {
+            if (requestId === searchRequest) console.error("Dictionary refresh failed:", error);
+          })
+          .finally(() => {
+            if (requestId === searchRequest && capturedQuery === $query) isLoading = false;
+          });
+      });
+
       cleanup = () => {
         unlisten();
         unlistenModal();
@@ -292,6 +322,7 @@
         unlistenClipboardMore();
         unlistenSetQuery();
         unlistenQr();
+        unlistenDictionaryProgress();
         window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
         window.removeEventListener("wheel", blockZoom);
       };
@@ -382,6 +413,7 @@
     <div
       class="results"
       class:loading-overlay={isLoading}
+      class:markdown-results={$resultType === "Markdown"}
       bind:this={resultsEl}
     >
       <div class="results-content" class:dimmed={isLoading}>
@@ -670,6 +702,10 @@
     overflow-y: auto;
     position: relative;
     min-height: 0;
+  }
+
+  .results.markdown-results {
+    overflow: hidden;
   }
 
   .results-content {

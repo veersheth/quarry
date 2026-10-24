@@ -5,9 +5,11 @@ use crate::CONFIG;
 
 use super::SearchProvider;
 
+#[derive(Clone)]
 struct SearchTarget {
     name: String,
     trigger: String,
+    pattern: regex::Regex,
 }
 
 pub struct MetaSearcher;
@@ -45,20 +47,60 @@ impl MetaSearcher {
         let mut targets: Vec<SearchTarget> = configured
             .into_iter()
             .filter_map(|(name, pattern)| {
-                trigger_query(pattern).map(|trigger| SearchTarget {
+                let trigger = trigger_query(pattern)?;
+                let pattern = regex::Regex::new(pattern).ok()?;
+                Some(SearchTarget {
                     name: name.to_string(),
                     trigger,
+                    pattern,
                 })
             })
             .collect();
 
         targets.extend(config.web_searches.iter().filter_map(|web_search| {
-            trigger_query(&web_search.trigger).map(|trigger| SearchTarget {
+            let trigger = trigger_query(&web_search.trigger)?;
+            let pattern = regex::Regex::new(&web_search.trigger).ok()?;
+            Some(SearchTarget {
                 name: format!("{} Search", web_search.name),
                 trigger,
+                pattern,
             })
         }));
         targets
+    }
+
+    /// Return shortcut items for the most recently used configured searchers.
+    pub fn recent_searchers(limit: usize) -> Vec<ResultItem> {
+        let targets = Self::targets();
+        let mut recent: Vec<(u64, SearchTarget)> = Vec::new();
+
+        for entry in crate::usage_tracker::get_recent_entries("", 1_000) {
+            let target = if let Some(trigger) = entry.action_id.strip_prefix("searcher:") {
+                targets
+                    .iter()
+                    .find(|target| target.trigger.eq_ignore_ascii_case(trigger))
+            } else {
+                targets
+                    .iter()
+                    .find(|target| target.pattern.is_match(&entry.query))
+            };
+
+            if let Some(target) = target {
+                if !recent
+                    .iter()
+                    .any(|(_, existing)| existing.trigger.eq_ignore_ascii_case(&target.trigger))
+                {
+                    recent.push((entry.last_used, target.clone()));
+                }
+            }
+        }
+
+        recent.sort_by(|left, right| right.0.cmp(&left.0));
+        recent
+            .into_iter()
+            .take(limit)
+            .map(|(_, target)| Self::target_to_result(target).group("recent-searcher"))
+            .collect()
     }
 
     fn search_targets(query: &str) -> Option<Vec<SearchTarget>> {
