@@ -79,10 +79,14 @@ impl EmojiSearcher {
                 symbol_str,
                 vec![
                     Action::new(
-                        "Copy Symbol",
-                        ActionData::CopyToClipboard {
+                        "Paste Symbol",
+                        ActionData::PasteToApp {
                             text: c.to_string(),
                         },
+                    ),
+                    Action::new(
+                        "Copy Symbol",
+                        ActionData::CopyToClipboard { text: c.to_string() },
                     ),
                     Action::new(
                         "Copy Name",
@@ -149,6 +153,12 @@ fn make_emoji_item(emoji: &emojis::Emoji, is_pinned: bool) -> ResultItem {
     };
 
     let mut actions = vec![
+        Action::new(
+            "Paste Emoji",
+            ActionData::PasteToApp {
+                text: emoji_str.clone(),
+            },
+        ),
         Action::new(
             "Copy Emoji",
             ActionData::CopyToClipboard {
