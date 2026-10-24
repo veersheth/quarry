@@ -41,7 +41,6 @@ impl MetaSearcher {
             ("Color Picker", triggers.color_picker.as_str()),
             ("Currency", triggers.currency.as_str()),
             ("QR Code", triggers.qr_code.as_str()),
-            ("Notes", triggers.note.as_str()),
         ];
 
         let mut targets: Vec<SearchTarget> = configured

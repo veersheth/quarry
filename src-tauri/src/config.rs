@@ -16,9 +16,20 @@ pub struct Config {
     /// Timer alert sound. Options: "synth" (default), "beep"
     #[serde(default = "default_timer_sound")]
     pub timer_sound:   String,
+    /// Whether the first-run setup wizard has been completed.
+    #[serde(default = "existing_config_completed_setup")]
+    pub setup_completed: bool,
+    /// Whether new clipboard contents are recorded in local history.
+    #[serde(default = "existing_feature_enabled")]
+    pub clipboard_tracking_enabled: bool,
+    /// Whether Quarry maintains its local file search index.
+    #[serde(default = "existing_feature_enabled")]
+    pub file_indexing_enabled: bool,
 }
 
 fn default_timer_sound() -> String { "synth".into() }
+fn existing_config_completed_setup() -> bool { true }
+fn existing_feature_enabled() -> bool { true }
 
 impl Default for Config {
     fn default() -> Self {
@@ -31,6 +42,9 @@ impl Default for Config {
             screenshots:   ScreenshotsConfig::default(),
             scripts:       ScriptsConfig::default(),
             timer_sound:   default_timer_sound(),
+            setup_completed: false,
+            clipboard_tracking_enabled: false,
+            file_indexing_enabled: false,
         }
     }
 }
@@ -245,7 +259,6 @@ pub struct TriggerConfig {
     pub apps:         String,
     pub url:          String,
     pub currency:     String,
-    pub note:         String,
     pub ai:           String,
     pub time:         String,
     pub timer:        String,
@@ -273,8 +286,7 @@ impl Default for TriggerConfig {
             apps:         r"^app\s+(.*)$".into(),
             url:          r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$".into(),
             currency:     r"^fx\s+(.*)$".into(),
-            note:         r"^note$".into(),
-            ai:           r"^ai\s+(.*)$".into(),
+            ai:           r"^ (.*)$".into(),
             time:         r"^time\s+(.*)$".into(),
             timer:        r"^timer\s*(.*)$".into(),
             screenshots:  r"^ss\s*(.*)$".into(),
@@ -309,7 +321,16 @@ impl Config {
             }
         };
         match toml::from_str::<Config>(&contents) {
-            Ok(cfg) => cfg,
+            Ok(mut cfg) => {
+                // Migrate the shipped AI default while preserving user-defined patterns.
+                if cfg.triggers.ai == r"^ai\s+(.*)$" {
+                    cfg.triggers.ai = r"^ (.*)$".into();
+                    if let Err(error) = Self::save(&cfg) {
+                        eprintln!("quarry: could not migrate the AI trigger: {error}");
+                    }
+                }
+                cfg
+            }
             Err(e) => {
                 eprintln!("quarry: config parse error - {} - using defaults", e);
                 Self::default()
@@ -376,8 +397,12 @@ impl Config {
 const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration - ~/.config/quarry/config.toml
 # Every key is optional. Remove or comment out any line to keep the default.
 
-# Groq API key is stored separately in ~/.config/quarry/.groq_key
-# Set it via Settings → General, or write the key to that file directly.
+# Groq API key is stored separately in ~/.local/share/quarry/.groq_key
+# Write your key to that file to enable AI chat.
+
+setup_completed = false
+clipboard_tracking_enabled = false
+file_indexing_enabled = false
 
 # [window]
 # width  = 780   # launcher window width in pixels
@@ -428,7 +453,7 @@ system       = '^sys\s+(.*)$'
 color_picker = '^color$'
 apps         = '^app\s+(.*)$'
 url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
-ai           = '^ai\s+(.*)$'
+ai           = '^ (.*)$'
 time         = '^time in\s(.*)$'
 shortcuts    = '^q\s*(.*)$'
 scripts      = '^sc\s*(.*)$'

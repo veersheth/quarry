@@ -33,6 +33,11 @@ pub fn execute(
         ActionData::PasteToApp { .. } => "paste",
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
+        ActionData::RunFunction { function_name, .. }
+            if function_name == "open_setup_wizard" || function_name == "open_reset_confirmation" =>
+        {
+            "stay"
+        }
         ActionData::RunFunction { function_name, .. } if function_name == "show_qr_clipboard" => {
             "stay"
         }
@@ -188,11 +193,23 @@ pub fn get_config() -> config::Config {
 
 #[tauri::command]
 pub fn save_config(config: config::Config) -> Result<(), String> {
+    let clipboard_tracking_enabled = config.clipboard_tracking_enabled;
+    let file_indexing_enabled = config.file_indexing_enabled;
     config::Config::save(&config)?;
     if let Ok(mut c) = CONFIG.write() {
         *c = config;
     }
     reload_triggers();
+    if clipboard_tracking_enabled {
+        CLIPBOARD_MANAGER.start_monitoring();
+    } else {
+        CLIPBOARD_MANAGER.stop_monitoring();
+    }
+    if file_indexing_enabled {
+        crate::searchers::files::start_file_index();
+    } else {
+        crate::searchers::files::stop_file_index();
+    }
     Ok(())
 }
 
@@ -271,31 +288,6 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
 pub fn clear_clipboard_history() -> Result<(), String> {
     CLIPBOARD_MANAGER.clear_history();
     Ok(())
-}
-
-// ---------------------------------------------------------
-// NOTE COMMANDS
-// ---------------------------------------------------------
-
-fn get_note_path() -> std::path::PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("quarry")
-        .join("scratch.txt")
-}
-
-#[tauri::command]
-pub fn read_note() -> String {
-    std::fs::read_to_string(get_note_path()).unwrap_or_default()
-}
-
-#[tauri::command]
-pub fn write_note(content: String) -> Result<(), String> {
-    let path = get_note_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------

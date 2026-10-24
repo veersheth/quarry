@@ -28,17 +28,11 @@ case "$CMD" in
     echo " - $RELEASE/quarry-rofi"
     echo ""
     ;;
-  toggle|show|hide|ping|note)
+  toggle|show|hide|ping)
     BIN="$RELEASE/quarry-toggle"
     [ -f "$BIN" ] || BIN="$HOME/.local/bin/quarry-toggle"
     [ -f "$BIN" ] || die "quarry-toggle not found :( './run build'"
     "$BIN" "$CMD"
-    ;;
-  settings)
-    BIN="$RELEASE/quarry"
-    [ -f "$BIN" ] || BIN="$HOME/.local/bin/quarry"
-    [ -f "$BIN" ] || die "quarry not found :( './run build' first"
-    "$BIN" settings &
     ;;
   rofi)
     shift
@@ -54,8 +48,6 @@ usage: ./run [command]
   build        build release binaries (quarry, quarry-toggle, quarry-rofi)
   toggle       toggle launcher window
   show / hide  show or hide launcher window
-  note         toggle notepad window
-  settings     open settings window
   ping         check if quarry is running
 HELP
     ;;

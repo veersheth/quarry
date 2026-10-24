@@ -83,6 +83,16 @@ pub fn remove_timer(id: u64) {
     save_timers();
 }
 
+pub fn clear_timers() {
+    if let Ok(mut timers) = ACTIVE_TIMERS.lock() {
+        for timer in timers.iter() {
+            timer.cancelled.store(true, Ordering::Relaxed);
+        }
+        timers.clear();
+    }
+    save_timers();
+}
+
 pub fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -18,14 +18,6 @@
           "description": "Toggle the launcher window"
         },
         {
-          "name": "notepad",
-          "description": "Open the notepad window"
-        },
-        {
-          "name": "config",
-          "description": "Open the settings window"
-        },
-        {
           "name": "with",
           "description": "Pre-fill the search input with a query",
           "takesValue": true

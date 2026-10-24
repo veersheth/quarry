@@ -17,7 +17,6 @@ use crate::searchers::files::FileSearcher;
 use crate::searchers::fonts::FontsSearcher;
 use crate::searchers::lorem::LoremSearcher;
 use crate::searchers::math::MathSearcher;
-use crate::searchers::note::NoteSearcher;
 use crate::searchers::qrcode::QrCodeSearcher;
 use crate::searchers::screenshots::ScreenshotsSearcher;
 use crate::searchers::scripts::ScriptsSearcher;
@@ -84,7 +83,6 @@ fn build_triggers(cfg: &config::Config) -> Vec<Trigger> {
     push!(v, &t.apps, "apps", AppSearcher);
     push!(v, &t.url, "url", URLSearcher);
     push!(v, &t.currency, "currency", CurrencySearcher);
-    push!(v, &t.note, "note", NoteSearcher);
     push!(v, &t.timer, "timer", TimerSearcher);
     push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
     push!(v, &t.shortcuts, "shortcuts", ShortcutsSearcher);

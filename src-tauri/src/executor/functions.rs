@@ -45,19 +45,21 @@ pub(super) fn run_custom_function(
             }
             Ok(())
         }
-        "open_note" => {
-            if let Some(window) = app.get_webview_window("note") {
-                let window = window.as_ref().window();
-                let _ = window.show();
-                let _ = window.set_focus();
+        "open_setup_wizard" => {
+            if let Some(window) = app.get_webview_window("main") {
+                window.show().map_err(|error| error.to_string())?;
+                window.set_focus().map_err(|error| error.to_string())?;
+                app.emit("quarry-open-setup-wizard", ())
+                    .map_err(|error| error.to_string())?;
             }
             Ok(())
         }
-        "open_settings" => {
-            if let Some(window) = app.get_webview_window("settings") {
-                let window = window.as_ref().window();
-                let _ = window.show();
-                let _ = window.set_focus();
+        "open_reset_confirmation" => {
+            if let Some(window) = app.get_webview_window("main") {
+                window.show().map_err(|error| error.to_string())?;
+                window.set_focus().map_err(|error| error.to_string())?;
+                app.emit("quarry-reset-quarry", ())
+                    .map_err(|error| error.to_string())?;
             }
             Ok(())
         }

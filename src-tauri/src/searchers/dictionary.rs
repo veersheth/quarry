@@ -17,7 +17,24 @@ const RETRY_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const MINIMUM_ENTRY_COUNT: usize = 100_000;
 
 static UPDATE_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+static RESET_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+static UPDATE_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 static LAST_UPDATE_ATTEMPT: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
+
+pub fn begin_reset() -> Result<(), String> {
+    let _guard = UPDATE_LOCK
+        .lock()
+        .map_err(|_| "Dictionary update state is unavailable".to_string())?;
+    if UPDATE_IN_PROGRESS.load(Ordering::Relaxed) {
+        return Err("Wait for the dictionary download to finish before resetting Quarry".into());
+    }
+    RESET_IN_PROGRESS.store(true, Ordering::Relaxed);
+    Ok(())
+}
+
+pub fn end_reset() {
+    RESET_IN_PROGRESS.store(false, Ordering::Relaxed);
+}
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -129,6 +146,12 @@ fn maybe_update_dictionary(database: PathBuf, app: AppHandle) {
 }
 
 fn start_dictionary_update(database: PathBuf, app: AppHandle) {
+    let Ok(_guard) = UPDATE_LOCK.lock() else {
+        return;
+    };
+    if RESET_IN_PROGRESS.load(Ordering::Relaxed) {
+        return;
+    }
     let now = Instant::now();
     if let Ok(mut last_attempt) = LAST_UPDATE_ATTEMPT.lock() {
         if last_attempt.is_some_and(|last| now.duration_since(last) < RETRY_INTERVAL) {
@@ -161,7 +184,9 @@ fn start_dictionary_update(database: PathBuf, app: AppHandle) {
                 &format!("Dictionary update failed: {error}"),
             );
         }
-        UPDATE_IN_PROGRESS.store(false, Ordering::Relaxed);
+        if let Ok(_guard) = UPDATE_LOCK.lock() {
+            UPDATE_IN_PROGRESS.store(false, Ordering::Relaxed);
+        }
     });
 }
 

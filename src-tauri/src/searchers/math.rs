@@ -68,6 +68,12 @@ pub fn push_to_history(expr: &str, result: &str, raw: &str) {
     save_history_to_disk(&history);
 }
 
+pub fn clear_history() {
+    let mut history = CALC_HISTORY.lock().unwrap_or_else(|error| error.into_inner());
+    history.clear();
+    save_history_to_disk(&history);
+}
+
 fn relative_time(ts: u64) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -66,6 +66,15 @@ impl PinStore {
             .unwrap_or(false)
     }
 
+    pub fn clear(&self) {
+        self.data
+            .write()
+            .unwrap_or_else(|error| error.into_inner())
+            .pins
+            .clear();
+        self.save();
+    }
+
     fn save(&self) {
         let path = Self::path();
         if let Some(parent) = path.parent() {

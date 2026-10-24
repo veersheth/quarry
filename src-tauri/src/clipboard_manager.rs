@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -184,6 +184,8 @@ pub struct ClipboardManager {
     history: Arc<Mutex<Vec<ClipboardEntry>>>,
     storage_path: Option<PathBuf>,
     generation: Arc<AtomicU64>,
+    monitoring: Arc<AtomicBool>,
+    monitor_epoch: Arc<AtomicU64>,
 }
 
 #[allow(dead_code)]
@@ -193,6 +195,8 @@ impl ClipboardManager {
             history: Arc::new(Mutex::new(Vec::new())),
             storage_path: None,
             generation: Arc::new(AtomicU64::new(0)),
+            monitoring: Arc::new(AtomicBool::new(false)),
+            monitor_epoch: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -201,6 +205,8 @@ impl ClipboardManager {
             history: Arc::new(Mutex::new(Vec::new())),
             storage_path: Some(storage_path),
             generation: Arc::new(AtomicU64::new(0)),
+            monitoring: Arc::new(AtomicBool::new(false)),
+            monitor_epoch: Arc::new(AtomicU64::new(0)),
         };
         manager.load_from_disk();
         manager
@@ -300,12 +306,23 @@ impl ClipboardManager {
     }
 
     pub fn start_monitoring(&self) {
+        if self.monitoring.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let epoch = self.monitor_epoch.fetch_add(1, Ordering::AcqRel) + 1;
         let history = Arc::clone(&self.history);
         let storage_path = self.storage_path.clone();
         let generation = Arc::clone(&self.generation);
+        let monitoring = Arc::clone(&self.monitoring);
+        let monitor_epoch = Arc::clone(&self.monitor_epoch);
 
         thread::spawn(move || {
-            let mut clipboard = arboard::Clipboard::new().expect("Failed to initialize clipboard");
+            let Ok(mut clipboard) = arboard::Clipboard::new() else {
+                if monitor_epoch.load(Ordering::Acquire) == epoch {
+                    monitoring.store(false, Ordering::Release);
+                }
+                return;
+            };
 
             let mut last_text: Option<String> = None;
             let mut last_image_hash: Option<u64> = None;
@@ -314,6 +331,11 @@ impl ClipboardManager {
 
             loop {
                 thread::sleep(MONITOR_POLL_INTERVAL);
+                if !monitoring.load(Ordering::Acquire)
+                    || monitor_epoch.load(Ordering::Acquire) != epoch
+                {
+                    return;
+                }
 
                 // --- Text ---
                 let mut observed_text = None;
@@ -455,6 +477,11 @@ impl ClipboardManager {
         });
     }
 
+    pub fn stop_monitoring(&self) {
+        self.monitoring.store(false, Ordering::Release);
+        self.monitor_epoch.fetch_add(1, Ordering::AcqRel);
+    }
+
     pub fn get_history(&self) -> Vec<ClipboardEntry> {
         self.history.lock().map(|h| h.clone()).unwrap_or_default()
     }
@@ -475,6 +502,70 @@ impl ClipboardManager {
         }
         self.generation.fetch_add(1, Ordering::Relaxed);
         self.save_to_disk();
+    }
+
+    pub fn validate_reset_storage(&self) -> Result<(), String> {
+        let Some(path) = &self.storage_path else {
+            return Ok(());
+        };
+        if let Some(parent) = path.parent() {
+            match fs::symlink_metadata(parent) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    return Err(format!(
+                        "Refusing to reset clipboard history through symlink {}",
+                        parent.display()
+                    ));
+                }
+                Ok(metadata) if !metadata.is_dir() => {
+                    return Err(format!(
+                        "Clipboard storage parent is not a directory: {}",
+                        parent.display()
+                    ));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(format!("Could not inspect clipboard storage: {error}")),
+                _ => {}
+            }
+        }
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => Err(format!(
+                "Refusing to reset clipboard history through symlink {}",
+                path.display()
+            )),
+            Ok(metadata) if metadata.is_dir() => Err(format!(
+                "Clipboard history path is a directory: {}",
+                path.display()
+            )),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("Could not inspect clipboard history: {error}")),
+            _ => Ok(()),
+        }
+    }
+
+    pub fn clear_history_for_reset(&self) -> Result<(), String> {
+        self.validate_reset_storage()?;
+        let mut history = self
+            .history
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        history.clear();
+        self.generation.fetch_add(1, Ordering::Relaxed);
+        if let Some(path) = &self.storage_path {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|error| format!("Could not prepare clipboard storage: {error}"))?;
+            }
+            match fs::remove_file(path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(format!("Could not clear clipboard history: {error}")),
+            }
+            let json = serde_json::to_string(&*history)
+                .map_err(|error| format!("Could not serialize clipboard history: {error}"))?;
+            fs::write(path, json)
+                .map_err(|error| format!("Could not clear clipboard history: {error}"))?;
+        }
+        Ok(())
     }
 
     pub fn remove_entry(&self, index: usize) {

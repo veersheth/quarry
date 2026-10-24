@@ -20,7 +20,6 @@ enum IpcCommand {
     Show,
     Hide,
     Ping,
-    ToggleNote,
     ShowWithQuery {
         query: String,
     },
@@ -137,13 +136,6 @@ fn handle_command(cmd: IpcCommand, app_handle: &tauri::AppHandle) -> IpcResponse
             success: true,
             message: "pong".to_string(),
         },
-        IpcCommand::ToggleNote => {
-            toggle_note_window(app_handle);
-            IpcResponse {
-                success: true,
-                message: "Note window toggled".to_string(),
-            }
-        }
         IpcCommand::ShowWithQuery { query } => {
             show_with_query(app_handle, &query);
             IpcResponse {
@@ -226,29 +218,5 @@ fn hide_window(app_handle: &tauri::AppHandle) {
     if let Some(window) = app_handle.get_webview_window("main") {
         let window = window.as_ref().window();
         let _ = window.hide();
-    }
-}
-
-pub(crate) fn toggle_note_window(app_handle: &tauri::AppHandle) {
-    if let Some(window) = app_handle.get_webview_window("note") {
-        let window = window.as_ref().window();
-        if window.is_visible().unwrap_or(false) {
-            let _ = window.hide();
-        } else {
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
-    }
-}
-
-pub(crate) fn toggle_settings_window(app_handle: &tauri::AppHandle) {
-    if let Some(window) = app_handle.get_webview_window("settings") {
-        let window = window.as_ref().window();
-        if window.is_visible().unwrap_or(false) {
-            let _ = window.hide();
-        } else {
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
     }
 }

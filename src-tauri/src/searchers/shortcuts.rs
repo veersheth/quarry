@@ -29,8 +29,10 @@ fn all_shortcuts() -> Vec<ResultItem> {
     // ── Quarry ────────────────────────────────────────────────────────────
     items.push(item("Reload Quarry", "Rebuild file index, refresh app list, reload styles",
         ICON_TRANSPARENT, func("reload_quarry", vec![])));
-    items.push(item("Open Quarry Settings", "Open the quarry settings window",
-        ICON_TRANSPARENT, func("open_settings", vec![])));
+    items.push(item("Run Quarry Setup", "Open the setup wizard again",
+        ICON_SETTINGS, func("open_setup_wizard", vec![])));
+    items.push(item("Reset Quarry", "Restore defaults and clear Quarry's local data",
+        ICON_SETTINGS, func("open_reset_confirmation", vec![])));
 
     if let Some(cfg) = dirs::config_dir() {
         items.push(folder_item(

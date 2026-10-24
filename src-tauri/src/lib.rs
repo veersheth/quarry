@@ -5,6 +5,7 @@ mod config;
 mod executor;
 mod ipc_server;
 mod pins;
+mod reset;
 mod search_utils;
 mod searchers;
 mod types;
@@ -19,8 +20,8 @@ use commands::{
     cancel_rofi, clear_clipboard_history, exec_func, execute, get_action_text,
     get_clipboard_file_metadata, get_ai_prefix,
     get_clipboard_image, get_clipboard_thumbnail, get_config, get_groq_api_key, get_theme,
-    paste_to_focused_app, read_note, save_capture,
-    save_config, save_groq_api_key, search, start_drag, take_pending_query, write_note,
+    paste_to_focused_app, save_capture, save_config, save_groq_api_key, search, start_drag,
+    take_pending_query,
 };
 use lazy_static::lazy_static;
 use std::sync::{atomic::AtomicU64, Mutex, RwLock};
@@ -64,14 +65,26 @@ lazy_static! {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     drop(CONFIG.read());
-    CLIPBOARD_MANAGER.start_monitoring();
+    if CONFIG
+        .read()
+        .map(|config| config.clipboard_tracking_enabled)
+        .unwrap_or(false)
+    {
+        CLIPBOARD_MANAGER.start_monitoring();
+    }
 
     // Warm caches in background so the first search is instant
     std::thread::spawn(crate::searchers::apps::warm);
     std::thread::spawn(crate::searchers::emojis::warm);
     std::thread::spawn(crate::searchers::clipboard::warm);
     std::thread::spawn(crate::commands::warm_triggers);
-    crate::searchers::files::start_file_index();
+    if CONFIG
+        .read()
+        .map(|config| config.file_indexing_enabled)
+        .unwrap_or(false)
+    {
+        crate::searchers::files::start_file_index();
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -83,14 +96,6 @@ pub fn run() {
             let mut handled = false;
             while i < args.len() {
                 match args[i].as_str() {
-                    "--notepad" => {
-                        ipc_server::toggle_note_window(app);
-                        return;
-                    }
-                    "--config" => {
-                        ipc_server::toggle_settings_window(app);
-                        return;
-                    }
                     "--toggle" => {
                         ipc_server::toggle_window(app);
                         return;
@@ -135,11 +140,9 @@ pub fn run() {
             }
 
             let toggle = MenuItem::with_id(app, "toggle", "Toggle Launcher", true, None::<&str>)?;
-            let note = MenuItem::with_id(app, "note", "Notepad", true, None::<&str>)?;
-            let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &note, &settings, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&toggle, &sep, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -157,26 +160,6 @@ pub fn run() {
                 })
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "toggle" => ipc_server::toggle_window(app),
-                    "note" => {
-                        if let Some(w) = app.get_webview_window("note") {
-                            if w.is_visible().unwrap_or(false) {
-                                let _ = w.hide();
-                            } else {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
-                        }
-                    }
-                    "settings" => {
-                        if let Some(w) = app.get_webview_window("settings") {
-                            if w.is_visible().unwrap_or(false) {
-                                let _ = w.hide();
-                            } else {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
-                        }
-                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -184,26 +167,12 @@ pub fn run() {
 
             windows::inject_gtk_theme();
             windows::setup_main_window(app)?;
-            windows::setup_note_window(app)?;
-            windows::setup_settings_window(app)?;
 
             // Handle CLI flags on first launch.
             use tauri_plugin_cli::CliExt;
             if let Ok(matches) = app.cli().matches() {
                 let args = &matches.args;
-                if args
-                    .get("notepad")
-                    .map(|a| a.occurrences > 0)
-                    .unwrap_or(false)
-                {
-                    ipc_server::toggle_note_window(app.handle());
-                } else if args
-                    .get("config")
-                    .map(|a| a.occurrences > 0)
-                    .unwrap_or(false)
-                {
-                    ipc_server::toggle_settings_window(app.handle());
-                } else if let Some(q) = args.get("with").and_then(|a| a.value.as_str()) {
+                if let Some(q) = args.get("with").and_then(|a| a.value.as_str()) {
                     if let Ok(mut slot) = PENDING_QUERY.lock() {
                         *slot = Some(q.to_string());
                     }
@@ -226,8 +195,6 @@ pub fn run() {
             get_config,
             get_ai_prefix,
             save_config,
-            read_note,
-            write_note,
             save_capture,
             get_groq_api_key,
             save_groq_api_key,
@@ -235,6 +202,9 @@ pub fn run() {
             start_drag,
             exec_func,
             take_pending_query,
+            reset::create_reset_confirmation,
+            reset::cancel_reset_confirmation,
+            reset::reset_quarry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

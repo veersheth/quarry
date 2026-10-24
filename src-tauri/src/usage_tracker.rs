@@ -90,6 +90,11 @@ impl UsageHistory {
         self.save();
     }
 
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.save();
+    }
+
     fn get_boost_scores(&self, query: &str, action_ids: &HashSet<String>) -> HashMap<String, f32> {
         let query_lower = query.to_lowercase();
         let now = SystemTime::now()

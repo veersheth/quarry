@@ -30,7 +30,6 @@ pub mod fonts;
 pub mod lorem;
 pub mod meta;
 pub mod math;
-pub mod note;
 pub mod qrcode;
 pub mod screenshots;
 pub mod scripts;

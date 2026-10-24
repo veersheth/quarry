@@ -4,7 +4,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { fly } from "svelte/transition";
-  import { backOut } from "svelte/easing";
+  import { backOut, cubicInOut } from "svelte/easing";
   import RenderList from "$lib/RenderList.svelte";
   import RenderHome from "$lib/RenderHome.svelte";
   import RenderEmojis from "$lib/RenderEmojis.svelte";
@@ -26,7 +26,7 @@
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
-  import { toasts } from "../stores/toasts";
+  import { addToast, toasts } from "../stores/toasts";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
   import RenderColorPicker from "$lib/RenderColorPicker.svelte";
   import RenderMath from "$lib/RenderMath.svelte";
@@ -36,18 +36,29 @@
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import RenderQrCode from "$lib/RenderQrCode.svelte";
   import RenderFonts from "$lib/RenderFonts.svelte";
+  import SetupWizard from "$lib/SetupWizard.svelte";
   import Modal from "$lib/Modal.svelte";
   import { strHue } from "$lib/utils";
 
   let searchInput: HTMLInputElement;
   let appWindow: ReturnType<typeof getCurrentWindow>;
   let isLoading = false;
-  let aiPrefix = "ai ";
+  let aiPrefix = " ";
   let resultsEl: HTMLDivElement;
   let searchTimer: ReturnType<typeof setTimeout>;
   let uiScale = 1.0;
+  const reducedMotion =
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let clipboardSeq = 0;
   let searchRequest = 0;
+  let setupWizard = false;
+  let setupResolved = false;
+  let setupClipboardEnabled = false;
+  let setupFileIndexingEnabled = false;
+  let resetMode = false;
+  let resetPhrase = "";
+  let resetTyped = "";
+  let resetBusy = false;
 
   // Rofi mode: bypass backend search, filter items locally
   let rofiMode = false;
@@ -195,6 +206,24 @@
     void (async () => {
       appWindow = getCurrentWindow();
       await refresh();
+      try {
+        const config = await invoke<{
+          setup_completed: boolean;
+          clipboard_tracking_enabled: boolean;
+          file_indexing_enabled: boolean;
+        }>("get_config");
+        setupClipboardEnabled = config.clipboard_tracking_enabled;
+        setupFileIndexingEnabled = config.file_indexing_enabled;
+        setupWizard = !config.setup_completed;
+        setupResolved = true;
+        if (setupWizard) {
+          await appWindow.show();
+          await appWindow.setFocus();
+        }
+      } catch (error) {
+        console.error("Could not load setup preferences:", error);
+        setupResolved = true;
+      }
       invoke<string>("get_ai_prefix")
         .then((p) => {
           aiPrefix = p;
@@ -284,6 +313,31 @@
         resultType.set("QrCode");
       });
 
+      const unlistenSetupWizard = await listen("quarry-open-setup-wizard", async () => {
+        try {
+          const config = await invoke<{
+            clipboard_tracking_enabled: boolean;
+            file_indexing_enabled: boolean;
+          }>("get_config");
+          setupClipboardEnabled = config.clipboard_tracking_enabled;
+          setupFileIndexingEnabled = config.file_indexing_enabled;
+        } catch (_) {}
+        resetMode = false;
+        resetPhrase = "";
+        setupWizard = true;
+      });
+
+      const unlistenReset = await listen("quarry-reset-quarry", async () => {
+        try {
+          resetPhrase = await invoke<string>("create_reset_confirmation");
+          resetTyped = "";
+          setupWizard = false;
+          resetMode = true;
+        } catch (error) {
+          addToast(String(error), "error");
+        }
+      });
+
       const unlistenDictionaryProgress = await listen<{
         stage: string;
       }>("quarry-dictionary-progress", ({ payload }) => {
@@ -322,6 +376,8 @@
         unlistenClipboardMore();
         unlistenSetQuery();
         unlistenQr();
+        unlistenSetupWizard();
+        unlistenReset();
         unlistenDictionaryProgress();
         window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
         window.removeEventListener("wheel", blockZoom);
@@ -377,6 +433,56 @@
       }, 80);
     }
   }
+
+  async function completeSetup(event: CustomEvent<{ clipboardEnabled: boolean; fileIndexingEnabled: boolean }>) {
+    try {
+      const config = await invoke<Record<string, any>>("get_config");
+      config.setup_completed = true;
+      config.clipboard_tracking_enabled = event.detail.clipboardEnabled;
+      config.file_indexing_enabled = event.detail.fileIndexingEnabled;
+      await invoke("save_config", { config });
+      setupClipboardEnabled = event.detail.clipboardEnabled;
+      setupFileIndexingEnabled = event.detail.fileIndexingEnabled;
+      setupWizard = false;
+      query.set("");
+      searchInput?.focus();
+    } catch (error) {
+      console.error("Could not save setup preferences:", error);
+      addToast("Could not save setup. Please try again.", "error");
+    }
+  }
+
+  async function prepareReset() {
+    try {
+      resetPhrase = await invoke<string>("create_reset_confirmation");
+      resetTyped = "";
+    } catch (error) {
+      addToast(String(error), "error");
+    }
+  }
+
+  async function cancelReset() {
+    await invoke("cancel_reset_confirmation").catch(() => {});
+    resetMode = false;
+    resetPhrase = "";
+    resetTyped = "";
+  }
+
+  async function confirmReset() {
+    resetBusy = true;
+    try {
+      await invoke("reset_quarry", { phrase: resetTyped });
+      localStorage.clear();
+      resetMode = false;
+      resetPhrase = "";
+      resetTyped = "";
+    } catch (error) {
+      addToast(String(error), "error", 5000);
+      await prepareReset();
+    } finally {
+      resetBusy = false;
+    }
+  }
 </script>
 
 <svelte:window
@@ -388,12 +494,69 @@
       else if (e.key === "0") uiScale = 1.0;
       return;
     }
+    if (setupWizard || resetMode) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (resetMode) void cancelReset();
+        else appWindow?.hide();
+      }
+      return;
+    }
     handleKeydown(e, searchInput, activeIndex, resultItems, appWindow, aiPrefix);
   }}
   on:pointermove={(e) => { if (e.movementX !== 0 || e.movementY !== 0) mouseHasMoved.set(true); }}
 />
 
 <main class="container" style="zoom: {uiScale}">
+  {#if !setupResolved}
+    <div class="setup-boot" aria-label="Loading Quarry"></div>
+  {:else if setupWizard}
+    <div class="setup-overlay" out:fly={{ y: "100%", duration: reducedMotion ? 0 : 210, opacity: 1, easing: cubicInOut }}>
+      <SetupWizard
+        clipboardEnabled={setupClipboardEnabled}
+        fileIndexingEnabled={setupFileIndexingEnabled}
+        on:complete={completeSetup}
+      />
+    </div>
+  {:else if resetMode}
+    <section class="reset-screen" aria-label="Reset Quarry confirmation">
+      <div class="reset-content">
+        <div class="reset-kicker">QUARRY RESET</div>
+        <h1>Reset all Quarry data?</h1>
+        <p class="reset-lead">This restores Quarry’s defaults and clears its local history and downloaded dictionary.</p>
+        <ul>
+          <li>Preferences and saved AI key</li>
+          <li>Clipboard history, pins, bookmarks, usage history, timers, and calculations</li>
+          <li>Downloaded dictionary index</li>
+        </ul>
+        <p class="reset-preserve">Your scripts, screenshots, and files outside Quarry’s own data are preserved.</p>
+        {#if resetPhrase}
+          <label class="phrase-label" for="reset-phrase">Type this exact eight-word phrase to continue</label>
+          <code class="reset-phrase">{resetPhrase}</code>
+          <input
+            id="reset-phrase"
+            class="reset-input"
+            bind:value={resetTyped}
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Eight-word confirmation phrase"
+          />
+        {:else}
+          <p>Preparing a secure confirmation phrase…</p>
+        {/if}
+        <div class="reset-actions">
+          <button class="reset-cancel" on:click={cancelReset}>Cancel</button>
+          <button
+            class="reset-confirm-button"
+            on:click={confirmReset}
+            disabled={resetBusy || !resetPhrase || resetTyped.trim().split(/\s+/).length !== 8}
+          >
+            {resetBusy ? "Resetting…" : "Reset Quarry"}
+          </button>
+        </div>
+      </div>
+    </section>
+  {:else}
   <div class="panel">
     <div class="search-bar" class:searcher-active={!!$searcherName} class:loading={isLoading} style={$searcherName ? `--searcher-hue: ${strHue($searcherName)}` : ""}>
       <!-- svelte-ignore a11y_autofocus -->
@@ -481,8 +644,9 @@
       </div>
     </div>
   </div>
+  {/if}
 
-  {#if $contextMenu.open && $contextMenu.item}
+  {#if !setupWizard && !resetMode && $contextMenu.open && $contextMenu.item}
     <ContextMenu
       item={$contextMenu.item}
       x={$contextMenu.x}
@@ -491,7 +655,7 @@
     />
   {/if}
 
-  {#if $modalStore.open}
+  {#if !setupWizard && !resetMode && $modalStore.open}
     <Modal />
   {/if}
 
@@ -577,6 +741,50 @@
     border: var(--q-border-thickness, 1px) solid var(--q-border-color, rgba(255,255,255,0.35));
     border-radius: var(--q-border-radius, 18px);
   }
+
+  .setup-boot { flex: 1; background: var(--q-bg-color, #111113); }
+
+  .container .setup-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    background: var(--q-bg-color, #111113);
+  }
+
+  .reset-screen {
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    place-items: center;
+    padding: 28px;
+    box-sizing: border-box;
+    background: var(--q-bg-color, #111113);
+  }
+
+  .reset-content {
+    width: min(620px, 100%);
+    padding: clamp(20px, 4vw, 36px);
+    box-sizing: border-box;
+    border: 1px solid var(--q-border-medium, rgba(255,255,255,0.15));
+    border-radius: 14px;
+    background: rgba(255,255,255,0.025);
+  }
+
+  .reset-kicker { margin-bottom: 14px; color: var(--q-text-muted, rgba(255,255,255,0.42)); font-size: 0.78em; letter-spacing: 0.12em; }
+  .reset-content h1 { margin: 0 0 10px; font-size: 1.6em; font-weight: 570; }
+  .reset-content p, .reset-content li { color: var(--q-text-secondary, rgba(255,255,255,0.66)); line-height: 1.55; }
+  .reset-content ul { padding-left: 1.3em; }
+  .reset-preserve { color: var(--q-text-muted, rgba(255,255,255,0.48)) !important; font-size: 0.9em; }
+  .phrase-label { display: block; margin: 22px 0 8px; color: rgba(255,255,255,0.74); font-size: 0.9em; }
+  .reset-phrase { display: block; padding: 12px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(0,0,0,0.2); color: #fff; font-family: var(--q-mono); line-height: 1.6; overflow-wrap: anywhere; }
+  .reset-input { width: 100%; margin-top: 10px; padding: 10px 12px; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.15); border-radius: 7px; background: rgba(255,255,255,0.045); color: #fff; font: inherit; }
+  .reset-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+  .reset-cancel, .reset-confirm-button { padding: 9px 13px; border-radius: 7px; font: inherit; cursor: pointer; }
+  .reset-cancel { border: 1px solid rgba(255,255,255,0.12); background: transparent; color: rgba(255,255,255,0.74); }
+  .reset-confirm-button { border: 1px solid rgba(255,90,90,0.32); background: rgba(150,35,35,0.18); color: #ffb4b4; }
+  .reset-confirm-button:disabled { opacity: 0.42; cursor: not-allowed; }
 
   /* Keep z-index reset (non-inheritable, needs *) but nothing else:
      padding/margin must NOT be reset here or they override component styles

@@ -163,7 +163,7 @@
         } catch {}
 
         const messages: Record<number, [string, string]> = {
-          401: ["Invalid API key", detail || "Your Groq API key was rejected. Update it in Settings → General."],
+          401: ["Invalid API key", detail || "Your Groq API key was rejected. Update it in ~/.local/share/quarry/.groq_key."],
           403: ["Access denied", detail || "Your key doesn't have permission to use this model."],
           429: ["Rate limited", detail || "Too many requests or quota exceeded. Try again shortly."],
           500: ["Groq server error", detail || "API down."],
@@ -335,7 +335,7 @@
       >
         {#if !key}
           <p class="dim">
-            Add a Groq API key in Settings → General to enable AI chat.
+            Add a Groq API key to ~/.local/share/quarry/.groq_key to enable AI chat.
           </p>
         {:else if loading && !rendered}
           <div class="dots">

@@ -9,6 +9,7 @@ use quick_xml::events::Event;
 use quick_xml::{Reader, XmlVersion};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 use tauri::AppHandle;
@@ -59,14 +60,24 @@ type FileIndex = Arc<Vec<IndexedFile>>;
 
 static FILE_INDEX: Lazy<RwLock<FileIndex>> = Lazy::new(|| RwLock::new(Arc::new(Vec::new())));
 static USER_SCRIPTS_DIR: Lazy<Option<PathBuf>> = Lazy::new(get_user_scripts_dir);
+static FILE_INDEX_ENABLED: AtomicBool = AtomicBool::new(false);
+static FILE_INDEX_RUNNING: AtomicBool = AtomicBool::new(false);
 
 /// Build the index once, then maintain it from filesystem events.
 pub fn start_file_index() {
+    FILE_INDEX_ENABLED.store(true, Ordering::Release);
+    if FILE_INDEX_RUNNING.swap(true, Ordering::AcqRel) {
+        return;
+    }
+
     std::thread::spawn(|| {
         let roots = FileSearcher::search_paths();
         let (entries, directories) = build_index_snapshot(&roots);
-        if let Ok(mut idx) = FILE_INDEX.write() {
-            *idx = Arc::new(entries);
+        if FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+            replace_index(entries);
+        } else {
+            FILE_INDEX_RUNNING.store(false, Ordering::Release);
+            return;
         }
 
         let (tx, rx) = std::sync::mpsc::sync_channel(4096);
@@ -89,8 +100,13 @@ pub fn start_file_index() {
             watch_directories(watcher, directories, &mut watched);
         }
 
+        let mut last_full_scan = std::time::Instant::now();
         loop {
-            match rx.recv_timeout(Duration::from_secs(FALLBACK_REFRESH_SECS)) {
+            if !FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+                replace_index(Vec::new());
+                break;
+            }
+            match rx.recv_timeout(Duration::from_secs(1)) {
                 Ok(first) => {
                     let mut events = vec![first];
                     while let Ok(event) = rx.recv_timeout(Duration::from_millis(150)) {
@@ -99,28 +115,48 @@ pub fn start_file_index() {
 
                     if overflowed.swap(false, std::sync::atomic::Ordering::Relaxed) {
                         let (entries, directories) = build_index_snapshot(&roots);
-                        replace_index(entries);
-                        if let Some(watcher) = watcher.as_mut() {
-                            reset_watches(watcher, directories, &mut watched);
+                        if FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+                            replace_index(entries);
+                            if let Some(watcher) = watcher.as_mut() {
+                                reset_watches(watcher, directories, &mut watched);
+                            }
                         }
                         continue;
                     }
 
                     for event in events {
+                        if !FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+                            break;
+                        }
                         apply_event(event, &roots, watcher.as_mut(), &mut watched);
                     }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    let (entries, directories) = build_index_snapshot(&roots);
-                    replace_index(entries);
-                    if let Some(watcher) = watcher.as_mut() {
-                        reset_watches(watcher, directories, &mut watched);
+                    if last_full_scan.elapsed() >= Duration::from_secs(FALLBACK_REFRESH_SECS) {
+                        let (entries, directories) = build_index_snapshot(&roots);
+                        if FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+                            replace_index(entries);
+                            if let Some(watcher) = watcher.as_mut() {
+                                reset_watches(watcher, directories, &mut watched);
+                            }
+                        }
+                        last_full_scan = std::time::Instant::now();
                     }
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
+
+        FILE_INDEX_RUNNING.store(false, Ordering::Release);
+        if FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+            start_file_index();
+        }
     });
+}
+
+pub fn stop_file_index() {
+    FILE_INDEX_ENABLED.store(false, Ordering::Release);
+    replace_index(Vec::new());
 }
 
 fn watch_directories(
@@ -311,6 +347,9 @@ fn should_refresh_for_path(path: &Path) -> bool {
 
 /// Trigger an immediate index rebuild outside the normal refresh cycle.
 pub fn rebuild_index_now() {
+    if !FILE_INDEX_ENABLED.load(Ordering::Acquire) {
+        return;
+    }
     std::thread::spawn(|| {
         let entries = build_index_entries();
         if let Ok(mut idx) = FILE_INDEX.write() {
