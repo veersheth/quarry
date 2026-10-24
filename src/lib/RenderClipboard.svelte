@@ -772,6 +772,8 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
     position: relative;
   }
 
@@ -793,11 +795,14 @@
     padding: 40px 40px 88px;
     box-sizing: border-box;
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
   }
 
   .image-preview-stage {
     position: relative;
     height: 100%;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;

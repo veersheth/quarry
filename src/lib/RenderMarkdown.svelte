@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { writable, type Writable } from "svelte/store";
+  import { listen } from "@tauri-apps/api/event";
   import { marked } from 'marked';
 
   export let listitems: {
@@ -9,26 +11,174 @@
   }[] = [];
   export let activeIndex: Writable<number> = writable(0);
 
+  type DictionaryProgress = {
+    stage: string;
+    downloadedBytes: number;
+    totalBytes: number | null;
+    indexedEntries: number;
+    totalEntries: number;
+    message: string;
+  };
+
+  let dictionaryProgress: DictionaryProgress | null = null;
+  let clearProgressTimer: ReturnType<typeof setTimeout> | undefined;
+  $: progressPercent = dictionaryProgress?.totalBytes
+    ? Math.min(100, dictionaryProgress.downloadedBytes / dictionaryProgress.totalBytes * 100)
+    : 0;
+
+  onMount(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    listen<DictionaryProgress>("quarry-dictionary-progress", ({ payload }) => {
+      dictionaryProgress = payload;
+      clearTimeout(clearProgressTimer);
+      if (payload.stage === "complete") {
+        clearProgressTimer = setTimeout(() => {
+          dictionaryProgress = null;
+        }, 1800);
+      }
+    }).then((stopListening) => {
+      if (cancelled) stopListening();
+      else unlisten = stopListening;
+    });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+      clearTimeout(clearProgressTimer);
+    };
+  });
+
   function renderMarkdown(content: string | undefined): string {
     if (!content) return "";
     return marked.parse(content) as string;
   }
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KB", "MB", "GB"];
+    let value = bytes / 1024;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024;
+      unit += 1;
+    }
+    return `${value.toFixed(1)} ${units[unit]}`;
+  }
 </script>
 
 <div class="markdown-container">
+  {#if dictionaryProgress}
+    <section
+      class="dictionary-progress"
+      class:failed={dictionaryProgress.stage === "failed"}
+      class:complete={dictionaryProgress.stage === "complete"}
+      aria-live="polite"
+    >
+      <div class="progress-message">{dictionaryProgress.message}</div>
+      {#if dictionaryProgress.stage !== "failed" && dictionaryProgress.stage !== "complete"}
+        <div
+          class="progress-track"
+          role="progressbar"
+          aria-label="Dictionary setup progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={Math.round(progressPercent)}
+        >
+          <div
+            class="progress-fill"
+            class:indeterminate={!dictionaryProgress.totalBytes}
+            style={`width:${progressPercent}%`}
+          ></div>
+        </div>
+        <div class="progress-details">
+          {#if dictionaryProgress.totalBytes}
+            {formatBytes(dictionaryProgress.downloadedBytes)} of {formatBytes(dictionaryProgress.totalBytes)} downloaded
+          {:else if dictionaryProgress.stage === "connecting"}
+            Connecting to dictionary source…
+          {:else}
+            {formatBytes(dictionaryProgress.downloadedBytes)} downloaded
+          {/if}
+          · {dictionaryProgress.indexedEntries.toLocaleString()} of {dictionaryProgress.totalEntries.toLocaleString()} entries indexed
+        </div>
+      {/if}
+    </section>
+  {/if}
+
   {#each listitems as item, index}
     {#if index === $activeIndex}
-      <div class="markdown-body">
-        {@html renderMarkdown(item.description)}
-      </div>
+      {#if !(dictionaryProgress && item.name === "Preparing the local dictionary")}
+        <div class="markdown-body">
+          {@html renderMarkdown(item.description)}
+        </div>
+      {/if}
     {/if}
   {/each}
 </div>
 
 <style>
+  .dictionary-progress {
+    margin: 4px 0 20px;
+    padding: 16px 18px;
+    border: 1px solid var(--q-border-medium);
+    border-radius: 12px;
+    background: var(--q-surface, rgba(255, 255, 255, 0.035));
+  }
+
+  .progress-message {
+    margin-bottom: 10px;
+    color: var(--q-text-secondary, rgba(255, 255, 255, 0.8));
+  }
+
+  .progress-track {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--q-active-border-color, #8ab4f8);
+    transition: width 180ms ease;
+  }
+
+  .progress-fill.indeterminate {
+    width: 35% !important;
+    animation: dictionary-progress 1.2s ease-in-out infinite alternate;
+  }
+
+  .progress-details {
+    margin-top: 8px;
+    color: var(--q-text-muted, rgba(255, 255, 255, 0.48));
+    font-size: 0.82em;
+  }
+
+  .dictionary-progress.failed {
+    border-color: rgba(248, 113, 113, 0.45);
+  }
+
+  .dictionary-progress.complete {
+    border-color: rgba(74, 222, 128, 0.35);
+  }
+
+  @keyframes dictionary-progress {
+    from { transform: translateX(-30%); }
+    to { transform: translateX(210%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { transition: none; }
+    .progress-fill.indeterminate { animation: none; width: 100% !important; }
+  }
+
   .markdown-container {
+    box-sizing: border-box;
     padding: 20px;
     height: 100%;
+    min-height: 0;
     overflow-y: auto;
     color: rgba(255, 255, 255, 0.9);
     font-family: var(--q-sans, system-ui, sans-serif);
