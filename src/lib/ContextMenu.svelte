@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { execute } from "./searcher";
   import { query, contextMenu } from "../stores/search";
   import type { ResultItem } from "../stores/search";
@@ -22,22 +22,33 @@
   let menuEl: HTMLDivElement;
   let listEl: HTMLDivElement;
   let searchInput: HTMLInputElement;
-  let readyToScroll = false;
+  let scrollFrame = 0;
 
-  $: if (readyToScroll && listEl && activeIdx >= 0 && filteredActions.length > 0) {
-    scrollActiveIntoView();
-  }
+  const unsubscribeMenu = contextMenu.subscribe((state) => {
+    if (state.open) scheduleScroll(state.activeIndex);
+  });
 
   onMount(async () => {
     await tick();
     searchInput?.focus();
     listEl.scrollTop = listEl.scrollHeight;
-    readyToScroll = true;
+    scheduleScroll(activeIdx);
   });
 
-  async function scrollActiveIntoView() {
-    await tick();
-    const activeItem = listEl?.querySelector<HTMLElement>(".ctx-item.active");
+  onDestroy(() => {
+    unsubscribeMenu();
+    cancelAnimationFrame(scrollFrame);
+  });
+
+  function scheduleScroll(index: number) {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => scrollActiveIntoView(index));
+  }
+
+  function scrollActiveIntoView(index: number) {
+    const activeItem = listEl?.querySelector<HTMLElement>(
+      `.ctx-item[data-action-index="${index}"]`,
+    );
     if (!listEl || !activeItem) return;
 
     const padding = 8;
@@ -83,8 +94,6 @@
         data-action-index={entry.index}
         role="menuitem"
         on:click={() => selectAction(entry.action.id)}
-        on:mouseenter={() =>
-          contextMenu.update((state) => ({ ...state, activeIndex: entry.index }))}
       >
         <span class="ctx-label">{entry.action.name}</span>
       </div>

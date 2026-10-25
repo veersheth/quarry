@@ -4,7 +4,7 @@ import { execute } from "./searcher";
 import { get } from "svelte/store";
 import { tick } from "svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { query, resultType, aiSubmitQuery, contextMenu, closeContextMenu, modalStore, closeModal } from "../stores/search";
+import { query, resultType, aiSubmitQuery, contextMenu, openContextMenu, closeContextMenu, modalStore, closeModal } from "../stores/search";
 
 function deleteWordFromEnd(str: string): string {
   let pos = str.length;
@@ -194,8 +194,7 @@ export function handleKeydown(
     const idx = get(activeIndex);
     const item = items[idx];
     if (item && item.actions.length > 1) {
-      contextMenu.set({ open: true, item, activeIndex: 0, searchQuery: "" });
-      window.dispatchEvent(new CustomEvent("open-context-menu-at-active"));
+      openContextMenu(item);
     }
     return;
   }

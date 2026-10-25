@@ -326,16 +326,8 @@ pub struct ClipboardFileMetadata {
     size_bytes: Option<u64>,
     modified_unix: Option<u64>,
     folder_child_count: Option<usize>,
-    folder_entries: Option<Vec<String>>,
     image_width: Option<u32>,
     image_height: Option<u32>,
-}
-
-#[derive(serde::Serialize)]
-pub struct FilePreview {
-    text: Option<String>,
-    image_data: Option<String>,
-    truncated: bool,
 }
 
 #[tauri::command]
@@ -366,23 +358,15 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_secs());
-    let (folder_child_count, folder_entries) = if is_directory {
-        match std::fs::read_dir(file_path) {
-            Ok(children) => {
-                let mut entries = children
-                    .take(101)
-                    .filter_map(Result::ok)
-                    .filter_map(|entry| entry.file_name().into_string().ok())
-                    .collect::<Vec<_>>();
-                entries.sort_by_key(|name| name.to_lowercase());
-                let count = entries.len();
-                entries.truncate(8);
-                (Some(count), Some(entries))
-            }
-            Err(_) => (None, None),
-        }
+    let folder_child_count = if is_directory {
+        std::fs::read_dir(file_path).ok().map(|children| {
+            children
+                .take(101)
+                .filter(|entry| entry.is_ok())
+                .count()
+        })
     } else {
-        (None, None)
+        None
     };
     let is_image = matches!(
         extension.as_deref().map(str::to_ascii_lowercase).as_deref(),
@@ -405,76 +389,8 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
         size_bytes,
         modified_unix,
         folder_child_count,
-        folder_entries,
         image_width,
         image_height,
-    })
-}
-
-#[tauri::command]
-pub fn get_file_preview(path: String) -> Option<FilePreview> {
-    const MAX_PREVIEW_BYTES: usize = 32 * 1024;
-    let file_path = std::path::Path::new(&path);
-    let extension = file_path
-        .extension()
-        .and_then(|part| part.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-
-    if matches!(
-        extension.as_str(),
-        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "tif" | "tiff"
-    ) {
-        let image = image::open(file_path).ok()?;
-        let preview = image.thumbnail(1400, 1000);
-        let mut encoded = std::io::Cursor::new(Vec::new());
-        preview
-            .write_to(&mut encoded, image::ImageFormat::Png)
-            .ok()?;
-        return Some(FilePreview {
-            text: None,
-            image_data: Some(format!(
-                "data:image/png;base64,{}",
-                general_purpose::STANDARD.encode(encoded.into_inner())
-            )),
-            truncated: false,
-        });
-    }
-
-    if !matches!(
-        extension.as_str(),
-        "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "tsv" | "json" | "jsonc"
-            | "toml" | "yaml" | "yml" | "xml" | "html" | "htm" | "css" | "scss"
-            | "js" | "jsx" | "ts" | "tsx" | "svelte" | "vue" | "rs" | "py" | "sh"
-            | "bash" | "zsh" | "fish" | "sql" | "go" | "java" | "kt" | "c" | "h"
-            | "cpp" | "hpp" | "cs" | "rb" | "php" | "swift" | "lua" | "ini" | "conf"
-            | "nix" | "dockerfile" | "makefile" | "graphql" | "gql" | "proto" | "diff"
-    ) {
-        return Some(FilePreview {
-            text: None,
-            image_data: None,
-            truncated: false,
-        });
-    }
-
-    let file = std::fs::File::open(file_path).ok()?;
-    let mut bytes = Vec::with_capacity(MAX_PREVIEW_BYTES + 1);
-    let mut limited = std::io::Read::take(file, (MAX_PREVIEW_BYTES + 1) as u64);
-    std::io::Read::read_to_end(&mut limited, &mut bytes).ok()?;
-    let truncated = bytes.len() > MAX_PREVIEW_BYTES;
-    bytes.truncate(MAX_PREVIEW_BYTES);
-    if bytes.contains(&0) {
-        return Some(FilePreview {
-            text: None,
-            image_data: None,
-            truncated: false,
-        });
-    }
-
-    Some(FilePreview {
-        text: Some(String::from_utf8_lossy(&bytes).into_owned()),
-        image_data: None,
-        truncated,
     })
 }
 

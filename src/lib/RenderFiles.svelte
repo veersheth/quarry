@@ -4,6 +4,9 @@
   import type { ResultItem } from "../stores/search";
   import { mouseHasMoved } from "../stores/search";
   import SidebarRenderer from "./SidebarRenderer.svelte";
+  import PreviewCard from "./ui/PreviewCard.svelte";
+  import MetadataTable from "./ui/MetadataTable.svelte";
+  import type { MetadataRow } from "./ui/metadata";
   import ItemIcon from "./ui/ItemIcon.svelte";
   import FooterBar from "./ui/FooterBar.svelte";
   import Chip from "./ui/Chip.svelte";
@@ -22,15 +25,8 @@
     size_bytes: number | null;
     modified_unix: number | null;
     folder_child_count: number | null;
-    folder_entries: string[] | null;
     image_width: number | null;
     image_height: number | null;
-  };
-
-  type FilePreview = {
-    text: string | null;
-    image_data: string | null;
-    truncated: boolean;
   };
 
   const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff"]);
@@ -47,10 +43,9 @@
   $: activePath = activeItem?.description ?? activeItem?.draggable_path ?? "";
   $: extension = activePath.split(".").pop()?.toLowerCase() ?? "";
   $: category = getCategory(activeItem, extension);
-  $: previewLines = preview?.text?.split("\n").length ?? 0;
+  $: metadataRows = getMetadataRows(metadata, category, activePath);
 
   let metadata: FileMetadata | null = null;
-  let preview: FilePreview | null = null;
   let requestSequence = 0;
   let detailsLoaded = false;
 
@@ -63,28 +58,22 @@
   $: if (!activePath) {
     requestSequence++;
     metadata = null;
-    preview = null;
     detailsLoaded = false;
   }
 
   async function loadDetails(path: string) {
     const request = ++requestSequence;
     metadata = null;
-    preview = null;
     detailsLoaded = false;
     try {
       const details = await invoke<FileMetadata | null>("get_clipboard_file_metadata", { path });
       if (request !== requestSequence) return;
       metadata = details;
       detailsLoaded = true;
-      if (!details || details.kind === "Folder") return;
-
-      const content = await invoke<FilePreview | null>("get_file_preview", { path });
-      if (request === requestSequence) preview = content;
     } catch (error) {
       if (request === requestSequence) {
         detailsLoaded = true;
-        console.warn("Could not load file preview:", error);
+        console.warn("Could not load file details:", error);
       }
     }
   }
@@ -111,9 +100,27 @@
   function formatDate(timestamp: number | null | undefined): string {
     return timestamp == null ? "—" : new Date(timestamp * 1000).toLocaleString();
   }
+
+  function getMetadataRows(details: FileMetadata | null, type: string, path: string): MetadataRow[] {
+    if (!details) return [];
+    const rows: MetadataRow[] = [{ label: "Kind", value: type }];
+    if (details.extension) rows.push({ label: "Format", value: details.extension.toUpperCase() });
+    if (details.folder_child_count != null) {
+      const count = details.folder_child_count === 101 ? "100+" : details.folder_child_count.toLocaleString();
+      rows.push({ label: "Items", value: `${count} in folder` });
+    }
+    if (details.image_width && details.image_height) {
+      rows.push({ label: "Dimensions", value: `${details.image_width} × ${details.image_height} px` });
+    }
+    if (details.size_bytes != null) rows.push({ label: "Size", value: formatSize(details.size_bytes) });
+    rows.push({ label: "Modified", value: formatDate(details.modified_unix) });
+    rows.push({ label: "Location", value: path.slice(0, Math.max(path.lastIndexOf("/"), 1)), mono: true });
+    rows.push({ label: "Path", value: path, mono: true });
+    return rows;
+  }
 </script>
 
-<SidebarRenderer>
+<SidebarRenderer listWidth={280}>
   <div slot="list" class="file-list">
     {#each listitems as item, index (item.name + index)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -142,72 +149,19 @@
   <div slot="detail" class="file-detail">
     {#if activeItem}
       <div class="detail-scroll">
-        <header class="file-heading">
-          <ItemIcon icon={activeItem.icon ?? "icons/file.svg"} name={activeItem.name} size={42} />
-          <div class="heading-text">
-            <h2>{activeItem.name}</h2>
-            <span>{metadata?.kind ?? category}{metadata?.extension ? ` · ${metadata.extension.toUpperCase()}` : ""}</span>
-          </div>
-        </header>
-
-        {#if category === "Image" && preview?.image_data}
-          <div class="image-preview">
-            <img src={preview.image_data} alt={`Preview of ${activeItem.name}`} />
-          </div>
-        {:else if category === "Code" || category === "SQL" || category === "Text"}
-          {#if preview?.text != null}
-            <div class="preview-label">
-              <span>{category === "Text" ? "TEXT PREVIEW" : `${extension.toUpperCase()} PREVIEW`}</span>
-              <span>{previewLines.toLocaleString()} lines</span>
-            </div>
-            <pre class="text-preview">{preview.text}</pre>
-            {#if preview.truncated}<div class="preview-note">Preview limited to the first 32 KB</div>{/if}
+        <PreviewCard
+          icon={activeItem.icon}
+          title={metadata?.name ?? activeItem.name}
+          subtitle={`${category}${metadata?.extension ? ` · ${metadata.extension.toUpperCase()}` : ""}`}
+        >
+          {#if metadataRows.length}
+            <MetadataTable rows={metadataRows} />
+          {:else if !detailsLoaded}
+            <div class="detail-loading">Loading file details…</div>
           {:else}
-            <div class="type-card"><span class="type-glyph">Aa</span><span>Text preview unavailable</span></div>
+            <div class="detail-loading">This file is unavailable.</div>
           {/if}
-        {:else if category === "Folder"}
-          <div class="folder-summary">
-            <strong>{metadata?.folder_child_count === 101 ? "100+" : (metadata?.folder_child_count ?? 0).toLocaleString()}</strong>
-            <span>items in this folder</span>
-          </div>
-          {#if metadata?.folder_entries?.length}
-            <div class="folder-contents">
-              <div class="section-label">CONTENTS</div>
-              {#each metadata.folder_entries as entry (entry)}
-                <div class="folder-entry"><span>›</span>{entry}</div>
-              {/each}
-            </div>
-          {/if}
-        {:else if category === "Video" || category === "Audio" || category === "PDF document"}
-          <div class="type-card">
-            <span class="type-glyph">{category === "Video" ? "▶" : category === "Audio" ? "♫" : "PDF"}</span>
-            <span>{category}{metadata?.extension ? ` · ${metadata.extension.toUpperCase()}` : ""}</span>
-          </div>
-        {:else}
-          <div class="type-card"><span class="type-glyph">···</span><span>File details</span></div>
-        {/if}
-
-        {#if metadata}
-          <div class="metadata-table">
-            <div class="metadata-row"><span>TYPE</span><span>{category}</span></div>
-            {#if metadata.extension}
-              <div class="metadata-row"><span>FORMAT</span><span>{metadata.extension.toUpperCase()}</span></div>
-            {/if}
-            {#if metadata.image_width && metadata.image_height}
-              <div class="metadata-row"><span>DIMENSIONS</span><span>{metadata.image_width} × {metadata.image_height} px</span></div>
-            {/if}
-            {#if metadata.size_bytes != null}
-              <div class="metadata-row"><span>SIZE</span><span>{formatSize(metadata.size_bytes)}</span></div>
-            {/if}
-            <div class="metadata-row"><span>MODIFIED</span><span>{formatDate(metadata.modified_unix)}</span></div>
-            <div class="metadata-row"><span>LOCATION</span><span>{activePath.slice(0, Math.max(activePath.lastIndexOf("/"), 1))}</span></div>
-            <div class="metadata-row path-row"><span>PATH</span><span>{activePath}</span></div>
-          </div>
-        {:else if !detailsLoaded}
-          <div class="detail-loading">Loading file details…</div>
-        {:else}
-          <div class="detail-loading">This file is unavailable.</div>
-        {/if}
+        </PreviewCard>
       </div>
 
       <FooterBar>
@@ -271,164 +225,8 @@
     min-height: 0;
     flex: 1;
     overflow: auto;
-    padding: 24px 28px 16px;
+    padding: 18px 20px;
+    box-sizing: border-box;
   }
 
-  .file-heading {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-
-  .heading-text { min-width: 0; }
-
-  h2 {
-    overflow: hidden;
-    margin: 0 0 4px;
-    font-size: 1.05em;
-    font-weight: 550;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .heading-text span {
-    color: var(--q-text-dim);
-    font-size: 0.8em;
-  }
-
-  .image-preview {
-    display: flex;
-    height: min(42vh, 300px);
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-    overflow: hidden;
-    border: 1px solid var(--q-border-subtle);
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.18);
-  }
-
-  .image-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .preview-label,
-  .metadata-row {
-    display: grid;
-    grid-template-columns: minmax(96px, 0.32fr) minmax(0, 1fr);
-    gap: 14px;
-  }
-
-  .preview-label {
-    margin-bottom: 7px;
-    color: var(--q-text-dim);
-    font: 0.7em var(--q-mono);
-  }
-
-  .text-preview {
-    max-height: 280px;
-    margin: 0 0 7px;
-    padding: 14px 16px;
-    overflow: auto;
-    border: 1px solid var(--q-border-subtle);
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.2);
-    color: var(--q-text-secondary);
-    font: 0.78em/1.55 var(--q-mono);
-    tab-size: 2;
-    white-space: pre;
-  }
-
-  .preview-note {
-    margin-bottom: 18px;
-    color: var(--q-text-dim);
-    font-size: 0.72em;
-  }
-
-  .folder-summary {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin: 22px 0;
-  }
-
-  .folder-summary strong {
-    font-size: 2em;
-    font-weight: 500;
-  }
-
-  .folder-summary span,
-  .section-label { color: var(--q-text-dim); }
-
-  .section-label {
-    margin-bottom: 7px;
-    font: 0.7em var(--q-mono);
-  }
-
-  .folder-contents {
-    margin-bottom: 22px;
-  }
-
-  .folder-entry {
-    display: flex;
-    gap: 9px;
-    padding: 5px 0;
-    overflow: hidden;
-    color: var(--q-text-secondary);
-    font-size: 0.84em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .folder-entry span { color: var(--q-text-dim); }
-
-  .type-card {
-    display: flex;
-    min-height: 120px;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    margin-bottom: 20px;
-    border: 1px solid var(--q-border-subtle);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.025);
-    color: var(--q-text-dim);
-  }
-
-  .type-glyph {
-    color: var(--q-text-secondary);
-    font-size: 1.6em;
-  }
-
-  .metadata-table {
-    overflow: hidden;
-    border: 1px solid var(--q-border-subtle);
-    border-radius: 10px;
-  }
-
-  .metadata-row {
-    min-height: 38px;
-    align-items: center;
-    padding: 0 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.045);
-    font-size: 0.78em;
-  }
-
-  .metadata-row:last-child { border-bottom: 0; }
-
-  .metadata-row > :first-child {
-    color: var(--q-text-dim);
-    font: 0.9em var(--q-mono);
-    letter-spacing: 0.035em;
-  }
-
-  .metadata-row > :last-child {
-    overflow-wrap: anywhere;
-    color: var(--q-text-secondary);
-  }
-
-  .path-row { padding-top: 8px; padding-bottom: 8px; }
 </style>

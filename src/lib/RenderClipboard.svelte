@@ -7,6 +7,8 @@
   import FooterBar from "./ui/FooterBar.svelte";
   import Chip from "./ui/Chip.svelte";
   import Timestamp from "./ui/Timestamp.svelte";
+  import PreviewCard from "./ui/PreviewCard.svelte";
+  import MetadataTable from "./ui/MetadataTable.svelte";
   import SidebarRenderer from "./SidebarRenderer.svelte";
 
   const TYPE_ACCENT: Record<string, string> = {
@@ -499,77 +501,25 @@
           </div>
         {:else if contentType === "file"}
           {@const path = fileMetadata?.path ?? previewText ?? activeItem.name}
-          <div class="file-card">
-            {#if activeItem.icon}
-              <img class="card-icon-glow" src={iconSrc(activeItem.icon)} alt="" aria-hidden="true" />
-            {/if}
-            <div class="file-heading">
-              {#if activeItem.icon}
-                <img class="file-preview-icon" src={iconSrc(activeItem.icon)} alt="" />
-              {:else}
-                <div class="file-preview-icon file-icon-fallback">FILE</div>
-              {/if}
-              <div class="file-name">{fileMetadata?.name ?? path.split(/[\\/]/).filter(Boolean).at(-1) ?? path}</div>
-            </div>
-            <table class="file-details">
-              <tbody>
-                <tr>
-                  <th scope="row">Kind</th>
-                  <td>{fileMetadata?.kind ?? "File"}</td>
-                </tr>
-                {#if fileMetadata?.size_bytes !== null && fileMetadata?.size_bytes !== undefined}
-                  <tr>
-                    <th scope="row">Size</th>
-                    <td>{formatFileSize(fileMetadata.size_bytes)}</td>
-                  </tr>
-                {/if}
-                {#if fileMetadata?.modified_unix !== null && fileMetadata?.modified_unix !== undefined}
-                  <tr>
-                    <th scope="row">Modified</th>
-                    <td>{formatModifiedTime(fileMetadata.modified_unix)}</td>
-                  </tr>
-                {/if}
-                <tr>
-                  <th scope="row">Path</th>
-                  <td class="file-path">{path}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Location</th>
-                  <td class="file-path">{parentPath(path)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <PreviewCard
+            icon={activeItem.icon}
+            title={fileMetadata?.name ?? path.split(/[\\/]/).filter(Boolean).at(-1) ?? path}
+            subtitle="File"
+          >
+            <MetadataTable rows={[
+              { label: "Kind", value: fileMetadata?.kind ?? "File" },
+              ...(fileMetadata?.size_bytes != null ? [{ label: "Size", value: formatFileSize(fileMetadata.size_bytes) }] : []),
+              ...(fileMetadata?.modified_unix != null ? [{ label: "Modified", value: formatModifiedTime(fileMetadata.modified_unix) }] : []),
+              { label: "Path", value: path, mono: true },
+              { label: "Location", value: parentPath(path), mono: true },
+            ]} />
+          </PreviewCard>
         {:else if contentType === "url"}
           {@const parsed = parseURL(activeItem.name)}
           {@const meta = getUrlMeta(activeItem.name)}
           {@const ytId = youtubeVideoId(activeItem.name)}
           {#if parsed}
-            <div class="url-card">
-              {#if meta?.favicon}
-                <img
-                  class="card-icon-glow"
-                  src={meta.favicon}
-                  alt=""
-                  aria-hidden="true"
-                  on:error={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              {/if}
-              <div class="url-heading">
-                {#if meta?.favicon}
-                  <img
-                    class="url-favicon"
-                    src={meta.favicon}
-                    alt=""
-                    on:error={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                {/if}
-                <span class="url-hostname">{parsed.display}</span>
-              </div>
+            <PreviewCard icon={meta?.favicon} title={parsed.display} subtitle="Web address">
               {#if meta?.thumbnail}
                 <div class="url-thumb-wrap">
                   <img
@@ -584,23 +534,15 @@
                   />
                 </div>
               {/if}
-              <table class="file-details">
-                <tbody>
-                  <tr><th scope="row">Protocol</th><td>{parsed.protocol}</td></tr>
-                  <tr><th scope="row">Domain</th><td>{parsed.hostname}</td></tr>
-                  <tr><th scope="row">Path</th><td class="file-path">{parsed.path}</td></tr>
-                  {#if ytId}
-                    <tr><th scope="row">Platform</th><td>YouTube</td></tr>
-                  {/if}
-                  {#if parsed.query}
-                    <tr><th scope="row">Query</th><td class="file-path">{parsed.query}</td></tr>
-                  {/if}
-                  {#if parsed.fragment}
-                    <tr><th scope="row">Fragment</th><td class="file-path">{parsed.fragment}</td></tr>
-                  {/if}
-                  <tr><th scope="row">URL</th><td class="file-path">{previewText ?? activeItem.name}</td></tr>
-                </tbody>
-              </table>
+              <MetadataTable rows={[
+                { label: "Protocol", value: parsed.protocol },
+                { label: "Domain", value: parsed.hostname },
+                { label: "Path", value: parsed.path, mono: true },
+                ...(ytId ? [{ label: "Platform", value: "YouTube" }] : []),
+                ...(parsed.query ? [{ label: "Query", value: parsed.query, mono: true }] : []),
+                ...(parsed.fragment ? [{ label: "Fragment", value: parsed.fragment, mono: true }] : []),
+                { label: "URL", value: previewText ?? activeItem.name, mono: true },
+              ]} />
               <!-- svelte-ignore a11y_invalid_attribute -->
               <a
                 class="url-open"
@@ -610,7 +552,7 @@
               >
                 Open in browser
               </a>
-            </div>
+            </PreviewCard>
           {/if}
         {:else if contentType === "email"}
           <div class="email-card">
@@ -665,7 +607,6 @@
 
 <style>
   .result-list {
-    border-right: 1px solid rgba(0,0, 0, 0);
     overflow-y: auto;
     padding: 5px 10px;
     display: flex;
@@ -862,131 +803,6 @@
     box-shadow: 0 0 60px 2px color-mix(in srgb, var(--orb-color) 72%, transparent);
   }
 
-  .file-card,
-  .url-card {
-    position: relative;
-    isolation: isolate;
-    width: min(100%, 560px);
-    max-height: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    overflow-y: auto;
-    padding: 12px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 15px;
-    background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 42%),
-      var(--q-code-bg);
-    box-shadow:
-      0 14px 32px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.07),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.015);
-  }
-
-  .card-icon-glow {
-    position: absolute;
-    z-index: 0;
-    top: 10px;
-    left: 10px;
-    width: 52px;
-    height: 52px;
-    object-fit: contain;
-    filter: blur(18px) saturate(1.45);
-    opacity: 0.2;
-    mix-blend-mode: screen;
-    pointer-events: none;
-  }
-
-  .file-card > :not(.card-icon-glow),
-  .url-card > :not(.card-icon-glow) {
-    position: relative;
-    z-index: 1;
-  }
-
-  .file-heading {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  .file-preview-icon {
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
-    box-sizing: border-box;
-    object-fit: contain;
-  }
-
-  .file-icon-fallback {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--q-text-muted);
-    font-size: 1em;
-    font-weight: 600;
-    border: 1px solid var(--q-divider-dark);
-    border-radius: 5px;
-  }
-
-  .file-name {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    color: var(--q-font-color);
-    font-size: 1em;
-    font-weight: 600;
-  }
-
-  .file-details {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    table-layout: fixed;
-    font-size: 1em;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 9px;
-    background: rgba(0, 0, 0, 0.12);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
-  }
-
-  .file-details tr:not(:last-child) th,
-  .file-details tr:not(:last-child) td {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  }
-
-  .file-details th,
-  .file-details td {
-    padding: 11px 10px;
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .file-details th {
-    width: 110px;
-    color: var(--q-text-secondary);
-    font-weight: 500;
-    font-size: 0.9em;
-    letter-spacing: 0.035em;
-    <!-- text-transform: uppercase; -->
-    background: rgba(255, 255, 255, 0.018);
-  }
-
-  .file-details td {
-    color: var(--q-text-muted);
-    overflow-wrap: anywhere;
-  }
-
-  .file-details td.file-path {
-    color: var(--q-text-secondary);
-    font-family: var(--q-mono);
-    font-size: 0.98em;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-  }
-
   .color-value {
     font-family: var(--q-mono);
     font-size: 1.1em;
@@ -1016,45 +832,21 @@
     display: block;
   }
 
-  .url-heading {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .url-favicon {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
-    border-radius: 6px;
-    flex-shrink: 0;
-  }
-
-  .url-hostname {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--q-font-color);
-    font-size: 1em;
-    font-weight: 600;
-  }
-
   .url-open {
     display: inline-flex;
     align-items: center;
     align-self: flex-start;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 18px 14px;
+    border-radius: 8px;
+    padding: 8px 12px;
     background: linear-gradient(rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
     color: var(--q-text-secondary);
     font-size: 0.8em;
     text-decoration: none;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
     transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
-    margin: auto;
-    width: 90%;
+    margin: 0;
+    width: auto;
   }
   .url-open:hover {
     background: var(--q-surface-dark);

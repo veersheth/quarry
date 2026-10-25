@@ -113,14 +113,6 @@
     openContextMenu(item);
   }
 
-  function handleOpenAtActive() {
-    const items = $resultItems;
-    const idx = $activeIndex;
-    const item = items[idx];
-    if (!item || item.actions.length <= 1) return;
-    openContextMenu(item);
-  }
-
   interface Theme {
     background_color: string;
     background_opacity: number;
@@ -227,8 +219,6 @@
           cancelRofi();
         }
       });
-
-      window.addEventListener("open-context-menu-at-active", handleOpenAtActive);
 
       const blockZoom = (e: WheelEvent) => {
         if (e.ctrlKey) e.preventDefault();
@@ -364,7 +354,6 @@
         unlistenSetupWizard();
         unlistenReset();
         unlistenDictionaryProgress();
-        window.removeEventListener("open-context-menu-at-active", handleOpenAtActive);
         window.removeEventListener("wheel", blockZoom);
       };
       if (cancelled) cleanup?.();
@@ -698,6 +687,15 @@
     --q-border-dark: rgb(51, 51, 51);
     --q-thumb-bg: rgb(17, 17, 17);
     --q-glow: rgba(50, 50, 50, 1);
+
+    /* Shared surfaces used by detail cards and their metadata tables. */
+    --q-card-surface: color-mix(in srgb, var(--q-code-bg, #181818) 94%, white 6%);
+    --q-card-border: color-mix(in srgb, var(--q-border-medium, rgba(255, 255, 255, 0.15)) 55%, transparent);
+    --q-card-radius: 14px;
+    --q-table-surface: color-mix(in srgb, var(--q-card-surface) 78%, black 22%);
+    --q-table-border: color-mix(in srgb, var(--q-card-border) 80%, transparent);
+    --q-table-divider: color-mix(in srgb, var(--q-card-border) 58%, transparent);
+    --q-table-label-surface: rgba(255, 255, 255, 0.025);
 
     --q-text-secondary: color-mix(in srgb, var(--q-font-color, #ffffff) 90%, transparent);
     --q-text-muted: color-mix(in srgb, var(--q-font-color, #ffffff) 80%, transparent);
