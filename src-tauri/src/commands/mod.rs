@@ -276,6 +276,8 @@ pub fn save_searcher_trigger(
         "color_picker" => config.triggers.color_picker = trigger_regex,
         "currency" => config.triggers.currency = trigger_regex,
         "qr_code" => config.triggers.qr_code = trigger_regex,
+        "shell" => config.triggers.shell = trigger_regex,
+        "lorem" => config.triggers.lorem = trigger_regex,
         key if key.starts_with("web:") => {
             let name = &key[4..];
             let web_search = config

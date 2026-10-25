@@ -7,7 +7,10 @@ use super::SearchProvider;
 
 #[derive(Clone)]
 struct SearchTarget {
-    name: String,
+    badge: String,
+    command: String,
+    description: String,
+    search_terms: Vec<String>,
     config_key: String,
     trigger: String,
     regex: String,
@@ -17,6 +20,155 @@ struct SearchTarget {
 pub struct MetaSearcher;
 
 impl MetaSearcher {
+    /// Human-facing labels for searchers. Searcher IDs and configured regexes stay stable.
+    fn presentation(
+        config_key: &str,
+    ) -> (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static [&'static str],
+    ) {
+        match config_key {
+            "apps" => (
+                "Apps",
+                "Search Apps",
+                "Find and launch apps",
+                &["application", "launch"],
+            ),
+            "files" => (
+                "Files",
+                "Search Files",
+                "Find files and folders",
+                &["folder", "document"],
+            ),
+            "clipboard" => (
+                "Clipboard",
+                "Search Clipboard",
+                "Find copied text and images",
+                &["paste", "history"],
+            ),
+            "emojis" => (
+                "Emojis",
+                "Search Emojis",
+                "Find and paste emoji",
+                &["emoji", "symbols"],
+            ),
+            "fonts" => (
+                "Fonts",
+                "Search Fonts",
+                "Preview and copy fonts",
+                &["typeface"],
+            ),
+            "bookmarks" => (
+                "Bookmarks",
+                "Search Bookmarks",
+                "Find saved links",
+                &["bookmark", "url"],
+            ),
+            "system" => (
+                "System",
+                "Open System Actions",
+                "Control system and session settings",
+                &["power", "lock", "sleep"],
+            ),
+            "shortcuts" => (
+                "Shortcuts",
+                "Search Shortcuts",
+                "Find built-in Quarry actions",
+                &["action", "command"],
+            ),
+            "scripts" => (
+                "Scripts",
+                "Search Scripts",
+                "Find and run saved scripts",
+                &["script"],
+            ),
+            "screenshots" => (
+                "Screenshots",
+                "Browse Screenshots",
+                "Find screenshots and extract text",
+                &["screenshot", "ocr"],
+            ),
+            "math" => (
+                "Calculator",
+                "Calculate",
+                "Evaluate a math expression",
+                &["math", "calculator"],
+            ),
+            "dictionary" => (
+                "Dictionary",
+                "Define a Word",
+                "Look up a definition",
+                &["definition", "word"],
+            ),
+            "time" => (
+                "World Clock",
+                "Check World Time",
+                "Look up time in a city or time zone",
+                &["time", "clock", "timezone"],
+            ),
+            "timer" => ("Timer", "Set a Timer", "Start a countdown", &["countdown"]),
+            "ai" => ("AI", "Ask AI", "Ask a question", &["assistant", "chat"]),
+            "camera" => (
+                "Camera",
+                "Preview Camera",
+                "Open a live camera preview",
+                &["webcam", "preview"],
+            ),
+            "color_picker" => (
+                "Color Picker",
+                "Pick a Color",
+                "Choose a color from the screen",
+                &["color", "colour"],
+            ),
+            "currency" => (
+                "Currency",
+                "Convert Currency",
+                "Convert between currencies",
+                &["exchange", "money"],
+            ),
+            "qr_code" => (
+                "QR Code",
+                "Create QR Code",
+                "Make a QR code from text or a link",
+                &["qr", "barcode"],
+            ),
+            "shell" => (
+                "Shell",
+                "Run a Shell Command",
+                "Execute a terminal command",
+                &["terminal", "command"],
+            ),
+            "lorem" => (
+                "Lorem Ipsum",
+                "Generate Placeholder Text",
+                "Create lorem ipsum text",
+                &["lorem", "placeholder"],
+            ),
+            _ => ("", "", "", &[]),
+        }
+    }
+
+    pub fn badge_for_provider(provider: &str) -> String {
+        let config_key = match provider {
+            "color" => "color_picker",
+            "qr" => "qr_code",
+            _ => provider,
+        };
+        let (badge, _, _, _) = Self::presentation(config_key);
+        if !badge.is_empty() {
+            return badge.to_string();
+        }
+        if provider == "search" {
+            return "Searchers".to_string();
+        }
+        provider
+            .strip_prefix("web:")
+            .unwrap_or(provider)
+            .to_string()
+    }
+
     fn targets() -> Vec<SearchTarget> {
         let Ok(config) = CONFIG.read() else {
             return Vec::new();
@@ -24,34 +176,40 @@ impl MetaSearcher {
 
         let triggers = &config.triggers;
         let configured = [
-            ("Apps", "apps", triggers.apps.as_str()),
-            ("Files", "files", triggers.files.as_str()),
-            ("Clipboard", "clipboard", triggers.clipboard.as_str()),
-            ("Emojis", "emojis", triggers.emojis.as_str()),
-            ("Fonts", "fonts", triggers.fonts.as_str()),
-            ("Bookmarks", "bookmarks", triggers.bookmarks.as_str()),
-            ("System", "system", triggers.system.as_str()),
-            ("Shortcuts", "shortcuts", triggers.shortcuts.as_str()),
-            ("Scripts", "scripts", triggers.scripts.as_str()),
-            ("Screenshots", "screenshots", triggers.screenshots.as_str()),
-            ("Math", "math", triggers.math.as_str()),
-            ("Dictionary", "dictionary", triggers.dictionary.as_str()),
-            ("Time", "time", triggers.time.as_str()),
-            ("Timer", "timer", triggers.timer.as_str()),
-            ("AI", "ai", triggers.ai.as_str()),
-            ("Camera", "camera", triggers.camera.as_str()),
-            ("Color Picker", "color_picker", triggers.color_picker.as_str()),
-            ("Currency", "currency", triggers.currency.as_str()),
-            ("QR Code", "qr_code", triggers.qr_code.as_str()),
+            ("apps", triggers.apps.as_str()),
+            ("files", triggers.files.as_str()),
+            ("clipboard", triggers.clipboard.as_str()),
+            ("emojis", triggers.emojis.as_str()),
+            ("fonts", triggers.fonts.as_str()),
+            ("bookmarks", triggers.bookmarks.as_str()),
+            ("system", triggers.system.as_str()),
+            ("shortcuts", triggers.shortcuts.as_str()),
+            ("scripts", triggers.scripts.as_str()),
+            ("screenshots", triggers.screenshots.as_str()),
+            ("math", triggers.math.as_str()),
+            ("dictionary", triggers.dictionary.as_str()),
+            ("time", triggers.time.as_str()),
+            ("timer", triggers.timer.as_str()),
+            ("ai", triggers.ai.as_str()),
+            ("camera", triggers.camera.as_str()),
+            ("color_picker", triggers.color_picker.as_str()),
+            ("currency", triggers.currency.as_str()),
+            ("qr_code", triggers.qr_code.as_str()),
+            ("shell", triggers.shell.as_str()),
+            ("lorem", triggers.lorem.as_str()),
         ];
 
         let mut targets: Vec<SearchTarget> = configured
             .into_iter()
-            .filter_map(|(name, config_key, pattern)| {
+            .filter_map(|(config_key, pattern)| {
                 let trigger = trigger_query(pattern)?;
                 let pattern = regex::Regex::new(pattern).ok()?;
+                let (badge, command, description, terms) = Self::presentation(config_key);
                 Some(SearchTarget {
-                    name: name.to_string(),
+                    badge: badge.to_string(),
+                    command: command.to_string(),
+                    description: description.to_string(),
+                    search_terms: terms.iter().map(|term| (*term).to_string()).collect(),
                     config_key: config_key.to_string(),
                     trigger,
                     regex: pattern.as_str().to_string(),
@@ -64,7 +222,10 @@ impl MetaSearcher {
             let trigger = trigger_query(&web_search.trigger)?;
             let pattern = regex::Regex::new(&web_search.trigger).ok()?;
             Some(SearchTarget {
-                name: format!("{} Search", web_search.name),
+                badge: web_search.name.clone(),
+                command: format!("Search {}", web_search.name),
+                description: format!("Search the web with {}", web_search.name),
+                search_terms: vec!["web".into(), "internet".into()],
                 config_key: format!("web:{}", web_search.name),
                 trigger,
                 regex: web_search.trigger.clone(),
@@ -133,14 +294,12 @@ impl MetaSearcher {
 
         let mut scored: Vec<(SearchTarget, i64)> = Self::targets()
             .into_iter()
-            .filter_map(|target| {
-                target_score(&target.name, &target_query).map(|score| (target, score))
-            })
+            .filter_map(|target| target_score(&target, &target_query).map(|score| (target, score)))
             .collect();
         scored.sort_by(|(left, left_score), (right, right_score)| {
             right_score
                 .cmp(left_score)
-                .then_with(|| left.name.cmp(&right.name))
+                .then_with(|| left.command.cmp(&right.command))
         });
         Some(scored.into_iter().map(|(target, _)| target).collect())
     }
@@ -163,42 +322,42 @@ impl MetaSearcher {
     }
 
     fn target_to_result(target: SearchTarget) -> ResultItem {
-        ResultItem::new(
-            format!("Search {}", target.name),
-            vec![
-                Action::new(
-                    "Switch to searcher",
-                    ActionData::SetQuery {
-                        query: target.trigger.clone(),
-                    },
-                ),
-                Action::new(
-                    "Set prefix",
-                    ActionData::RunFunction {
-                        function_name: "edit_searcher_trigger".into(),
-                        params: vec![
-                            target.config_key.clone(),
-                            target.name.clone(),
-                            "prefix".into(),
-                            target.trigger.trim().to_string(),
-                        ],
-                    },
-                ),
-                Action::new(
-                    "Set trigger regex pattern",
-                    ActionData::RunFunction {
-                        function_name: "edit_searcher_trigger".into(),
-                        params: vec![
-                            target.config_key,
-                            target.name.clone(),
-                            "regex".into(),
-                            target.regex,
-                        ],
-                    },
-                ),
-            ],
-        )
-        .description(format!("Continue in {} search", target.name))
+        let mut actions = vec![Action::new(
+            "Switch to searcher",
+            ActionData::SetQuery {
+                query: target.trigger.clone(),
+            },
+        )];
+
+        if !target.trigger.trim().is_empty() {
+            actions.push(Action::new(
+                "Set prefix",
+                ActionData::RunFunction {
+                    function_name: "edit_searcher_trigger".into(),
+                    params: vec![
+                        target.config_key.clone(),
+                        target.command.clone(),
+                        "prefix".into(),
+                        target.trigger.trim().to_string(),
+                    ],
+                },
+            ));
+        }
+
+        actions.push(Action::new(
+            "Set trigger regex pattern",
+            ActionData::RunFunction {
+                function_name: "edit_searcher_trigger".into(),
+                params: vec![
+                    target.config_key,
+                    target.command.clone(),
+                    "regex".into(),
+                    target.regex,
+                ],
+            },
+        ));
+
+        ResultItem::new(target.command, actions).description(target.description)
     }
 }
 
@@ -227,7 +386,10 @@ fn trigger_query(pattern: &str) -> Option<String> {
         let character = body[consumed..].chars().next().unwrap();
         if !character.is_whitespace()
             && character != '\\'
-            && !matches!(character, '.' | '+' | '*' | '?' | '[' | ']' | '^' | '$' | '(' | ')' | '{' | '}' | '|')
+            && !matches!(
+                character,
+                '.' | '+' | '*' | '?' | '[' | ']' | '^' | '$' | '(' | ')' | '{' | '}' | '|'
+            )
         {
             literal.push(character);
             consumed += character.len_utf8();
@@ -245,6 +407,9 @@ fn trigger_query(pattern: &str) -> Option<String> {
         }
     }
 
+    if literal.is_empty() && body.starts_with(' ') {
+        return Some(" ".to_string());
+    }
     if literal.is_empty() {
         return None;
     }
@@ -258,20 +423,31 @@ fn trigger_query(pattern: &str) -> Option<String> {
     })
 }
 
-fn target_score(name: &str, query: &str) -> Option<i64> {
+fn target_score(target: &SearchTarget, query: &str) -> Option<i64> {
     if query.trim().is_empty() {
         return Some(0);
     }
 
-    let normalized_name = crate::search_utils::normalize_text(name);
-    let name_words: Vec<&str> = normalized_name.split_whitespace().collect();
+    let searchable = std::iter::once(target.command.as_str())
+        .chain(std::iter::once(target.badge.as_str()))
+        .chain(target.search_terms.iter().map(String::as_str))
+        .collect::<Vec<_>>();
+    let words = searchable
+        .iter()
+        .flat_map(|value| {
+            crate::search_utils::normalize_text(value)
+                .split_whitespace()
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
     let mut total = 0;
 
     for token in crate::search_utils::normalize_text(query).split_whitespace() {
-        let score = name_words
+        let score = words
             .iter()
             .map(|word| {
-                if *word == token {
+                if word == &token {
                     1000
                 } else if word.starts_with(&token) {
                     850
