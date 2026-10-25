@@ -1,41 +1,67 @@
 <script lang="ts">
-  import { scale } from "svelte/transition";
-  import { cubicOut, cubicIn } from "svelte/easing";
+  import { onMount, tick } from "svelte";
   import { execute } from "./searcher";
   import { query, contextMenu } from "../stores/search";
   import type { ResultItem } from "../stores/search";
   import { get } from "svelte/store";
 
   export let item: ResultItem;
-  export let x: number;
-  export let y: number;
   export let onClose: () => void;
-
-  const MENU_W = 220;
-  const GRID_THRESHOLD = 6;
 
   $: searchQ = $contextMenu.searchQuery ?? "";
   $: filteredActions = searchQ
-    ? item.actions.filter((a) =>
-        a.name.toLowerCase().includes(searchQ.toLowerCase()),
+    ? item.actions.filter((action) =>
+        action.name.toLowerCase().includes(searchQ.toLowerCase()),
       )
     : item.actions;
+  $: displayActions = filteredActions
+    .map((action, index) => ({ action, index }))
+    .reverse();
   $: activeIdx = $contextMenu.activeIndex;
-  $: isGrid = filteredActions.length > GRID_THRESHOLD;
-  $: cols = isGrid ? 2 : 1;
-  $: effectiveW = MENU_W * cols;
 
   let menuEl: HTMLDivElement;
   let listEl: HTMLDivElement;
-  let menuActualH = 0;
+  let searchInput: HTMLInputElement;
+  let readyToScroll = false;
 
-  $: cx = Math.max(8, Math.min(x, window.innerWidth - effectiveW - 8));
-  $: cy = Math.max(8, Math.min(y, window.innerHeight - (menuActualH || 300) - 8));
+  $: if (readyToScroll && listEl && activeIdx >= 0 && filteredActions.length > 0) {
+    scrollActiveIntoView();
+  }
 
-  function handleMousedown(e: MouseEvent) {
-    if (menuEl && !menuEl.contains(e.target as Node)) {
-      onClose();
+  onMount(async () => {
+    await tick();
+    searchInput?.focus();
+    listEl.scrollTop = listEl.scrollHeight;
+    readyToScroll = true;
+  });
+
+  async function scrollActiveIntoView() {
+    await tick();
+    const activeItem = listEl?.querySelector<HTMLElement>(".ctx-item.active");
+    if (!listEl || !activeItem) return;
+
+    const padding = 8;
+    const itemRect = activeItem.getBoundingClientRect();
+    const listRect = listEl.getBoundingClientRect();
+    const start = listEl.scrollTop;
+    const visibleTop = start;
+    const visibleBottom = start + listEl.clientHeight;
+    const itemTop = itemRect.top - listRect.top + start;
+    const itemBottom = itemTop + itemRect.height;
+    let target = start;
+
+    if (itemTop < visibleTop + padding) {
+      target = itemTop - padding;
+    } else if (itemBottom > visibleBottom - padding) {
+      target = itemBottom - listEl.clientHeight + padding;
     }
+
+    target = Math.max(0, Math.min(target, listEl.scrollHeight - listEl.clientHeight));
+    listEl.scrollTop = target;
+  }
+
+  function handleMousedown(event: MouseEvent) {
+    if (menuEl && !menuEl.contains(event.target as Node)) onClose();
   }
 
   function selectAction(actionId: string) {
@@ -46,154 +72,129 @@
 
 <svelte:window on:mousedown={handleMousedown} />
 
-<div
-  bind:this={menuEl}
-  bind:clientHeight={menuActualH}
-  class="ctx-menu"
-  style="left: {cx}px; top: {cy}px"
-  in:scale={{ duration: 160, start: 0.88, opacity: 0, easing: cubicOut }}
-  out:scale={{ duration: 110, start: 0.94, opacity: 0, easing: cubicIn }}
-  role="menu"
->
-  {#if searchQ}
-    <div class="ctx-search-display">
-      <span class="ctx-search-text">{searchQ}</span><span class="ctx-cursor"
-        >|</span
+<div bind:this={menuEl} class="ctx-menu" role="dialog" aria-label="Actions">
+  <div bind:this={listEl} class="ctx-list" role="menu">
+    {#each displayActions as entry (entry.action.id)}
+      <!-- svelte-ignore a11y_interactive_supports_focus -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <div
+        class="ctx-item"
+        class:active={entry.index === activeIdx}
+        data-action-index={entry.index}
+        role="menuitem"
+        on:click={() => selectAction(entry.action.id)}
+        on:mouseenter={() =>
+          contextMenu.update((state) => ({ ...state, activeIndex: entry.index }))}
       >
-    </div>
-  {/if}
+        <span class="ctx-label">{entry.action.name}</span>
+      </div>
+    {/each}
 
-  <div class="ctx-list-wrap">
-  <div
-    class="ctx-list"
-    class:grid-mode={isGrid}
-    bind:this={listEl}
-    style={isGrid ? `grid-template-rows: repeat(${Math.ceil(filteredActions.length / 2)}, auto)` : ""}
-  >
-  {#each filteredActions as action, i (action.id)}
-    <!-- svelte-ignore a11y_interactive_supports_focus -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-      class="ctx-item"
-      class:active={i === activeIdx}
-      role="menuitem"
-      on:click={() => selectAction(action.id)}
-      on:mouseenter={() =>
-        contextMenu.update((s) => ({ ...s, activeIndex: i }))}
-    >
-      <span class="ctx-label">{action.name}</span>
-    </div>
-  {/each}
-
-  {#if filteredActions.length === 0}
-    <div class="ctx-empty">no match</div>
-  {/if}
-  </div>
+    {#if filteredActions.length === 0}
+      <div class="ctx-empty">No matching actions</div>
+    {/if}
   </div>
 
-  {#if !searchQ}
-    <div class="ctx-hint">type to filter</div>
-  {/if}
+  <label class="ctx-search">
+    <input
+      bind:this={searchInput}
+      value={searchQ}
+      placeholder="Filter actions"
+      aria-label="Filter actions"
+      spellcheck="false"
+    />
+    <kbd>esc</kbd>
+  </label>
 </div>
 
 <style>
   .ctx-menu {
     position: fixed;
-    margin: 4px 20px;
+    right: 16px;
+    bottom: 16px;
     z-index: 500;
-    min-width: 200px;
-    max-width: 560px;
-    font-family: var(--q-sans);
-    background: var(--q-overlay);
-    border: 2px solid var(--q-border-strong);
-    border-radius: 24px;
-    box-shadow: 0 0px 20px 5px rgba(0, 0, 0, 0.9);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(16px);
-  }
-
-  .ctx-search-display {
     display: flex;
+    flex-direction: column;
+    width: min(340px, calc(100vw - 32px));
+    max-height: min(480px, calc(100vh - 32px));
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid var(--q-border-strong);
+    border-radius: 18px;
+    background: #1a1a1a;
+    color: var(--q-font-color, #fff);
+    font-family: var(--q-sans);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  }
+
+  .ctx-search {
+    display: flex;
+    flex: 0 0 auto;
     align-items: center;
-    margin: 10px 10px 2px;
-    padding: 6px 12px;
-    background: var(--q-surface-subtle);
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 11px;
     border: 1px solid var(--q-border-medium);
-    border-radius: 10px;
-    font-size: 0.82em;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
     color: var(--q-font-color, #fff);
-    min-height: 28px;
+    font: 0.9rem var(--q-sans);
   }
 
-  .ctx-search-text {
-    color: var(--q-font-color, #fff);
+  input::placeholder {
+    color: var(--q-text-dim);
   }
 
-  .ctx-cursor {
-    opacity: 0.5;
-    animation: blink 1s step-end infinite;
-    color: var(--q-font-color, #fff);
-    margin-left: 1px;
-  }
-
-  @keyframes blink {
-    50% {
-      opacity: 0;
-    }
-  }
-
-  .ctx-empty {
-    padding: 10px 18px 14px;
-    font-size: 0.82em;
-    opacity: 0.35;
-    color: var(--q-font-color, #fff);
-  }
-
-  .ctx-hint {
-    padding: 2px 0 10px;
-    font-size: 0.7em;
-    letter-spacing: 0.05em;
-    opacity: 0.22;
-    color: var(--q-font-color, #fff);
-    text-align: center;
-  }
-
-  .ctx-list-wrap {
-    position: relative;
+  kbd {
+    flex: 0 0 auto;
+    color: var(--q-text-dim);
+    font: 0.68rem var(--q-mono);
   }
 
   .ctx-list {
-    overflow: visible;
-  }
-
-  .ctx-list.grid-mode {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-auto-flow: column;
+    min-height: 0;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    overflow-y: auto;
   }
 
   .ctx-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 8px 6px;
-    padding: 12px 14px;
-    border-radius: 15px;
-    user-select: none;
+    min-height: 38px;
+    margin: 2px 0;
+    padding: 0 11px;
+    border-radius: 9px;
     color: var(--q-font-color, #fff);
+    user-select: none;
   }
 
   .ctx-item:hover,
   .ctx-item.active {
-    background: var(--q-surface-hover);
+    background: rgba(255, 255, 255, 0.09);
   }
 
   .ctx-label {
-    font-size: 0.9em;
-    white-space: nowrap;
     overflow: hidden;
+    font-size: 0.88rem;
     text-overflow: ellipsis;
-    color: var(--q-font-color, #fff);
+    white-space: nowrap;
   }
+
+  .ctx-empty {
+    padding: 16px 11px;
+    color: var(--q-text-dim);
+    font-size: 0.84rem;
+  }
+
 </style>

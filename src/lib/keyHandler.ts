@@ -86,13 +86,13 @@ export function handleKeydown(
 
     if (event.key === "ArrowDown" || (event.key === "n" && event.ctrlKey)) {
       event.preventDefault();
-      if (count > 0) contextMenu.update(s => ({ ...s, activeIndex: (s.activeIndex + 1) % count }));
+      if (count > 0) contextMenu.update(s => ({ ...s, activeIndex: (s.activeIndex + count - 1) % count }));
       return;
     }
 
     if (event.key === "ArrowUp" || (event.key === "p" && event.ctrlKey)) {
       event.preventDefault();
-      if (count > 0) contextMenu.update(s => ({ ...s, activeIndex: s.activeIndex === 0 ? count - 1 : s.activeIndex - 1 }));
+      if (count > 0) contextMenu.update(s => ({ ...s, activeIndex: (s.activeIndex + 1) % count }));
       return;
     }
 
@@ -194,7 +194,7 @@ export function handleKeydown(
     const idx = get(activeIndex);
     const item = items[idx];
     if (item && item.actions.length > 1) {
-      contextMenu.set({ open: true, item, x: 0, y: 0, activeIndex: 0, searchQuery: "" });
+      contextMenu.set({ open: true, item, activeIndex: 0, searchQuery: "" });
       window.dispatchEvent(new CustomEvent("open-context-menu-at-active"));
     }
     return;
