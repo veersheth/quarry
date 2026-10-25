@@ -21,8 +21,8 @@
       {activeIndex}
       layout="strip"
       minCellWidth={48}
-      gap={6}
-      padding="10px 10px 8px"
+      gap={0}
+      padding="0"
       cellPadding="0"
       cellMinHeight="48px"
       {onContextMenu}
@@ -37,10 +37,10 @@
     listitems={all}
     {activeIndex}
     indexOffset={allOffset}
-    minCellWidth={90}
-    gap={12}
-    padding="24px"
-    cellPadding="28px 16px"
+    minCellWidth={76}
+    gap={0}
+    padding="0"
+    cellPadding="0"
     {onContextMenu}
     let:item
   >
@@ -51,18 +51,25 @@
 <style>
   .emoji-layout {
     display: flex;
-    height: 95%;
+    height: 100%;
     min-height: 0;
     flex-direction: column;
-    padding: 10px;
+    box-sizing: border-box;
+    padding: 12px 16px 16px;
   }
 
   .emoji-layout :global(.grid-cell) {
     flex-direction: column;
   }
 
+  .emoji-layout :global(.grid-renderer:not(.strip) .grid-cell) {
+    min-height: 76px;
+    padding: 0;
+  }
+
   .emoji-layout :global(.grid-renderer:not(.strip)) {
     flex: 1;
+    grid-auto-rows: 76px;
   }
 
   .emoji-layout :global(.grid-renderer.strip .grid-cell) {
@@ -80,7 +87,6 @@
   }
 
   .emoji {
-    margin-bottom: 6px;
     font-size: 2em;
     line-height: 1;
   }

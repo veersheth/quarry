@@ -18,8 +18,8 @@
     {activeIndex}
     {indexOffset}
     minCellWidth={104}
-    gap={10}
-    padding="18px 22px 24px"
+    gap={0}
+    padding="12px 16px 16px"
     cellPadding="12px 8px"
     cellMinHeight="94px"
     {onContextMenu}
@@ -46,7 +46,7 @@
 
   .apps-grid :global(.grid-cell) {
     flex-direction: column;
-    gap: 9px;
+    gap: 12px;
   }
 
   .app-name {

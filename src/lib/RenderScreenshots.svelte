@@ -86,10 +86,10 @@
   .grid-panel {
     flex: 1;
     overflow-y: auto;
-    padding: 10px 10px 6px;
+    padding: 12px 16px 16px;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
+    gap: 0;
     align-content: start;
     min-height: 0;
   }
@@ -97,10 +97,8 @@
   .grid-item {
     display: flex;
     flex-direction: column;
-    gap: 12px;
     padding: 12px;
     border-radius: var(--q-item-border-radius);
-    border: 1.5px solid transparent;
     transition: transform 120ms ease, background 80ms ease;
   }
 
@@ -110,7 +108,6 @@
   }
   .grid-item.active {
     background: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
     transform: scale(1.04);
   }
 

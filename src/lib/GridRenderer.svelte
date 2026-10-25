@@ -9,8 +9,8 @@
   export let indexOffset = 0;
   export let layout: "grid" | "strip" = "grid";
   export let minCellWidth = 90;
-  export let gap = 12;
-  export let padding = "24px";
+  export let gap = 0;
+  export let padding = "12px 16px 16px";
   export let cellPadding = "28px 16px";
   export let cellMinHeight = "0px";
   export let onContextMenu:
@@ -57,6 +57,7 @@
     grid-template-columns: repeat(auto-fill, minmax(var(--grid-min-width), 1fr));
     align-content: start;
     gap: var(--grid-gap);
+    box-sizing: border-box;
     min-height: 0;
     overflow-y: auto;
     padding: var(--grid-padding);
@@ -75,25 +76,26 @@
     align-items: center;
     justify-content: center;
     padding: var(--grid-cell-padding);
-    border: 1px solid var(--q-border-subtle);
     border-radius: var(--q-item-border-radius);
     color: var(--q-text-secondary);
     text-align: center;
   }
 
-  .grid-cell.pinned {
-    border-color: var(--q-pin-border);
-  }
-
   .grid-cell.active {
     background: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
-    box-shadow: 0 0 16px 3px var(--q-glow);
     color: var(--q-font-color, #fff);
   }
 
+  .grid-cell.pinned {
+    background: color-mix(in srgb, var(--q-pin-border-active) 30%, transparent);
+  }
+
   .grid-cell.pinned.active {
-    border-color: var(--q-pin-border-active);
+    background: color-mix(
+      in srgb,
+      var(--q-active-bg-color) 80%,
+      var(--q-pin-border-active)
+    );
   }
 
   .strip .grid-cell {
