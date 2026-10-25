@@ -79,7 +79,7 @@ pub fn setup_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Err
     .title("quarry")
     .inner_size(w, h)
     .decorations(false)
-    .transparent(true)
+    .transparent(false)
     .resizable(false)
     .always_on_top(true)
     .visible(false)

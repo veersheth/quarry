@@ -30,6 +30,23 @@ pub(super) fn run_custom_function(
     app: &tauri::AppHandle,
 ) -> Result<(), String> {
     match function_name {
+        "edit_searcher_trigger" => {
+            if params.len() != 4 {
+                return Err(
+                    "edit_searcher_trigger requires a searcher key, name, mode, and value".into(),
+                );
+            }
+            app.emit(
+                "quarry-edit-searcher-trigger",
+                serde_json::json!({
+                    "config_key": params[0],
+                    "name": params[1],
+                    "mode": params[2],
+                    "value": params[3],
+                }),
+            )
+            .map_err(|error| error.to_string())
+        }
         "run_in_terminal" => {
             let path = params.first().map(|s| s.as_str()).unwrap_or("");
             run_script_in_terminal(path)

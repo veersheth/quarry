@@ -8,7 +8,9 @@ use super::SearchProvider;
 #[derive(Clone)]
 struct SearchTarget {
     name: String,
+    config_key: String,
     trigger: String,
+    regex: String,
     pattern: regex::Regex,
 }
 
@@ -22,35 +24,37 @@ impl MetaSearcher {
 
         let triggers = &config.triggers;
         let configured = [
-            ("Apps", triggers.apps.as_str()),
-            ("Files", triggers.files.as_str()),
-            ("Clipboard", triggers.clipboard.as_str()),
-            ("Emojis", triggers.emojis.as_str()),
-            ("Fonts", triggers.fonts.as_str()),
-            ("Bookmarks", triggers.bookmarks.as_str()),
-            ("System", triggers.system.as_str()),
-            ("Shortcuts", triggers.shortcuts.as_str()),
-            ("Scripts", triggers.scripts.as_str()),
-            ("Screenshots", triggers.screenshots.as_str()),
-            ("Math", triggers.math.as_str()),
-            ("Dictionary", triggers.dictionary.as_str()),
-            ("Time", triggers.time.as_str()),
-            ("Timer", triggers.timer.as_str()),
-            ("AI", triggers.ai.as_str()),
-            ("Camera", triggers.camera.as_str()),
-            ("Color Picker", triggers.color_picker.as_str()),
-            ("Currency", triggers.currency.as_str()),
-            ("QR Code", triggers.qr_code.as_str()),
+            ("Apps", "apps", triggers.apps.as_str()),
+            ("Files", "files", triggers.files.as_str()),
+            ("Clipboard", "clipboard", triggers.clipboard.as_str()),
+            ("Emojis", "emojis", triggers.emojis.as_str()),
+            ("Fonts", "fonts", triggers.fonts.as_str()),
+            ("Bookmarks", "bookmarks", triggers.bookmarks.as_str()),
+            ("System", "system", triggers.system.as_str()),
+            ("Shortcuts", "shortcuts", triggers.shortcuts.as_str()),
+            ("Scripts", "scripts", triggers.scripts.as_str()),
+            ("Screenshots", "screenshots", triggers.screenshots.as_str()),
+            ("Math", "math", triggers.math.as_str()),
+            ("Dictionary", "dictionary", triggers.dictionary.as_str()),
+            ("Time", "time", triggers.time.as_str()),
+            ("Timer", "timer", triggers.timer.as_str()),
+            ("AI", "ai", triggers.ai.as_str()),
+            ("Camera", "camera", triggers.camera.as_str()),
+            ("Color Picker", "color_picker", triggers.color_picker.as_str()),
+            ("Currency", "currency", triggers.currency.as_str()),
+            ("QR Code", "qr_code", triggers.qr_code.as_str()),
         ];
 
         let mut targets: Vec<SearchTarget> = configured
             .into_iter()
-            .filter_map(|(name, pattern)| {
+            .filter_map(|(name, config_key, pattern)| {
                 let trigger = trigger_query(pattern)?;
                 let pattern = regex::Regex::new(pattern).ok()?;
                 Some(SearchTarget {
                     name: name.to_string(),
+                    config_key: config_key.to_string(),
                     trigger,
+                    regex: pattern.as_str().to_string(),
                     pattern,
                 })
             })
@@ -61,7 +65,9 @@ impl MetaSearcher {
             let pattern = regex::Regex::new(&web_search.trigger).ok()?;
             Some(SearchTarget {
                 name: format!("{} Search", web_search.name),
+                config_key: format!("web:{}", web_search.name),
                 trigger,
+                regex: web_search.trigger.clone(),
                 pattern,
             })
         }));
@@ -159,12 +165,38 @@ impl MetaSearcher {
     fn target_to_result(target: SearchTarget) -> ResultItem {
         ResultItem::new(
             format!("Search {}", target.name),
-            vec![Action::new(
-                "Switch Searcher",
-                ActionData::SetQuery {
-                    query: target.trigger,
-                },
-            )],
+            vec![
+                Action::new(
+                    "Switch to searcher",
+                    ActionData::SetQuery {
+                        query: target.trigger.clone(),
+                    },
+                ),
+                Action::new(
+                    "Set prefix",
+                    ActionData::RunFunction {
+                        function_name: "edit_searcher_trigger".into(),
+                        params: vec![
+                            target.config_key.clone(),
+                            target.name.clone(),
+                            "prefix".into(),
+                            target.trigger.trim().to_string(),
+                        ],
+                    },
+                ),
+                Action::new(
+                    "Set trigger regex pattern",
+                    ActionData::RunFunction {
+                        function_name: "edit_searcher_trigger".into(),
+                        params: vec![
+                            target.config_key,
+                            target.name.clone(),
+                            "regex".into(),
+                            target.regex,
+                        ],
+                    },
+                ),
+            ],
         )
         .description(format!("Continue in {} search", target.name))
     }
@@ -189,18 +221,35 @@ impl SearchProvider for MetaSearcher {
 fn trigger_query(pattern: &str) -> Option<String> {
     regex::Regex::new(pattern).ok()?;
     let body = pattern.strip_prefix('^').unwrap_or(pattern);
-    let literal: String = body
-        .chars()
-        .take_while(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '!' | '=' | '#' | '+' | '-')
-        })
-        .collect();
+    let mut literal = String::new();
+    let mut consumed = 0;
+    while consumed < body.len() {
+        let character = body[consumed..].chars().next().unwrap();
+        if !character.is_whitespace()
+            && character != '\\'
+            && !matches!(character, '.' | '+' | '*' | '?' | '[' | ']' | '^' | '$' | '(' | ')' | '{' | '}' | '|')
+        {
+            literal.push(character);
+            consumed += character.len_utf8();
+        } else if character == '\\' {
+            let Some(escaped) = body[consumed + 1..].chars().next() else {
+                break;
+            };
+            if escaped.is_alphanumeric() || escaped.is_whitespace() {
+                break;
+            }
+            literal.push(escaped);
+            consumed += 1 + escaped.len_utf8();
+        } else {
+            break;
+        }
+    }
 
     if literal.is_empty() {
         return None;
     }
 
-    let rest = &body[literal.len()..];
+    let rest = &body[consumed..];
     let needs_argument = !rest.starts_with('$');
     Some(if needs_argument {
         format!("{literal} ")

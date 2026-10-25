@@ -18,10 +18,10 @@ use usage_tracker::UsageHistory;
 
 use commands::{
     cancel_rofi, clear_clipboard_history, exec_func, execute, get_action_text,
-    get_clipboard_file_metadata, get_ai_prefix,
+    get_clipboard_file_metadata, get_file_preview, get_ai_prefix,
     get_clipboard_image, get_clipboard_thumbnail, get_config, get_groq_api_key, get_theme,
-    paste_to_focused_app, save_capture, save_config, save_groq_api_key, search, start_drag,
-    take_pending_query,
+    paste_to_focused_app, save_capture, save_config, save_groq_api_key, save_searcher_trigger,
+    search, start_drag, take_pending_query,
 };
 use lazy_static::lazy_static;
 use std::sync::{atomic::AtomicU64, Mutex, RwLock};
@@ -190,11 +190,13 @@ pub fn run() {
             get_clipboard_image,
             get_action_text,
             get_clipboard_file_metadata,
+            get_file_preview,
             paste_to_focused_app,
             get_theme,
             get_config,
             get_ai_prefix,
             save_config,
+            save_searcher_trigger,
             save_capture,
             get_groq_api_key,
             save_groq_api_key,

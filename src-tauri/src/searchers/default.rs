@@ -203,6 +203,7 @@ fn item_from_usage(
     entry: &crate::usage_tracker::UsageEntry,
     app_by_name: &std::collections::HashMap<String, &ResultItem>,
     shortcut_by_id: &std::collections::HashMap<String, &ResultItem>,
+    file_by_usage: &std::collections::HashMap<(String, String), &ResultItem>,
 ) -> Option<ResultItem> {
     let id = entry.action_id.as_str();
 
@@ -211,13 +212,26 @@ fn item_from_usage(
         || id.starts_with("copy-img:")
         || id.starts_with("copy-file:")
         || id.starts_with("rofi:")
+        || id.starts_with("searcher:")
         || id == "none"
         || id.starts_with("fn:delete_")
         || id.starts_with("fn:clear_")
+        || id.starts_with("fn:trash_file")
         || id.starts_with("fn:unpin")
         || id.starts_with("fn:pin")
     {
         return None;
+    }
+
+    if let Some(item) = crate::ACTION_REGISTRY.get_cached_result_item(&entry.name, id) {
+        return Some(item);
+    }
+
+    // Reuse the canonical file result so recents get the same context actions
+    // as the file searcher (open in folder, trash, copy path, and so on).
+    let file_key = (entry.name.to_lowercase(), id.to_string());
+    if let Some(&file) = file_by_usage.get(&file_key) {
+        return Some(file.clone());
     }
 
     if id.starts_with("app:") {
@@ -295,6 +309,7 @@ fn item_from_usage(
 fn unified_recent(
     all_apps: &[ResultItem],
     all_shortcuts: &[ResultItem],
+    all_files: &[ResultItem],
     limit: usize,
 ) -> Vec<ResultItem> {
     // The usage store is bounded to 1,000 entries. Read all of it so recent
@@ -321,15 +336,33 @@ fn unified_recent(
         .filter_map(|item| item.actions.first().map(|a| (a.data.stable_id(), item)))
         .collect();
 
+    let file_by_usage: std::collections::HashMap<(String, String), &ResultItem> = all_files
+        .iter()
+        .flat_map(|item| {
+            item.actions.iter().map(move |action| {
+                (
+                    (item.name.to_lowercase(), action.data.stable_id()),
+                    item,
+                )
+            })
+        })
+        .collect();
+
     let mut seen: HashSet<String> = HashSet::new();
     let mut items: Vec<ResultItem> = Vec::new();
 
     for entry in &usage {
-        // Deduplicate by action_id so the same app/file/script only appears once
-        if !seen.insert(entry.action_id.clone()) {
-            continue;
-        }
-        if let Some(item) = item_from_usage(entry, &app_by_name, &shortcut_by_id) {
+        if let Some(item) = item_from_usage(entry, &app_by_name, &shortcut_by_id, &file_by_usage) {
+            let item_id = item
+                .actions
+                .first()
+                .map(|action| action.data.stable_id())
+                .unwrap_or_else(|| entry.action_id.clone());
+            // Treat the item's primary action as its identity so using different
+            // context actions does not add duplicate copies of the same result.
+            if !seen.insert(item_id) {
+                continue;
+            }
             items.push(item);
             if items.len() >= limit {
                 break;
@@ -361,6 +394,7 @@ impl SearchProvider for DefaultSearcher {
             }
 
             let all_apps = AppSearcher.search("", app).results;
+            let all_files = FileSearcher.search("", app).results;
 
             // Collect all known shortcut items (built-in shortcuts + bookmarks + system actions)
             // so their stable_ids can be used to look up live icons and filter modal buttons.
@@ -369,7 +403,7 @@ impl SearchProvider for DefaultSearcher {
             all_shortcuts.extend(SystemSearcher.search("", app).results);
 
             // Unified recent feed (apps + calcs, sorted by time)
-            let recent_items = unified_recent(&all_apps, &all_shortcuts, 10);
+            let recent_items = unified_recent(&all_apps, &all_shortcuts, &all_files, 10);
 
             if !recent_items.is_empty() {
                 results.push(make_header("Recent"));

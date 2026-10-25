@@ -18,7 +18,7 @@ export type ResultItem = {
   ocr_text?: string;
 };
 
-export type ResultType = "List" | "Grid" | "Apps" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai" | "Screenshots" | "QrCode" | "Fonts";
+export type ResultType = "List" | "Grid" | "Apps" | "WebSearch" | "Markdown" | "Clipboard" | "ColorPicker" | "Home" | "Media" | "Math" | "Camera" | "Ai" | "Screenshots" | "QrCode" | "Fonts" | "Files";
 
 export type SearchResult = {
   results: ResultItem[];
@@ -30,8 +30,6 @@ export type SearchResult = {
 export type ContextMenuState = {
   open: boolean;
   item: ResultItem | null;
-  x: number;
-  y: number;
   activeIndex: number;
   searchQuery: string;
 };
@@ -65,14 +63,12 @@ export const searcherName = writable<string>("");
 export const contextMenu = writable<ContextMenuState>({
   open: false,
   item: null,
-  x: 0,
-  y: 0,
   activeIndex: 0,
   searchQuery: "",
 });
 
-export function openContextMenu(item: ResultItem, x: number, y: number) {
-  contextMenu.set({ open: true, item, x, y, activeIndex: 0, searchQuery: "" });
+export function openContextMenu(item: ResultItem) {
+  contextMenu.set({ open: true, item, activeIndex: 0, searchQuery: "" });
 }
 
 export function closeContextMenu() {

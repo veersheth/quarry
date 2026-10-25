@@ -107,6 +107,7 @@ pub enum ResultType {
     Screenshots,
     QrCode,
     Fonts,
+    Files,
 }
 
 #[derive(Debug, Serialize, Clone)]

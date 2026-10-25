@@ -36,8 +36,10 @@
   import RenderScreenshots from "$lib/RenderScreenshots.svelte";
   import RenderQrCode from "$lib/RenderQrCode.svelte";
   import RenderFonts from "$lib/RenderFonts.svelte";
+  import RenderFiles from "$lib/RenderFiles.svelte";
   import SetupWizard from "$lib/SetupWizard.svelte";
   import Modal from "$lib/Modal.svelte";
+  import SearcherRegexEditor from "$lib/SearcherRegexEditor.svelte";
   import { strHue } from "$lib/utils";
 
   let searchInput: HTMLInputElement;
@@ -108,7 +110,7 @@
   ) {
     if (item.actions.length === 0) return;
     event.preventDefault();
-    openContextMenu(item, event.clientX, event.clientY);
+    openContextMenu(item);
   }
 
   function handleOpenAtActive() {
@@ -116,16 +118,7 @@
     const idx = $activeIndex;
     const item = items[idx];
     if (!item || item.actions.length <= 1) return;
-
-    const activeRow = resultsEl?.querySelector(
-      "[data-active='true']",
-    ) as HTMLElement | null;
-    if (activeRow) {
-      const rect = activeRow.getBoundingClientRect();
-      openContextMenu(item, rect.left, rect.bottom + 4);
-    } else {
-      openContextMenu(item, window.innerWidth / 2, window.innerHeight / 2);
-    }
+    openContextMenu(item);
   }
 
   interface Theme {
@@ -185,17 +178,9 @@
     root.setProperty("--q-glow", t.glow);
   }
 
-  function forceRepaint() {
-    // since gnome sometimes doesn't apply scoped styles on launch. this is a fix
-    document.body.style.display = "none";
-    void document.body.offsetHeight;
-    document.body.style.display = "";
-  }
-
   async function refresh() {
     const theme = await invoke<Theme>("get_theme");
     applyTheme(theme);
-    forceRepaint();
     searchInput?.select();
   }
 
@@ -638,6 +623,12 @@
             {activeIndex}
             onContextMenu={handleContextMenu}
           />
+        {:else if $resultType === "Files"}
+          <RenderFiles
+            listitems={$resultItems}
+            {activeIndex}
+            onContextMenu={handleContextMenu}
+          />
         {:else}
           Oops
         {/if}
@@ -649,8 +640,6 @@
   {#if !setupWizard && !resetMode && $contextMenu.open && $contextMenu.item}
     <ContextMenu
       item={$contextMenu.item}
-      x={$contextMenu.x}
-      y={$contextMenu.y}
       onClose={closeContextMenu}
     />
   {/if}
@@ -658,6 +647,7 @@
   {#if !setupWizard && !resetMode && $modalStore.open}
     <Modal />
   {/if}
+<SearcherRegexEditor />
 
   <!-- Toasts -->
   <div class="toast-container">

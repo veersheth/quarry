@@ -29,12 +29,23 @@ pub fn execute(
         return Ok(format!("set-query:{}", query));
     }
 
+    let parent_item = ACTION_REGISTRY.get_parent_item(&action_id);
+    let cache_parent = !matches!(
+        &action_data,
+        ActionData::CopyToClipboard { .. }
+            | ActionData::PasteToApp { .. }
+            | ActionData::CopyImageToClipboard { .. }
+            | ActionData::CopyImageFile { .. }
+    );
+
     let tag = match &action_data {
         ActionData::PasteToApp { .. } => "paste",
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
         ActionData::RunFunction { function_name, .. } if function_name == "show_modal" => "stay",
         ActionData::RunFunction { function_name, .. }
-            if function_name == "open_setup_wizard" || function_name == "open_reset_confirmation" =>
+            if function_name == "open_setup_wizard"
+                || function_name == "open_reset_confirmation"
+                || function_name == "edit_searcher_trigger" =>
         {
             "stay"
         }
@@ -75,6 +86,11 @@ pub fn execute(
         if let Ok(mut history) = USAGE_HISTORY.write() {
             let display_name = name.as_deref().unwrap_or(&action_id);
             history.record_usage(&query, &stable_id, display_name);
+        }
+        if cache_parent {
+            if let Some(item) = parent_item {
+                ACTION_REGISTRY.cache_result_item(&item);
+            }
         }
     }
 
@@ -214,6 +230,72 @@ pub fn save_config(config: config::Config) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn save_searcher_trigger(
+    config_key: String,
+    mode: String,
+    value: String,
+) -> Result<(), String> {
+    let value = value.trim().to_string();
+    let trigger_regex = match mode.as_str() {
+        "prefix" => {
+            if value.is_empty() || value.chars().any(char::is_whitespace) {
+                return Err("Prefix must be a single, non-empty token".into());
+            }
+            format!(r"^{}\s+(.*)$", regex::escape(&value))
+        }
+        "regex" => {
+            if value.is_empty() {
+                return Err("Trigger regex cannot be empty".into());
+            }
+            value
+        }
+        _ => return Err("Unknown trigger editor mode".into()),
+    };
+    regex::Regex::new(&trigger_regex)
+        .map_err(|error| format!("Invalid trigger regex: {error}"))?;
+
+    let mut current = CONFIG.write().map_err(|error| error.to_string())?;
+    let mut config = current.clone();
+    match config_key.as_str() {
+        "apps" => config.triggers.apps = trigger_regex,
+        "files" => config.triggers.files = trigger_regex,
+        "clipboard" => config.triggers.clipboard = trigger_regex,
+        "emojis" => config.triggers.emojis = trigger_regex,
+        "fonts" => config.triggers.fonts = trigger_regex,
+        "bookmarks" => config.triggers.bookmarks = trigger_regex,
+        "system" => config.triggers.system = trigger_regex,
+        "shortcuts" => config.triggers.shortcuts = trigger_regex,
+        "scripts" => config.triggers.scripts = trigger_regex,
+        "screenshots" => config.triggers.screenshots = trigger_regex,
+        "math" => config.triggers.math = trigger_regex,
+        "dictionary" => config.triggers.dictionary = trigger_regex,
+        "time" => config.triggers.time = trigger_regex,
+        "timer" => config.triggers.timer = trigger_regex,
+        "ai" => config.triggers.ai = trigger_regex,
+        "camera" => config.triggers.camera = trigger_regex,
+        "color_picker" => config.triggers.color_picker = trigger_regex,
+        "currency" => config.triggers.currency = trigger_regex,
+        "qr_code" => config.triggers.qr_code = trigger_regex,
+        key if key.starts_with("web:") => {
+            let name = &key[4..];
+            let web_search = config
+                .web_searches
+                .iter_mut()
+                .find(|search| search.name == name)
+                .ok_or_else(|| format!("Web searcher not found: {name}"))?;
+            web_search.trigger = trigger_regex;
+        }
+        _ => return Err("Unknown searcher".into()),
+    }
+
+    config::Config::save(&config)?;
+    *current = config;
+    drop(current);
+    reload_triggers();
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_clipboard_thumbnail(hash: String) -> Option<String> {
     let hash: u64 = hash.parse().ok()?;
     CLIPBOARD_MANAGER.get_thumbnail(hash)
@@ -243,6 +325,17 @@ pub struct ClipboardFileMetadata {
     extension: Option<String>,
     size_bytes: Option<u64>,
     modified_unix: Option<u64>,
+    folder_child_count: Option<usize>,
+    folder_entries: Option<Vec<String>>,
+    image_width: Option<u32>,
+    image_height: Option<u32>,
+}
+
+#[derive(serde::Serialize)]
+pub struct FilePreview {
+    text: Option<String>,
+    image_data: Option<String>,
+    truncated: bool,
 }
 
 #[tauri::command]
@@ -273,6 +366,36 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_secs());
+    let (folder_child_count, folder_entries) = if is_directory {
+        match std::fs::read_dir(file_path) {
+            Ok(children) => {
+                let mut entries = children
+                    .take(101)
+                    .filter_map(Result::ok)
+                    .filter_map(|entry| entry.file_name().into_string().ok())
+                    .collect::<Vec<_>>();
+                entries.sort_by_key(|name| name.to_lowercase());
+                let count = entries.len();
+                entries.truncate(8);
+                (Some(count), Some(entries))
+            }
+            Err(_) => (None, None),
+        }
+    } else {
+        (None, None)
+    };
+    let is_image = matches!(
+        extension.as_deref().map(str::to_ascii_lowercase).as_deref(),
+        Some("png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "tif" | "tiff")
+    );
+    let (image_width, image_height) = if is_image {
+        image::image_dimensions(file_path)
+            .ok()
+            .map(|(width, height)| (Some(width), Some(height)))
+            .unwrap_or((None, None))
+    } else {
+        (None, None)
+    };
 
     Some(ClipboardFileMetadata {
         name,
@@ -281,6 +404,77 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
         extension,
         size_bytes,
         modified_unix,
+        folder_child_count,
+        folder_entries,
+        image_width,
+        image_height,
+    })
+}
+
+#[tauri::command]
+pub fn get_file_preview(path: String) -> Option<FilePreview> {
+    const MAX_PREVIEW_BYTES: usize = 32 * 1024;
+    let file_path = std::path::Path::new(&path);
+    let extension = file_path
+        .extension()
+        .and_then(|part| part.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if matches!(
+        extension.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "tif" | "tiff"
+    ) {
+        let image = image::open(file_path).ok()?;
+        let preview = image.thumbnail(1400, 1000);
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        preview
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .ok()?;
+        return Some(FilePreview {
+            text: None,
+            image_data: Some(format!(
+                "data:image/png;base64,{}",
+                general_purpose::STANDARD.encode(encoded.into_inner())
+            )),
+            truncated: false,
+        });
+    }
+
+    if !matches!(
+        extension.as_str(),
+        "txt" | "md" | "markdown" | "rst" | "log" | "csv" | "tsv" | "json" | "jsonc"
+            | "toml" | "yaml" | "yml" | "xml" | "html" | "htm" | "css" | "scss"
+            | "js" | "jsx" | "ts" | "tsx" | "svelte" | "vue" | "rs" | "py" | "sh"
+            | "bash" | "zsh" | "fish" | "sql" | "go" | "java" | "kt" | "c" | "h"
+            | "cpp" | "hpp" | "cs" | "rb" | "php" | "swift" | "lua" | "ini" | "conf"
+            | "nix" | "dockerfile" | "makefile" | "graphql" | "gql" | "proto" | "diff"
+    ) {
+        return Some(FilePreview {
+            text: None,
+            image_data: None,
+            truncated: false,
+        });
+    }
+
+    let file = std::fs::File::open(file_path).ok()?;
+    let mut bytes = Vec::with_capacity(MAX_PREVIEW_BYTES + 1);
+    let mut limited = std::io::Read::take(file, (MAX_PREVIEW_BYTES + 1) as u64);
+    std::io::Read::read_to_end(&mut limited, &mut bytes).ok()?;
+    let truncated = bytes.len() > MAX_PREVIEW_BYTES;
+    bytes.truncate(MAX_PREVIEW_BYTES);
+    if bytes.contains(&0) {
+        return Some(FilePreview {
+            text: None,
+            image_data: None,
+            truncated: false,
+        });
+    }
+
+    Some(FilePreview {
+        text: Some(String::from_utf8_lossy(&bytes).into_owned()),
+        image_data: None,
+        truncated,
     })
 }
 
