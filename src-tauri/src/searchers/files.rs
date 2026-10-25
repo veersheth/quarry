@@ -384,6 +384,14 @@ fn build_index_entries() -> Vec<(PathBuf, u64)> {
 
 pub struct FileSearcher;
 
+fn file_search_result(results: Vec<ResultItem>) -> SearchResult {
+    SearchResult {
+        results,
+        result_type: crate::types::ResultType::Files,
+        ..SearchResult::default()
+    }
+}
+
 impl FileSearcher {
     fn recent_files() -> Vec<ResultItem> {
         let Some(path) = dirs::data_local_dir().map(|dir| dir.join("recently-used.xbel")) else {
@@ -743,7 +751,7 @@ impl SearchProvider for FileSearcher {
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let trimmed = query.trim();
         if trimmed.is_empty() {
-            return SearchResult::list(Self::recent_files());
+            return file_search_result(Self::recent_files());
         }
 
         if trimmed.ends_with('/') {
@@ -765,7 +773,7 @@ impl SearchProvider for FileSearcher {
                     .map(Self::path_to_result)
                     .collect();
                 results.truncate(MAX_RESULTS);
-                return SearchResult::list(results);
+                return file_search_result(results);
             }
         }
 
@@ -777,9 +785,9 @@ impl SearchProvider for FileSearcher {
                         .map(Self::path_to_result)
                         .collect();
                     results.truncate(MAX_RESULTS);
-                    return SearchResult::list(results);
+                    return file_search_result(results);
                 } else {
-                    return SearchResult::list(vec![Self::path_to_result(explicit)]);
+                    return file_search_result(vec![Self::path_to_result(explicit)]);
                 }
             }
         }
@@ -806,7 +814,7 @@ impl SearchProvider for FileSearcher {
 
         let query_words: Vec<&str> = fuzzy_query.split_whitespace().collect();
         if query_words.is_empty() {
-            return SearchResult::list(vec![]);
+            return file_search_result(vec![]);
         }
 
         let candidates = if let Some(base) = search_base_hint {
@@ -841,7 +849,7 @@ impl SearchProvider for FileSearcher {
             .map(|(path, _)| Self::path_to_result(path))
             .collect();
 
-        SearchResult::list(results)
+        file_search_result(results)
     }
 }
 
