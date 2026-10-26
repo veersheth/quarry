@@ -21,7 +21,7 @@
   }
 </script>
 
-<SidebarRenderer>
+<SidebarRenderer searcherKey="fonts">
   <div slot="list" class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -78,26 +78,25 @@
 
 <style>
   .result-list {
-    border-right: 1px solid rgba(0, 0, 0, 0);
     overflow-y: auto;
-    padding: 5px 10px;
+    padding: 5px 4px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .result-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 8px 6px;
     border: 1px solid transparent;
-    border-radius: var(--q-item-border-radius);
+    border-radius: 9px;
   }
 
   .result-item.active {
     background: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
+    border-color: transparent;
   }
 
   .type-icon {

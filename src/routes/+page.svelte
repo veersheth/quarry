@@ -674,6 +674,7 @@
     /* These are overridden at runtime by applyTheme() from the config.
        The values here are fallbacks only, shown before the first theme load. */
     --q-surface: rgba(5, 5, 5, 0.0);
+    --q-surface-background: #242424;
     --q-surface-subtle: rgba(255, 255, 255, 0.08);
     --q-surface-hover: rgba(255, 255, 255, 0.2);
     --q-surface-dark: #222;

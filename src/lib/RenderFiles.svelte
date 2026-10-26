@@ -120,7 +120,7 @@
   }
 </script>
 
-<SidebarRenderer listWidth={280}>
+<SidebarRenderer searcherKey="files" listWidth={280}>
   <div slot="list" class="file-list">
     {#each listitems as item, index (item.name + index)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -179,8 +179,8 @@
   .file-list {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 5px 10px;
+    gap: 4px;
+    padding: 5px 4px;
   }
 
   .file-row {
@@ -188,13 +188,13 @@
     min-width: 0;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
+    padding: 9px 6px;
     border: 1px solid transparent;
-    border-radius: var(--q-item-border-radius);
+    border-radius: 9px;
   }
 
   .file-row.active {
-    border-color: var(--q-active-border-color);
+    border-color: transparent;
     background: var(--q-active-bg-color);
   }
 

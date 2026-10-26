@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -9,6 +10,9 @@ pub struct Config {
     pub triggers:      TriggerConfig,
     pub theme:         ThemeConfig,
     pub window:        WindowConfig,
+    /// Per-searcher list-panel widths for sidebar renderers.
+    #[serde(default)]
+    pub sidebar_widths: HashMap<String, u32>,
     pub web_searches:  Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
     pub screenshots:   ScreenshotsConfig,
@@ -37,6 +41,7 @@ impl Default for Config {
             triggers:      TriggerConfig::default(),
             theme:         ThemeConfig::default(),
             window:        WindowConfig::default(),
+            sidebar_widths: HashMap::new(),
             web_searches:  default_web_searches(),
             default_search: DefaultSearchConfig::default(),
             screenshots:   ScreenshotsConfig::default(),

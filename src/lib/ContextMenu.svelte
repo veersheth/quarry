@@ -131,7 +131,7 @@
     overflow: hidden;
     border: 1px solid var(--q-border-strong);
     border-radius: 18px;
-    background: #1a1a1a;
+    background: var(--q-surface-background, #242424);
     color: var(--q-font-color, #fff);
     font-family: var(--q-sans);
     box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);

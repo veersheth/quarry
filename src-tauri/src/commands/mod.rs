@@ -208,6 +208,33 @@ pub fn get_config() -> config::Config {
 }
 
 #[tauri::command]
+pub fn get_sidebar_width(searcher: String) -> u32 {
+    CONFIG
+        .read()
+        .ok()
+        .and_then(|config| config.sidebar_widths.get(&searcher).copied())
+        .unwrap_or(match searcher.as_str() {
+            "files" => 280,
+            _ => 224,
+        })
+}
+
+#[tauri::command]
+pub fn save_sidebar_width(searcher: String, width: u32) -> Result<(), String> {
+    if !matches!(searcher.as_str(), "clipboard" | "files" | "fonts") {
+        return Err(format!("Unknown sidebar searcher: {searcher}"));
+    }
+
+    let width = width.clamp(160, 640);
+    let mut current = CONFIG.write().map_err(|error| error.to_string())?;
+    let mut updated = current.clone();
+    updated.sidebar_widths.insert(searcher, width);
+    config::Config::save(&updated)?;
+    *current = updated;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn save_config(config: config::Config) -> Result<(), String> {
     let clipboard_tracking_enabled = config.clipboard_tracking_enabled;
     let file_indexing_enabled = config.file_indexing_enabled;

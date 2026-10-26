@@ -402,7 +402,7 @@
   }
 </script>
 
-<SidebarRenderer>
+<SidebarRenderer searcherKey="clipboard">
   <div slot="list" class="result-list">
     {#each listitems as item, index}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -474,6 +474,7 @@
       <div
         class="preview-area"
         class:image-fullsize={contentType === "image"}
+        class:text-content={contentType === "text" || contentType === "multiline"}
       >
         {#if contentType === "image"}
           <div class="image-preview-stage">
@@ -608,18 +609,18 @@
 <style>
   .result-list {
     overflow-y: auto;
-    padding: 5px 10px;
+    padding: 5px 4px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .result-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
-    border-radius: var(--q-item-border-radius);
+    padding: 8px 6px;
+    border-radius: 9px;
     border: 1px solid transparent;
   }
 
@@ -629,7 +630,7 @@
 
   .result-item.active {
     background: var(--q-active-bg-color);
-    border-color: var(--q-active-border-color);
+    border-color: transparent;
   }
 
   .result-item.pinned.active {
@@ -738,6 +739,10 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
+  }
+
+  .preview-area.text-content {
+    padding: 12px;
   }
 
   .image-preview-stage {
