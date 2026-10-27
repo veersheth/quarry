@@ -103,7 +103,7 @@
     min-height: 0;
     box-sizing: border-box;
     gap: 0;
-    padding: 12px;
+    padding: 8px 10px;
     color: var(--q-font-color);
   }
 
@@ -116,9 +116,11 @@
     border: 1px solid transparent;
     border-radius: 14px;
     background: var(--q-surface-background, #242424);
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+    scrollbar-width: none; 
+    <!-- scrollbar: none; -->
+    <!-- scrollbar-gutter: stable; -->
+    <!-- scrollbar-width: thin; -->
+    <!-- scrollbar-color: rgba(255, 255, 255, 0.12) transparent; -->
   }
 
   .sidebar-list::-webkit-scrollbar {
