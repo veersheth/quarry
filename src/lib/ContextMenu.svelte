@@ -76,7 +76,12 @@
   }
 
   function selectAction(actionId: string) {
-    execute(actionId, item.name, get(query));
+    const onSelect = get(contextMenu).onSelect;
+    if (onSelect) {
+      void onSelect(actionId);
+    } else {
+      execute(actionId, item.name, get(query));
+    }
     onClose();
   }
 </script>

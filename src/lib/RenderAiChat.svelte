@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import FooterBar from "./ui/FooterBar.svelte";
   import Chip from "./ui/Chip.svelte";
   import { unified } from "unified";
@@ -8,7 +9,13 @@
   import remarkRehype from "remark-rehype";
   import rehypeSanitize from "rehype-sanitize";
   import rehypeStringify from "rehype-stringify";
-  import { aiSubmitQuery } from "../stores/search";
+  import {
+    aiContextMenuOpener,
+    aiSubmitQuery,
+    openContextMenu,
+    type Action,
+    type ResultItem,
+  } from "../stores/search";
   import { addToast } from "../stores/toasts";
   import { onMount } from "svelte";
 
@@ -39,11 +46,48 @@
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let isTimeout = false;
   let lastTokens: number | null = null;
+  let lastQuestion = "";
 
   async function copyResult() {
     if (!response) return;
     await navigator.clipboard.writeText(response);
     addToast("AI response copied to clipboard", "success");
+  }
+
+  function openAiMenu(event?: MouseEvent) {
+    event?.preventDefault();
+    const actions: Action[] = [];
+    if (loading) actions.push({ id: "ai-stop", name: "Stop response" });
+    if (response) actions.push({ id: "ai-copy-response", name: "Copy response" });
+    if (lastQuestion) {
+      actions.push({ id: "ai-copy-prompt", name: "Copy prompt" });
+      if (!loading) actions.push({ id: "ai-regenerate", name: "Regenerate response" });
+    }
+    actions.push({ id: "ai-dashboard", name: "Open Groq dashboard" });
+
+    const item: ResultItem = { name: "AI assistant", actions };
+    openContextMenu(item, handleAiAction);
+  }
+
+  async function handleAiAction(actionId: string) {
+    switch (actionId) {
+      case "ai-stop":
+        abort?.abort();
+        break;
+      case "ai-copy-response":
+        await copyResult();
+        break;
+      case "ai-copy-prompt":
+        await navigator.clipboard.writeText(lastQuestion);
+        addToast("AI prompt copied to clipboard", "success");
+        break;
+      case "ai-regenerate":
+        if (lastQuestion) aiSubmitQuery.set(lastQuestion);
+        break;
+      case "ai-dashboard":
+        await openUrl(MODEL.dashboard);
+        break;
+    }
   }
 
   // Animation state
@@ -53,10 +97,16 @@
   let mounted = false;
 
   onMount(() => {
-    setTimeout(() => {
+    aiContextMenuOpener.set(openAiMenu);
+    const beamTimeout = setTimeout(() => {
       beamVisible = true;
       mounted = true;
     }, 120);
+
+    return () => {
+      clearTimeout(beamTimeout);
+      aiContextMenuOpener.set(null);
+    };
   });
 
   function setGlow(state: GlowState) {
@@ -103,6 +153,7 @@
     abort = new AbortController();
 
     response = "";
+    lastQuestion = q;
     rendered = "";
     errorLabel = "";
     loading = true;
@@ -326,6 +377,7 @@
       class:state-success={glowState === "success"}
       class:state-error={glowState === "error"}
       class:state-settling={glowState === "settling"}
+      on:contextmenu={openAiMenu}
     >
       <div class="ai-border" aria-hidden="true"></div>
 

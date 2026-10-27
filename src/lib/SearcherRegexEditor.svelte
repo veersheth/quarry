@@ -33,6 +33,7 @@
 
   function close() {
     request = null;
+    window.dispatchEvent(new Event("quarry-overlay-closed"));
   }
 
   async function save() {

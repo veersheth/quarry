@@ -4,7 +4,7 @@ import { execute } from "./searcher";
 import { get } from "svelte/store";
 import { tick } from "svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { query, resultType, aiSubmitQuery, contextMenu, openContextMenu, closeContextMenu, modalStore, closeModal } from "../stores/search";
+import { query, resultType, aiSubmitQuery, aiContextMenuOpener, contextMenu, openContextMenu, closeContextMenu, modalStore, closeModal } from "../stores/search";
 
 function deleteWordFromEnd(str: string): string {
   let pos = str.length;
@@ -99,7 +99,11 @@ export function handleKeydown(
     if (event.key === "Enter") {
       event.preventDefault();
       if (filtered[menu.activeIndex]) {
-        execute(filtered[menu.activeIndex].id, menu.item!.name, get(query));
+        if (menu.onSelect) {
+          void menu.onSelect(filtered[menu.activeIndex].id);
+        } else {
+          execute(filtered[menu.activeIndex].id, menu.item!.name, get(query));
+        }
       }
       closeContextMenu();
       return;
@@ -110,7 +114,11 @@ export function handleKeydown(
       event.preventDefault();
       const n = parseInt(event.key) - 1;
       if (filtered[n]) {
-        execute(filtered[n].id, menu.item!.name, get(query));
+        if (menu.onSelect) {
+          void menu.onSelect(filtered[n].id);
+        } else {
+          execute(filtered[n].id, menu.item!.name, get(query));
+        }
         closeContextMenu();
       }
       return;
@@ -192,8 +200,12 @@ export function handleKeydown(
     event.preventDefault();
     const items = get(resultItems);
     const idx = get(activeIndex);
+    if (isAiMode) {
+      get(aiContextMenuOpener)?.();
+      return;
+    }
     const item = items[idx];
-    if (item && item.actions.length > 1) {
+    if (item && item.actions.length > 0) {
       openContextMenu(item);
     }
     return;

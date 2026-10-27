@@ -113,6 +113,24 @@
     openContextMenu(item);
   }
 
+  function canFocusSearch(): boolean {
+    if (setupWizard || resetMode || $contextMenu.open || $modalStore.open) return false;
+    const activeElement = document.activeElement;
+    return !activeElement?.closest('[role="dialog"]');
+  }
+
+  function restoreSearchFocus() {
+    requestAnimationFrame(() => {
+      if (canFocusSearch() && document.activeElement !== searchInput) {
+        searchInput?.focus({ preventScroll: true });
+      }
+    });
+  }
+
+  function handleFocusIn(event: FocusEvent) {
+    if (event.target !== searchInput) restoreSearchFocus();
+  }
+
   interface Theme {
     background_color: string;
     background_opacity: number;
@@ -179,6 +197,7 @@
   onMount(() => {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
+    window.addEventListener("quarry-overlay-closed", restoreSearchFocus);
 
     void (async () => {
       appWindow = getCurrentWindow();
@@ -362,11 +381,22 @@
     return () => {
       cancelled = true;
       cleanup?.();
+      window.removeEventListener("quarry-overlay-closed", restoreSearchFocus);
     };
   });
 
   $: if ($resultItems) {
     if (resultsEl) resultsEl.scrollTop = 0;
+  }
+
+  $: if (
+    setupResolved &&
+    !setupWizard &&
+    !resetMode &&
+    !$contextMenu.open &&
+    !$modalStore.open
+  ) {
+    restoreSearchFocus();
   }
 
   $: if ($query !== undefined) {
@@ -460,6 +490,8 @@
 </script>
 
 <svelte:window
+  on:focusin={handleFocusIn}
+  on:focus={restoreSearchFocus}
   on:keydown={(e) => {
     if (e.ctrlKey && (e.key === "-" || e.key === "=" || e.key === "+" || e.key === "0")) {
       e.preventDefault();
@@ -539,6 +571,7 @@
         placeholder="quarry..."
         bind:value={$query}
         bind:this={searchInput}
+        on:blur={restoreSearchFocus}
         autofocus
         class="search"
         class:loading={isLoading}

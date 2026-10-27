@@ -32,6 +32,7 @@ export type ContextMenuState = {
   item: ResultItem | null;
   activeIndex: number;
   searchQuery: string;
+  onSelect: ((actionId: string) => void | Promise<void>) | null;
 };
 
 export const mouseHasMoved = writable(false);
@@ -65,12 +66,18 @@ export const contextMenu = writable<ContextMenuState>({
   item: null,
   activeIndex: 0,
   searchQuery: "",
+  onSelect: null,
 });
 
-export function openContextMenu(item: ResultItem) {
-  contextMenu.set({ open: true, item, activeIndex: 0, searchQuery: "" });
+export const aiContextMenuOpener = writable<(() => void) | null>(null);
+
+export function openContextMenu(
+  item: ResultItem,
+  onSelect: ContextMenuState["onSelect"] = null,
+) {
+  contextMenu.set({ open: true, item, activeIndex: 0, searchQuery: "", onSelect });
 }
 
 export function closeContextMenu() {
-  contextMenu.update(s => ({ ...s, open: false, item: null, searchQuery: "" }));
+  contextMenu.update(s => ({ ...s, open: false, item: null, searchQuery: "", onSelect: null }));
 }
