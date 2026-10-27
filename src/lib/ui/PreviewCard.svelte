@@ -7,48 +7,55 @@
   export let subtitle: string | undefined = undefined;
 </script>
 
-<article class="preview-card">
-  {#if icon}
-    <img
-      class="icon-glow"
-      src={iconSrc(icon)}
-      alt=""
-      aria-hidden="true"
-      on:error={(event) => ((event.currentTarget as HTMLImageElement).style.display = "none")}
-    />
-  {/if}
-
-  <header class="preview-heading">
+<div class="preview-card-container">
+  <article class="preview-card">
     {#if icon}
-      <ItemIcon {icon} name={title} size={34} />
-    {:else}
-      <div class="fallback-icon">{title.trim().charAt(0).toUpperCase() || "?"}</div>
+      <img
+        class="icon-glow"
+        src={iconSrc(icon)}
+        alt=""
+        aria-hidden="true"
+        on:error={(event) => ((event.currentTarget as HTMLImageElement).style.display = "none")}
+      />
     {/if}
-    <div class="heading-copy">
-      <h2>{title}</h2>
-      {#if subtitle}<p>{subtitle}</p>{/if}
-    </div>
-  </header>
 
-  <div class="preview-content"><slot /></div>
-</article>
+    <header class="preview-heading">
+      {#if icon}
+        <ItemIcon {icon} name={title} size={34} />
+      {:else}
+        <div class="fallback-icon">{title.trim().charAt(0).toUpperCase() || "?"}</div>
+      {/if}
+      <div class="heading-copy">
+        <h2>{title}</h2>
+        {#if subtitle}<p>{subtitle}</p>{/if}
+      </div>
+    </header>
+
+    <div class="preview-content"><slot /></div>
+  </article>
+</div>
 
 <style>
+  .preview-card-container {
+    width: 100%;
+    min-width: 0;
+    container: preview-card / inline-size;
+  }
+
   .preview-card {
     position: relative;
     isolation: isolate;
     display: flex;
-    width: min(100%, 560px);
+    width: 100%;
     max-height: 100%;
     box-sizing: border-box;
     flex-direction: column;
     gap: 14px;
     overflow: auto;
-    margin: auto;
+    margin: 0;
     padding: 18px;
     border: 1px solid var(--q-card-border, rgba(255, 255, 255, 0.09));
     border-radius: var(--q-card-radius, 15px);
-    background: var(--q-card-surface, #181818);
     box-shadow:
       0 12px 30px rgba(0, 0, 0, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.045);
@@ -116,4 +123,29 @@
   }
 
   .preview-content { min-width: 0; }
+
+  @container preview-card (max-width: 460px) {
+    .preview-card {
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .preview-heading { gap: 9px; }
+
+    h2 {
+      display: -webkit-box;
+      overflow: hidden;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    :global(.metadata-table th) {
+      width: 76px;
+      padding-inline: 8px;
+    }
+
+    :global(.metadata-table td) { padding-inline: 8px; }
+  }
 </style>

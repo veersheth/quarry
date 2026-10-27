@@ -841,10 +841,10 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 20px;
+    padding: 0 16px;
     height: 56px;
     flex-shrink: 0;
-    margin-bottom: 4px;
+    margin-bottom: 0;
     position: relative;
     overflow: hidden;
   }

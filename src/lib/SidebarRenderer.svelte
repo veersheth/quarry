@@ -97,13 +97,14 @@
 
 <style>
   .sidebar-renderer {
+    --sidebar-space: 12px;
     display: flex;
     width: 100%;
     height: 100%;
     min-height: 0;
     box-sizing: border-box;
     gap: 0;
-    padding: 8px 10px;
+    padding: var(--sidebar-space);
     color: var(--q-font-color);
   }
 
@@ -113,7 +114,7 @@
     min-height: 0;
     overflow-y: auto;
     box-sizing: border-box;
-    border: 1px solid transparent;
+    border: 1px solid var(--q-divider-dark, #2e2e2e);
     border-radius: 14px;
     background: var(--q-surface-background, #242424);
     scrollbar-width: none; 
@@ -145,7 +146,7 @@
   }
 
   .sidebar-resizer {
-    flex: 0 0 12px;
+    flex: 0 0 var(--sidebar-space);
     cursor: col-resize;
     touch-action: none;
     outline: none;
@@ -168,5 +169,28 @@
     min-width: 0;
     min-height: 0;
     flex-direction: column;
+  }
+
+  @media (max-width: 680px) {
+    .sidebar-renderer {
+      --sidebar-space: 12px;
+      flex-direction: column;
+      gap: var(--sidebar-space);
+      padding: var(--sidebar-space);
+    }
+
+    .sidebar-list {
+      width: 100%;
+      max-height: 34%;
+      flex: 0 0 auto;
+    }
+
+    .sidebar-resizer { display: none; }
+
+    .sidebar-detail {
+      width: 100%;
+      min-height: 0;
+      flex: 1 1 0;
+    }
   }
 </style>

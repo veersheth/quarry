@@ -221,12 +221,28 @@
   }
 
   .detail-scroll {
+    display: flex;
     min-width: 0;
     min-height: 0;
     flex: 1;
+    align-items: flex-start;
     overflow: auto;
-    padding: 18px 20px;
+    padding: 0;
     box-sizing: border-box;
+  }
+
+  :global(.file-detail .preview-card-container) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :global(.file-detail .preview-card) {
+    max-height: none;
+    overflow: visible;
+  }
+
+  :global(.file-detail .bar) {
+    padding: 8px 0 0;
   }
 
 </style>
