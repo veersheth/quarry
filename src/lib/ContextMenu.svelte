@@ -131,7 +131,7 @@
     flex-direction: column;
     width: min(340px, calc(100vw - 32px));
     max-height: min(480px, calc(100vh - 32px));
-    padding: 10px;
+    padding: 6px;
     box-sizing: border-box;
     overflow: hidden;
     border: 1px solid var(--q-border-strong);
@@ -177,7 +177,6 @@
 
   .ctx-list {
     min-height: 0;
-    margin-top: 8px;
     margin-bottom: 12px;
     overflow-y: auto;
   }
