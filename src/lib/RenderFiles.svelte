@@ -241,8 +241,4 @@
     overflow: visible;
   }
 
-  :global(.file-detail .bar) {
-    padding: 8px 0 0;
-  }
-
 </style>

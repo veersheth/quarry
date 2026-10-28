@@ -474,6 +474,7 @@
       <div
         class="preview-area"
         class:image-fullsize={contentType === "image"}
+        class:card-content={contentType === "file" || contentType === "url"}
         class:text-content={contentType === "text" || contentType === "multiline"}
       >
         {#if contentType === "image"}
@@ -724,9 +725,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Leave room for the image shadow so the preview area's overflow clip
-       doesn't cut it off at the edges. */
-    padding: 40px 40px 88px;
+    /* Keep clipboard preview insets aligned with the shared sidebar layout. */
+    padding: var(--sidebar-space, 12px);
     box-sizing: border-box;
     overflow: hidden;
     min-height: 0;
@@ -734,15 +734,19 @@
 
   .preview-area.image-fullsize {
     display: block;
-    padding: 40px 40px 88px;
+    padding: var(--sidebar-space, 12px);
     box-sizing: border-box;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
   }
 
+  .preview-area.card-content {
+    align-items: flex-start;
+  }
+
   .preview-area.text-content {
-    padding: 12px;
+    padding: var(--sidebar-space, 12px);
   }
 
   .image-preview-stage {
@@ -750,7 +754,7 @@
     height: 100%;
     min-height: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
   }
 

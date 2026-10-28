@@ -171,6 +171,10 @@
     flex-direction: column;
   }
 
+  .sidebar-detail :global(.bar) {
+    padding: 8px 0 0;
+  }
+
   @media (max-width: 680px) {
     .sidebar-renderer {
       --sidebar-space: 12px;
