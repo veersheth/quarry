@@ -148,6 +148,8 @@ pub enum ActionData {
     OpenInTerminal { path: String },
     RofiSelect { name: String, response_socket: String },
     SetQuery { query: String },
+    /// One-shot confirmation button that reruns an existing registered action.
+    ConfirmedAction { action_id: String },
 }
 
 impl ActionData {
@@ -177,6 +179,7 @@ impl ActionData {
             ActionData::OpenInTerminal { path } => format!("terminal:{}", path),
             ActionData::RofiSelect { .. } => "rofi:select".to_string(),
             ActionData::SetQuery { query } => format!("searcher:{}", query),
+            ActionData::ConfirmedAction { action_id } => format!("confirmed:{}", action_id),
             ActionData::None => "none".to_string(),
         }
     }

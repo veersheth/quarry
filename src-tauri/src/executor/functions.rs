@@ -84,6 +84,17 @@ pub(super) fn run_custom_function(
             crate::CLIPBOARD_MANAGER.clear_history();
             Ok(())
         }
+        "empty_trash" => {
+            let result = std::process::Command::new("gio")
+                .args(["trash", "--empty"])
+                .status()
+                .map_err(|error| format!("Could not empty Trash: {error}"))?;
+            if result.success() {
+                Ok(())
+            } else {
+                Err("Could not empty Trash".into())
+            }
+        }
         "add_bookmark" => {
             if params.len() != 2 {
                 return Err("add_bookmark requires name and url".to_string());

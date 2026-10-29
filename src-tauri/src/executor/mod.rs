@@ -10,7 +10,7 @@ pub(crate) use audio::{PINK_NOISE_RUNNING, RAIN_NOISE_RUNNING};
 pub(crate) use timer::spawn_timer_thread;
 
 #[derive(Serialize, Clone)]
-struct ModalButton {
+pub(crate) struct ModalButton {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
@@ -19,7 +19,7 @@ struct ModalButton {
 }
 
 #[derive(Serialize, Clone)]
-struct ModalPayload {
+pub(crate) struct ModalPayload {
     pub body: String,
     pub buttons: Vec<ModalButton>,
 }
@@ -52,8 +52,67 @@ pub(crate) fn execute_action(action: ActionData, app: &tauri::AppHandle) -> Resu
         ActionData::SetQuery { .. } => {
             Err("Search query actions are handled by the frontend".into())
         }
+        ActionData::ConfirmedAction { .. } => {
+            Err("Confirmation actions are handled by the command layer".into())
+        }
         ActionData::None => Ok(()),
     }
+}
+
+pub(crate) fn request_confirmation(
+    app: &tauri::AppHandle,
+    original_action_id: &str,
+    action: &ActionData,
+) -> Result<bool, String> {
+    use tauri::Emitter;
+
+    let (body, label) = match action {
+        ActionData::RunFunction { function_name, .. } => match function_name.as_str() {
+            "delete_clipboard_entry" => ("Delete this clipboard item?", "Delete"),
+            "clear_clipboard" => ("Clear all clipboard history?", "Clear clipboard"),
+            "unpin" => ("Remove this item from pins?", "Unpin"),
+            "remove_bookmark" => ("Delete this bookmark?", "Delete bookmark"),
+            "delete_file" => (
+                "Permanently delete this file? This cannot be undone.",
+                "Delete permanently",
+            ),
+            "trash_file" => ("Move this file to Trash?", "Move to Trash"),
+            "empty_trash" => (
+                "Permanently delete everything in Trash? This cannot be undone.",
+                "Empty Trash",
+            ),
+            _ => return Ok(false),
+        },
+        _ => return Ok(false),
+    };
+
+    static CONFIRMATION_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = CONFIRMATION_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let confirm_id = format!("confirm_{}_{}", seq, original_action_id);
+    crate::ACTION_REGISTRY.register(
+        confirm_id.clone(),
+        ActionData::ConfirmedAction {
+            action_id: original_action_id.to_string(),
+        },
+    );
+    let payload = ModalPayload {
+        body: body.to_string(),
+        buttons: vec![
+            ModalButton {
+                label: "Cancel".into(),
+                kind: Some("default".into()),
+                action_id: None,
+            },
+            ModalButton {
+                label: label.into(),
+                kind: Some("danger".into()),
+                action_id: Some(confirm_id),
+            },
+        ],
+    };
+    app.emit("quarry-modal", &payload)
+        .map_err(|error| error.to_string())?;
+    Ok(true)
 }
 
 fn launch_app(executable: &str, args: &[String]) -> Result<(), String> {

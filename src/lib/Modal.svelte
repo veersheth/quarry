@@ -3,7 +3,9 @@
   import { cubicOut, cubicIn } from "svelte/easing";
   import { marked } from "marked";
   import { invoke } from "@tauri-apps/api/core";
-  import { modalStore, closeModal } from "../stores/search";
+  import { modalStore, closeModal, query } from "../stores/search";
+  import { refreshSearchInPlace } from "./searcher";
+  import { addToast } from "../stores/toasts";
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -28,8 +30,25 @@
           class:danger={btn.kind === 'danger'}
           class:primary={btn.kind === 'primary'}
           on:click={async () => {
-            if (btn.action_id) await invoke("execute", { actionId: btn.action_id, query: "", name: btn.label });
-            closeModal();
+            try {
+              if (btn.action_id) {
+                const result = await invoke<string>("execute", {
+                  actionId: btn.action_id,
+                  query: $query,
+                  name: btn.label,
+                });
+                if (result === "refresh") {
+                  closeModal();
+                  await refreshSearchInPlace($query);
+                  addToast(`${btn.label} complete`);
+                  return;
+                }
+              }
+              closeModal();
+            } catch (error: any) {
+              closeModal();
+              addToast(error?.message ?? "Action failed", "error");
+            }
           }}
           on:mouseenter={() => modalStore.update(s => ({ ...s, activeIndex: i }))}
         >

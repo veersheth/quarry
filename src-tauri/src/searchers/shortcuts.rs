@@ -51,10 +51,7 @@ fn all_shortcuts() -> Vec<ResultItem> {
     items.push(item("Open Trash", "Open the trash folder - deleted files recycle bin",
         ICON_FOLDER, shell("gio open trash://")));
     items.push(item("Empty Trash", "Permanently delete all trashed files - clear recycle bin",
-        ICON_FOLDER, ActionData::modal(
-            "## Empty Trash\n\nThis will permanently delete all trashed files.",
-            &[("Empty Trash", "danger", "gio trash --empty"), ("Cancel", "default", "")],
-        )));
+        ICON_FOLDER, func("empty_trash", vec![])));
 
     // ── Files ─────────────────────────────────────────────────────────────
     items.push(item("Open Latest Download", "Open the most recently downloaded file",

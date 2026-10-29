@@ -1,9 +1,16 @@
 // lib/searcher.ts
 import { invoke } from "@tauri-apps/api/core";
 import type { SearchResult } from "../stores/search";
-import { query as searchQuery, resultItems, resultType } from "../stores/search";
+import {
+  query as searchQuery,
+  resultItems,
+  resultType,
+  activeIndex,
+  searcherName,
+} from "../stores/search";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { addToast } from "../stores/toasts";
+import { get } from "svelte/store";
 
 export async function execute(action_id: string, name: string, currentQuery: string) {
   // Client-side QR code action — no Rust round-trip needed.
@@ -64,4 +71,14 @@ export async function search(query: string): Promise<SearchResult | null> {
       result_type: "List",
     };
   }
+}
+
+export async function refreshSearchInPlace(query: string) {
+  const selectedIndex = get(activeIndex);
+  const result = await search(query);
+  if (!result) return;
+  resultItems.set(result.results);
+  resultType.set(result.result_type);
+  searcherName.set(result.searcher ?? "");
+  activeIndex.set(Math.min(selectedIndex, Math.max(0, result.results.length - 1)));
 }

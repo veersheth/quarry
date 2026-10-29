@@ -17,9 +17,23 @@ pub fn execute(
     name: Option<String>,
     app: tauri::AppHandle,
 ) -> Result<String, String> {
-    let action_data = ACTION_REGISTRY
+    let registered_action = ACTION_REGISTRY
         .get_action(&action_id)
         .ok_or_else(|| format!("Action not found: {}", action_id))?;
+
+    if !matches!(registered_action, ActionData::ConfirmedAction { .. }) {
+        if executor::request_confirmation(&app, &action_id, &registered_action)? {
+            return Ok("stay".into());
+        }
+    }
+
+    let confirmed = matches!(registered_action, ActionData::ConfirmedAction { .. });
+    let action_data = match registered_action {
+        ActionData::ConfirmedAction { action_id: original_id } => ACTION_REGISTRY
+            .get_action(&original_id)
+            .ok_or_else(|| "The action to confirm is no longer available".to_string())?,
+        action => action,
+    };
 
     if let ActionData::SetQuery { query } = &action_data {
         if let Ok(mut history) = USAGE_HISTORY.write() {
@@ -78,6 +92,7 @@ pub fn execute(
         }
         _ => "launched",
     };
+    let tag = if confirmed { "refresh" } else { tag };
 
     let stable_id = action_data.stable_id();
     let result = executor::execute_action(action_data, &app);
@@ -168,13 +183,21 @@ fn active_window_is_terminal() -> bool {
 
 #[tauri::command]
 pub fn exec_func(name: String, params: Vec<String>, app: tauri::AppHandle) -> Result<(), String> {
-    executor::execute_action(
-        crate::types::ActionData::RunFunction {
-            function_name: name,
-            params,
-        },
-        &app,
-    )
+    let action = ActionData::RunFunction {
+        function_name: name,
+        params,
+    };
+    static EXEC_FUNC_SEQ: std::sync::atomic::AtomicU64 =
+        std::sync::atomic::AtomicU64::new(0);
+    let action_id = format!(
+        "exec_func_{}",
+        EXEC_FUNC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
+    ACTION_REGISTRY.register(action_id.clone(), action.clone());
+    if executor::request_confirmation(&app, &action_id, &action)? {
+        return Ok(());
+    }
+    executor::execute_action(action, &app)
 }
 
 #[tauri::command]
@@ -424,9 +447,8 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
 }
 
 #[tauri::command]
-pub fn clear_clipboard_history() -> Result<(), String> {
-    CLIPBOARD_MANAGER.clear_history();
-    Ok(())
+pub fn clear_clipboard_history(app: tauri::AppHandle) -> Result<(), String> {
+    exec_func("clear_clipboard".into(), Vec::new(), app)
 }
 
 // ---------------------------------------------------------
