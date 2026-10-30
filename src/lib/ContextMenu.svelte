@@ -75,6 +75,15 @@
     if (menuEl && !menuEl.contains(event.target as Node)) onClose();
   }
 
+  function handleItemPointerMove(event: PointerEvent, index: number) {
+    // The menu can appear underneath a stationary pointer. Only let a real
+    // pointer movement change keyboard selection, not the initial hover state.
+    if (event.movementX === 0 && event.movementY === 0) return;
+    contextMenu.update((state) =>
+      state.activeIndex === index ? state : { ...state, activeIndex: index },
+    );
+  }
+
   function selectAction(actionId: string) {
     const onSelect = get(contextMenu).onSelect;
     if (onSelect) {
@@ -98,6 +107,7 @@
         class:active={entry.index === activeIdx}
         data-action-index={entry.index}
         role="menuitem"
+        on:pointermove={(event) => handleItemPointerMove(event, entry.index)}
         on:click={() => selectAction(entry.action.id)}
       >
         <span class="ctx-label">{entry.action.name}</span>
@@ -192,7 +202,6 @@
     user-select: none;
   }
 
-  .ctx-item:hover,
   .ctx-item.active {
     background: rgba(255, 255, 255, 0.09);
   }
