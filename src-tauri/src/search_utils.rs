@@ -32,6 +32,70 @@ pub fn normalize_text(text: &str) -> String {
         .join(" ")
 }
 
+/// Tokenize user input while preserving literal hyphenated terms. For other
+/// separators, keep the usual forgiving behavior (`watch later` matches
+/// `watch-later` and `watch_later`).
+pub fn query_tokens(query: &str) -> Vec<String> {
+    query
+        .split_whitespace()
+        .flat_map(|part| {
+            if part.contains('-') {
+                vec![part.to_lowercase()]
+            } else {
+                normalize_text(part)
+                    .split_whitespace()
+                    .map(str::to_string)
+                    .collect()
+            }
+        })
+        .collect()
+}
+
+/// Normalize a whole query for phrase ranking without treating a literal
+/// hyphen as interchangeable with whitespace.
+pub fn normalize_query(query: &str) -> String {
+    query
+        .to_lowercase()
+        .chars()
+        .map(|c| match c {
+            '_' | '.' | ':' | '/' | '\\' => ' ',
+            _ => c,
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Score a query token against an original, unnormalized field. Hyphenated
+/// tokens require a literal hyphen in the field; other tokens use the normal
+/// separator-insensitive matching rules.
+pub fn query_token_score(text: &str, token: &str) -> i64 {
+    if !token.contains('-') {
+        return token_match_score(&normalize_text(text), &normalize_text(token));
+    }
+
+    let token_lower = token.to_lowercase();
+    text.split_whitespace()
+        .filter(|word| word.contains('-'))
+        .map(|word| {
+            let word = word.to_lowercase();
+            if word == token_lower {
+                1_000
+            } else if word.contains(&token_lower) {
+                700
+            } else {
+                MATCHER
+                    .fuzzy_match(&word, &token_lower)
+                    .filter(|score| *score > 0)
+                    .map(|score| 250 + score.min(200))
+                    .unwrap_or(0)
+            }
+        })
+        .max()
+        .unwrap_or(0)
+}
+
 /// Smart text matching that tries multiple strategies:
 /// 1. Exact match (highest score)
 /// 2. Normalized exact match
@@ -39,6 +103,25 @@ pub fn normalize_text(text: &str) -> String {
 /// 4. Fuzzy match on normalized text
 pub fn smart_match(text: &str, query: &str) -> Option<i64> {
     let query_lower = query.to_lowercase();
+
+    if query_lower.contains('-') {
+        let score = text
+            .split_whitespace()
+            .filter(|word| word.contains('-'))
+            .filter_map(|word| {
+                let word = word.to_lowercase();
+                if word == query_lower {
+                    Some(1_000)
+                } else if word.contains(&query_lower) {
+                    Some(800)
+                } else {
+                    MATCHER.fuzzy_match(&word, &query_lower)
+                }
+            })
+            .max();
+        return score.filter(|score| *score > 0);
+    }
+
     let text_lower = text.to_lowercase();
 
     // 1. Exact match (case-insensitive)
@@ -117,20 +200,16 @@ pub fn token_match_score(normalized_text: &str, normalized_token: &str) -> i64 {
 /// word-order-independent matching without accepting a result for only part of
 /// a multiword query.
 pub fn match_all_tokens(fields: &[&str], query: &str) -> Option<i64> {
-    let normalized_fields: Vec<String> = fields.iter().map(|field| normalize_text(field)).collect();
-    let tokens: Vec<String> = normalize_text(query)
-        .split_whitespace()
-        .map(str::to_string)
-        .collect();
+    let tokens = query_tokens(query);
     if tokens.is_empty() {
         return None;
     }
 
     let mut total = 0;
     for token in tokens {
-        let best = normalized_fields
+        let best = fields
             .iter()
-            .map(|field| token_match_score(field, &token))
+            .map(|field| query_token_score(field, &token))
             .max()
             .unwrap_or(0);
         if best == 0 {

@@ -40,8 +40,6 @@ pub mod timer;
 pub mod web_searchers;
 
 use crate::types::{ResultItem, SearchResult};
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use tauri::AppHandle;
 
 pub trait SearchProvider {
@@ -54,11 +52,10 @@ pub trait SearchProvider {
         if query.is_empty() {
             return items;
         }
-        let matcher = SkimMatcherV2::default().ignore_case();
         let mut scored: Vec<(ResultItem, i64)> = items
             .into_iter()
             .filter_map(|item| {
-                let score = fuzzy_score(&matcher, &item, query);
+                let score = fuzzy_score(&item, query);
                 if score > 0 {
                     Some((item, score))
                 } else {
@@ -71,12 +68,14 @@ pub trait SearchProvider {
     }
 }
 
-fn fuzzy_score(matcher: &SkimMatcherV2, item: &ResultItem, query: &str) -> i64 {
-    let q = query.to_lowercase();
-    let name = item.name.to_lowercase();
-    let desc = item.description.as_deref().unwrap_or("").to_lowercase();
-    let combined = format!("{} {}", name, desc);
-    let combined_score = matcher.fuzzy_match(&combined, &q).unwrap_or(0);
-    let name_score = matcher.fuzzy_match(&name, &q).map(|s| s * 2).unwrap_or(0);
-    combined_score.max(name_score)
+fn fuzzy_score(item: &ResultItem, query: &str) -> i64 {
+    let name_score = crate::search_utils::smart_match(&item.name, query)
+        .map(|score| score * 2)
+        .unwrap_or(0);
+    let description_score = item
+        .description
+        .as_deref()
+        .and_then(|description| crate::search_utils::smart_match(description, query))
+        .unwrap_or(0);
+    name_score.max(description_score)
 }

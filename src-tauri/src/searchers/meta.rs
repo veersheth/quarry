@@ -432,43 +432,5 @@ fn target_score(target: &SearchTarget, query: &str) -> Option<i64> {
         .chain(std::iter::once(target.badge.as_str()))
         .chain(target.search_terms.iter().map(String::as_str))
         .collect::<Vec<_>>();
-    let words = searchable
-        .iter()
-        .flat_map(|value| {
-            crate::search_utils::normalize_text(value)
-                .split_whitespace()
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    let mut total = 0;
-
-    for token in crate::search_utils::normalize_text(query).split_whitespace() {
-        let score = words
-            .iter()
-            .map(|word| {
-                if word == &token {
-                    1000
-                } else if word.starts_with(&token) {
-                    850
-                } else if word.contains(&token) {
-                    700
-                } else if token.len() >= 3 {
-                    crate::search_utils::smart_match(word, &token)
-                        .unwrap_or(0)
-                        .min(500)
-                } else {
-                    0
-                }
-            })
-            .max()
-            .unwrap_or(0);
-
-        if score == 0 {
-            return None;
-        }
-        total += score;
-    }
-
-    Some(total)
+    crate::search_utils::match_all_tokens(&searchable, query)
 }

@@ -1,7 +1,5 @@
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use notify::event::EventKind;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
@@ -48,8 +46,6 @@ pub(crate) const SCRIPT_EXTENSIONS: &[&str] = &[
     "sh", "bash", "zsh", "fish", "py", "rb", "js", "mjs", "ts", "pl", "pm", "lua", "ps1", "bat",
     "cmd", "r", "php",
 ];
-
-static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
 
 // ---------------------------------------------------------------------------
 // Background file index
@@ -541,11 +537,13 @@ impl FileSearcher {
 
         let mut total = 0i64;
         for word in query_words {
-            let name_score = MATCHER.fuzzy_match(&name, word).map(|s| s * 3);
-            let path_score = MATCHER.fuzzy_match(&path_str, word);
+            let name_score = crate::search_utils::query_token_score(&name, word)
+                .checked_mul(3)
+                .filter(|score| *score > 0);
+            let path_score = crate::search_utils::query_token_score(&path_str, word);
             let word_score = match (name_score, path_score) {
-                (None, None) => return None,
-                (a, b) => a.unwrap_or(0).max(b.unwrap_or(0)),
+                (None, 0) => return None,
+                (a, b) => a.unwrap_or(0).max(b),
             };
             total += word_score;
         }

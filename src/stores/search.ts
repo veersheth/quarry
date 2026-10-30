@@ -54,6 +54,8 @@ export function closeModal() {
   modalStore.update(s => ({ ...s, open: false }));
 }
 
+export const bookmarkCreatorOpen = writable(false);
+
 export const query = writable("");
 export const resultItems = writable<ResultItem[]>([]);
 export const resultType = writable<ResultType>("List");

@@ -1,8 +1,6 @@
 use crate::searchers::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use crate::usage_tracker::get_recent_entries;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use tauri::AppHandle;
 
 pub struct WebSearcher {
@@ -81,7 +79,6 @@ impl SearchProvider for WebSearcher {
             .filter(|e| e.name.starts_with(&name_prefix))
             .collect();
 
-        let matcher = SkimMatcherV2::default();
         let mut scored: Vec<(i64, &crate::usage_tracker::UsageEntry)> = engine_history
             .iter()
             .filter_map(|e| {
@@ -89,7 +86,7 @@ impl SearchProvider for WebSearcher {
                 if q.is_empty() {
                     Some((e.last_used as i64, e))
                 } else {
-                    matcher.fuzzy_match(term, q).map(|s| (s, e))
+                    crate::search_utils::smart_match(term, q).map(|s| (s, e))
                 }
             })
             .collect();

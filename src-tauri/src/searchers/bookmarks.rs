@@ -1,5 +1,5 @@
-use tauri::AppHandle;
 use super::{SearchProvider, ICON_BOOKMARK};
+use tauri::AppHandle;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -90,12 +90,6 @@ impl BookmarksSearcher {
         let host = host.split(':').next().unwrap_or(host);
         host == "localhost" || host == "127.0.0.1" || host == "::1"
     }
-
-    fn is_url(s: &str) -> bool {
-        if s.contains("://") { return true; }
-        if Self::is_localhost(s) { return true; }
-        s.contains('.') && s.split('.').count() >= 2
-    }
 }
 
 impl SearchProvider for BookmarksSearcher {
@@ -105,39 +99,40 @@ impl SearchProvider for BookmarksSearcher {
 
         let bookmarks = match Self::load_bookmarks() {
             Ok(b) => b,
-            Err(e) => return SearchResult::list(vec![
-                ResultItem::new(format!("error loading bookmarks: {}", e), vec![Action::new("", ActionData::None)])
+            Err(e) => {
+                return SearchResult::list(vec![
+                    create_bookmark_item(),
+                    ResultItem::new(
+                        format!("error loading bookmarks: {}", e),
+                        vec![Action::new("", ActionData::None)],
+                    )
                     .icon(ICON_BOOKMARK),
-            ]),
+                ])
+            }
         };
 
-        if query.is_empty() {
-            if bookmarks.is_empty() {
-                return SearchResult::list(vec![
-                    ResultItem::new("No bookmarks yet", vec![Action::new("", ActionData::None)])
-                        .description("Type a name and URL to add a bookmark")
-                        .icon(ICON_BOOKMARK),
-                ]);
-            }
-            return SearchResult::list(bookmarks.iter().map(bookmark_to_item).collect());
-        }
-
-        let parts: Vec<&str> = query.splitn(2, ' ').collect();
-        if parts.len() == 2 && Self::is_url(parts[1]) {
-            let name = parts[0].to_string();
-            let url = parts[1].to_string();
-            return SearchResult::list(vec![
-                ResultItem::new(format!("Add bookmark: {}", name), vec![Action::new("Add", ActionData::RunFunction {
-                    function_name: "add_bookmark".to_string(),
-                    params: vec![name, url.clone()],
-                })])
-                .description(url)
-                .icon(ICON_BOOKMARK),
-            ]);
-        }
-
-        SearchResult::list(self.fuzzy_filter(bookmarks.iter().map(bookmark_to_item).collect(), query))
+        let mut results = vec![create_bookmark_item()];
+        results.extend(self.fuzzy_filter(
+            bookmarks.iter().map(bookmark_to_item).collect(),
+            query,
+        ));
+        SearchResult::list(results)
     }
+}
+
+fn create_bookmark_item() -> ResultItem {
+    ResultItem::new(
+        "Create new bookmark",
+        vec![Action::new(
+            "Create",
+            ActionData::RunFunction {
+                function_name: "open_bookmark_creator".into(),
+                params: Vec::new(),
+            },
+        )],
+    )
+    .description("Save a website with a name and URL")
+    .icon(ICON_BOOKMARK)
 }
 
 fn bookmark_to_item(bookmark: &Bookmark) -> ResultItem {
@@ -151,6 +146,20 @@ fn bookmark_to_item(bookmark: &Bookmark) -> ResultItem {
             }),
         ],
     )
-    .description(bookmark.url.clone())
-    .icon(ICON_BOOKMARK)
+    .description(format!("Bookmark ({})", bookmark.url))
+    .icon(favicon_url(&bookmark.url))
+}
+
+fn favicon_url(url: &str) -> String {
+    let host = url
+        .split_once("://")
+        .map(|(_, remainder)| remainder)
+        .unwrap_or(url)
+        .split(|character| matches!(character, '/' | '?' | '#'))
+        .next()
+        .unwrap_or("");
+    format!(
+        "https://www.google.com/s2/favicons?domain={}&sz=64",
+        urlencoding::encode(host)
+    )
 }

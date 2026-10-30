@@ -23,6 +23,7 @@
     modalStore,
     openModal,
     closeModal,
+    bookmarkCreatorOpen,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
@@ -39,6 +40,7 @@
   import RenderFiles from "$lib/RenderFiles.svelte";
   import SetupWizard from "$lib/SetupWizard.svelte";
   import Modal from "$lib/Modal.svelte";
+  import CreateBookmarkModal from "$lib/CreateBookmarkModal.svelte";
   import SearcherRegexEditor from "$lib/SearcherRegexEditor.svelte";
   import { strHue } from "$lib/utils";
 
@@ -250,6 +252,9 @@
           openModal(event.payload.body, event.payload.buttons);
         },
       );
+      const unlistenCreateBookmark = await listen("quarry-create-bookmark", () => {
+        bookmarkCreatorOpen.set(true);
+      });
 
       const unlistenRofiSocket = await listen<string>(
         "quarry-rofi-socket",
@@ -365,6 +370,7 @@
       cleanup = () => {
         unlisten();
         unlistenModal();
+        unlistenCreateBookmark();
         unlistenRofiSocket();
         unlistenRofi();
         unlistenClipboardMore();
@@ -668,6 +674,9 @@
 
   {#if !setupWizard && !resetMode && $modalStore.open}
     <Modal />
+  {/if}
+  {#if !setupWizard && !resetMode && $bookmarkCreatorOpen}
+    <CreateBookmarkModal />
   {/if}
 <SearcherRegexEditor />
 

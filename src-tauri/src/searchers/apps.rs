@@ -8,11 +8,26 @@ use tauri::AppHandle;
 use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 
-fn clean_exec_field(exec: &str) -> String {
-    exec.split_whitespace()
-        .filter(|part| !part.starts_with('%'))
-        .collect::<Vec<_>>()
-        .join(" ")
+fn parse_exec(
+    raw: &str,
+    parsed: Result<Vec<String>, freedesktop_desktop_entry::ExecError>,
+) -> Option<Vec<String>> {
+    let parsed = parsed.ok().filter(|args| {
+        // The desktop-entry parser handles field codes, but can leave quotes
+        // embedded in an argument. Re-tokenize those commands so quoted paths
+        // containing spaces remain a single argument.
+        !args.iter().any(|arg| arg.contains('"'))
+    });
+
+    parsed
+        .or_else(|| {
+            shlex::split(raw).map(|args| {
+                args.into_iter()
+                    .filter(|arg| !arg.starts_with('%'))
+                    .collect()
+            })
+        })
+        .filter(|args: &Vec<String>| !args.is_empty())
 }
 
 static ICON_THEME: Lazy<Option<String>> = Lazy::new(|| {
@@ -88,14 +103,14 @@ fn resolve_icon(icon_name: &str) -> Option<String> {
 #[derive(Clone)]
 struct AppAction {
     name: String,
-    exec: String,
+    exec: Vec<String>,
     icon: Option<String>,
 }
 
 #[derive(Clone)]
 struct CachedApp {
     name: String,
-    exec: String,
+    exec: Vec<String>,
     description: Option<String>,
     icon: Option<String>,
     app_actions: Vec<AppAction>,
@@ -120,9 +135,11 @@ fn build_app_list() -> Vec<CachedApp> {
             None => continue,
         };
 
-        let exec = match entry.exec() {
-            Some(e) => clean_exec_field(e),
-            None => continue,
+        let Some(raw_exec) = entry.exec() else {
+            continue;
+        };
+        let Some(exec) = parse_exec(raw_exec, entry.parse_exec()) else {
+            continue;
         };
 
         let description = entry
@@ -139,7 +156,7 @@ fn build_app_list() -> Vec<CachedApp> {
             .filter_map(|action_id| {
                 let name = entry.action_entry(action_id, "Name")?.to_string();
                 let exec_raw = entry.action_entry(action_id, "Exec")?;
-                let exec = clean_exec_field(exec_raw);
+                let exec = parse_exec(exec_raw, entry.parse_exec_action(action_id))?;
                 let action_icon = entry
                     .action_entry(action_id, "Icon")
                     .and_then(resolve_icon)
@@ -176,13 +193,16 @@ pub fn reload() {
 
 pub struct AppSearcher;
 
-fn launch_actions(exec: &str) -> Vec<Action> {
-    let parts: Vec<&str> = exec.split_whitespace().collect();
-    let executable = parts.first().copied().unwrap_or("").to_string();
-    let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
+fn launch_actions(exec: &[String]) -> Vec<Action> {
+    let Some(executable) = exec.first() else {
+        return Vec::new();
+    };
     vec![Action::new(
         "Launch",
-        ActionData::LaunchApp { executable, args },
+        ActionData::LaunchApp {
+            executable: executable.clone(),
+            args: exec[1..].to_vec(),
+        },
     )]
 }
 
@@ -190,24 +210,35 @@ fn preferred_terminal() -> String {
     std::env::var("TERMINAL").unwrap_or_else(|_| "x-terminal-emulator".to_string())
 }
 
-fn terminal_launch(exec: &str) -> Action {
+fn terminal_launch(exec: &[String]) -> Action {
+    let mut args = vec!["-e".to_string()];
+    args.extend(exec.iter().cloned());
     Action::new(
         "Run in Terminal",
         ActionData::LaunchApp {
             executable: preferred_terminal(),
-            args: vec!["-e".to_string(), exec.to_string()],
+            args,
         },
     )
 }
 
-fn copy_actions(exec: &str) -> [Action; 2] {
-    let executable = exec.split_whitespace().next().unwrap_or("").to_string();
+fn copy_actions(exec: &[String]) -> [Action; 2] {
+    let executable = exec.first().cloned().unwrap_or_default();
+    let command = exec
+        .iter()
+        .map(|argument| {
+            if argument.chars().any(char::is_whitespace) || argument.contains('\'') {
+                format!("'{}'", argument.replace('\'', "'\\''"))
+            } else {
+                argument.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
     [
         Action::new(
             "Copy Command",
-            ActionData::CopyToClipboard {
-                text: exec.to_string(),
-            },
+            ActionData::CopyToClipboard { text: command },
         ),
         Action::new(
             "Copy Executable",
@@ -217,23 +248,13 @@ fn copy_actions(exec: &str) -> [Action; 2] {
 }
 
 fn build_result_item(app: &CachedApp) -> ResultItem {
-    let parts: Vec<&str> = app.exec.split_whitespace().collect();
-    let executable = parts.first().copied().unwrap_or("").to_string();
-    let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
-
-    let mut actions = vec![Action::new(
-        "Launch",
-        ActionData::LaunchApp {
-            executable: executable.clone(),
-            args,
-        },
-    )];
+    let mut actions = launch_actions(&app.exec);
 
     for app_action in &app.app_actions {
         let mut launch = launch_actions(&app_action.exec);
-        let mut a = launch.remove(0);
-        a = Action::new(app_action.name.clone(), a.data);
-        actions.push(a);
+        if let Some(action) = launch.pop() {
+            actions.push(Action::new(app_action.name.clone(), action.data));
+        }
     }
 
     actions.push(terminal_launch(&app.exec));
@@ -253,7 +274,7 @@ fn build_result_item(app: &CachedApp) -> ResultItem {
                     format!("XDG_RUNTIME_DIR={}", xdg_rt),
                     format!("PATH={}", path),
                 ];
-                a.extend(app.exec.split_whitespace().map(|s| s.to_string()));
+                a.extend(app.exec.iter().cloned());
                 a
             },
         },

@@ -262,7 +262,6 @@ pub struct TriggerConfig {
     pub system:       String,
     pub color_picker: String,
     pub apps:         String,
-    pub url:          String,
     pub currency:     String,
     pub ai:           String,
     pub time:         String,
@@ -289,7 +288,6 @@ impl Default for TriggerConfig {
             system:       r"^sys\s+(.*)$".into(),
             color_picker: r"^color\s*(.*)$".into(),
             apps:         r"^app\s+(.*)$".into(),
-            url:          r"^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$".into(),
             currency:     r"^fx\s+(.*)$".into(),
             ai:           r"^ (.*)$".into(),
             time:         r"^time\s+(.*)$".into(),
@@ -457,7 +455,6 @@ dictionary   = '^def\s+(.*)$'
 system       = '^sys\s+(.*)$'
 color_picker = '^color$'
 apps         = '^app\s+(.*)$'
-url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
 ai           = '^ (.*)$'
 time         = '^time in\s(.*)$'
 shortcuts    = '^q\s*(.*)$'

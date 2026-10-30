@@ -59,6 +59,7 @@ pub fn execute(
         ActionData::RunFunction { function_name, .. }
             if function_name == "open_setup_wizard"
                 || function_name == "open_reset_confirmation"
+                || function_name == "open_bookmark_creator"
                 || function_name == "edit_searcher_trigger" =>
         {
             "stay"
@@ -449,6 +450,11 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
 #[tauri::command]
 pub fn clear_clipboard_history(app: tauri::AppHandle) -> Result<(), String> {
     exec_func("clear_clipboard".into(), Vec::new(), app)
+}
+
+#[tauri::command]
+pub fn create_bookmark(name: String, url: String) -> Result<(), String> {
+    crate::searchers::bookmarks::BookmarksSearcher::add_bookmark(name, url).map(|_| ())
 }
 
 // ---------------------------------------------------------

@@ -80,6 +80,9 @@ pub(super) fn run_custom_function(
             }
             Ok(())
         }
+        "open_bookmark_creator" => app
+            .emit("quarry-create-bookmark", ())
+            .map_err(|error| error.to_string()),
         "clear_clipboard" => {
             crate::CLIPBOARD_MANAGER.clear_history();
             Ok(())

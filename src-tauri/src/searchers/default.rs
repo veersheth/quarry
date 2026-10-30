@@ -41,7 +41,7 @@ impl Source {
 }
 
 fn field_score(field: &str, token: &str) -> i64 {
-    crate::search_utils::token_match_score(field, token)
+    crate::search_utils::query_token_score(field, token)
 }
 
 struct SearchTerms {
@@ -59,8 +59,8 @@ impl SearchTerms {
             source_query
         }
         .to_string();
-        let normalized = crate::search_utils::normalize_text(&source_query);
-        let tokens: Vec<String> = normalized.split_whitespace().map(str::to_string).collect();
+        let normalized = crate::search_utils::normalize_query(&source_query);
+        let tokens = crate::search_utils::query_tokens(&source_query);
         Self {
             source_query,
             tokens,
@@ -93,6 +93,27 @@ fn is_search_intent(word: &str) -> bool {
     )
 }
 
+fn browser_url_for_query(query: &str) -> Option<String> {
+    let query = query.trim();
+    if query.is_empty() || query.chars().any(char::is_whitespace) {
+        return None;
+    }
+
+    if query.starts_with("http://") || query.starts_with("https://") {
+        return Some(query.to_string());
+    }
+
+    let authority = query.split(|character| matches!(character, '/' | '?' | '#')).next()?;
+    let host = authority.split(':').next().unwrap_or(authority);
+    let is_local = host == "localhost" || host == "127.0.0.1" || host == "::1";
+    if !is_local && !host.contains('.') {
+        return None;
+    }
+
+    let scheme = if is_local { "http" } else { "https" };
+    Some(format!("{scheme}://{query}"))
+}
+
 pub struct DefaultSearcher;
 
 impl DefaultSearcher {
@@ -101,19 +122,15 @@ impl DefaultSearcher {
             return 0;
         }
 
-        let name = crate::search_utils::normalize_text(&item.name);
-        let description = item
-            .description
-            .as_deref()
-            .map(crate::search_utils::normalize_text)
-            .unwrap_or_default();
+        let name = item.name.as_str();
+        let description = item.description.as_deref().unwrap_or_default();
         let action_names = item
             .actions
             .iter()
-            .map(|action| crate::search_utils::normalize_text(&action.name))
+            .map(|action| action.name.as_str())
             .filter(|name| {
                 !matches!(
-                    name.as_str(),
+                    *name,
                     "add" | "copy" | "delete" | "launch" | "open" | "paste" | "run" | "select"
                 )
             })
@@ -135,11 +152,16 @@ impl DefaultSearcher {
             score += best;
         }
 
-        if name == terms.normalized {
+        let normalized_name = if terms.normalized.contains('-') {
+            name.to_lowercase()
+        } else {
+            crate::search_utils::normalize_text(name)
+        };
+        if normalized_name == terms.normalized {
             score += 1_200;
-        } else if name.starts_with(&terms.normalized) {
+        } else if normalized_name.starts_with(&terms.normalized) {
             score += 500;
-        } else if name.contains(&terms.normalized) {
+        } else if normalized_name.contains(&terms.normalized) {
             score += 250;
         }
 
@@ -515,6 +537,19 @@ impl SearchProvider for DefaultSearcher {
 
         let searcher_suggestions = MetaSearcher::suggestions(&q_owned);
         combined.splice(0..0, searcher_suggestions);
+
+        if let Some(url) = browser_url_for_query(&q_owned) {
+            combined.push(
+                ResultItem::new(
+                    "Open in browser",
+                    vec![Action::new(
+                        "Open",
+                        ActionData::OpenUrl { url: url.clone() },
+                    )],
+                )
+                .description(url),
+            );
+        }
 
         SearchResult::list(combined)
     }

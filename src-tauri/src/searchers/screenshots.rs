@@ -1,7 +1,5 @@
 use base64::{engine::general_purpose, Engine};
 use dashmap::DashSet;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -16,8 +14,6 @@ const MAX_DISPLAY: usize = 30;
 /// Maximum concurrent tesseract jobs. New files are picked up on later searches.
 const MAX_OCR_JOBS: usize = 4;
 const THUMBNAIL_MAX: u32 = 220;
-
-static MATCHER: Lazy<SkimMatcherV2> = Lazy::new(|| SkimMatcherV2::default().ignore_case());
 
 // Tracks paths currently being OCR'd so we don't spawn duplicate jobs.
 static OCR_IN_PROGRESS: Lazy<DashSet<PathBuf>> = Lazy::new(DashSet::new);
@@ -283,11 +279,11 @@ impl SearchProvider for ScreenshotsSearcher {
                         .to_string();
                     let ocr = Self::read_ocr_cache(&path, mtime).unwrap_or_default();
 
-                    let name_score = MATCHER.fuzzy_match(&name, q).map(|s| s * 3);
+                    let name_score = crate::search_utils::smart_match(&name, q).map(|s| s * 3);
                     let ocr_score = if ocr.is_empty() {
                         None
                     } else {
-                        MATCHER.fuzzy_match(&ocr, q)
+                        crate::search_utils::smart_match(&ocr, q)
                     };
 
                     match (name_score, ocr_score) {

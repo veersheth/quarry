@@ -25,7 +25,7 @@ use crate::searchers::shortcuts::ShortcutsSearcher;
 use crate::searchers::system::SystemSearcher;
 use crate::searchers::time::TimeSearcher;
 use crate::searchers::timer::TimerSearcher;
-use crate::searchers::web_searchers::{URLSearcher, WebSearcher};
+use crate::searchers::web_searchers::WebSearcher;
 use crate::searchers::SearchProvider;
 use crate::types::SearchResult;
 use crate::usage_tracker::{boost_results_by_usage, personalize_default_results};
@@ -81,7 +81,6 @@ fn build_triggers(cfg: &config::Config) -> Vec<Trigger> {
     push!(v, &t.system, "system", SystemSearcher);
     push!(v, &t.color_picker, "color_picker", ColorPicker);
     push!(v, &t.apps, "apps", AppSearcher);
-    push!(v, &t.url, "url", URLSearcher);
     push!(v, &t.currency, "currency", CurrencySearcher);
     push!(v, &t.timer, "timer", TimerSearcher);
     push!(v, &t.screenshots, "screenshots", ScreenshotsSearcher);
