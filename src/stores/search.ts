@@ -55,6 +55,7 @@ export function closeModal() {
 }
 
 export const bookmarkCreatorOpen = writable(false);
+export const bookmarkBeingEdited = writable<{ name: string; url: string } | null>(null);
 
 export const query = writable("");
 export const resultItems = writable<ResultItem[]>([]);

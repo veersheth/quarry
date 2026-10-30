@@ -83,6 +83,16 @@ pub(super) fn run_custom_function(
         "open_bookmark_creator" => app
             .emit("quarry-create-bookmark", ())
             .map_err(|error| error.to_string()),
+        "edit_bookmark" => {
+            if params.len() != 2 {
+                return Err("edit_bookmark requires a name and URL".to_string());
+            }
+            app.emit(
+                "quarry-edit-bookmark",
+                serde_json::json!({ "name": params[0], "url": params[1] }),
+            )
+            .map_err(|error| error.to_string())
+        }
         "clear_clipboard" => {
             crate::CLIPBOARD_MANAGER.clear_history();
             Ok(())

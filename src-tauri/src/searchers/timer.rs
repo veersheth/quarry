@@ -12,11 +12,11 @@ use super::SearchProvider;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
 
 pub struct TimerEntry {
-    pub id:           u64,
-    pub label:        String,
-    pub expires_at:   u64,
+    pub id: u64,
+    pub label: String,
+    pub expires_at: u64,
     pub duration_secs: u64,
-    pub cancelled:    Arc<AtomicBool>,
+    pub cancelled: Arc<AtomicBool>,
 }
 
 pub static ACTIVE_TIMERS: Lazy<Mutex<Vec<TimerEntry>>> = Lazy::new(|| Mutex::new(vec![]));
@@ -25,9 +25,9 @@ pub static ACTIVE_TIMERS: Lazy<Mutex<Vec<TimerEntry>>> = Lazy::new(|| Mutex::new
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StoredTimer {
-    pub id:           u64,
-    pub label:        String,
-    pub expires_at:   u64,
+    pub id: u64,
+    pub label: String,
+    pub expires_at: u64,
     pub duration_secs: u64,
 }
 
@@ -39,12 +39,19 @@ fn storage_path() -> std::path::PathBuf {
 
 fn save_timers() {
     let path = storage_path();
-    if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).ok(); }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
     if let Ok(timers) = ACTIVE_TIMERS.lock() {
-        let stored: Vec<StoredTimer> = timers.iter().map(|t| StoredTimer {
-            id: t.id, label: t.label.clone(),
-            expires_at: t.expires_at, duration_secs: t.duration_secs,
-        }).collect();
+        let stored: Vec<StoredTimer> = timers
+            .iter()
+            .map(|t| StoredTimer {
+                id: t.id,
+                label: t.label.clone(),
+                expires_at: t.expires_at,
+                duration_secs: t.duration_secs,
+            })
+            .collect();
         if let Ok(json) = serde_json::to_string(&stored) {
             std::fs::write(&path, json).ok();
         }
@@ -66,9 +73,21 @@ pub fn load_stored_timers() -> Vec<StoredTimer> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub fn add_timer(id: u64, label: String, expires_at: u64, duration_secs: u64, cancelled: Arc<AtomicBool>) {
+pub fn add_timer(
+    id: u64,
+    label: String,
+    expires_at: u64,
+    duration_secs: u64,
+    cancelled: Arc<AtomicBool>,
+) {
     if let Ok(mut t) = ACTIVE_TIMERS.lock() {
-        t.push(TimerEntry { id, label, expires_at, duration_secs, cancelled });
+        t.push(TimerEntry {
+            id,
+            label,
+            expires_at,
+            duration_secs,
+            cancelled,
+        });
     }
     save_timers();
 }
@@ -105,9 +124,15 @@ pub fn format_duration(secs: u64) -> String {
     let m = (secs % 3600) / 60;
     let s = secs % 60;
     let mut parts = vec![];
-    if h > 0 { parts.push(format!("{}h", h)); }
-    if m > 0 { parts.push(format!("{}m", m)); }
-    if s > 0 || parts.is_empty() { parts.push(format!("{}s", s)); }
+    if h > 0 {
+        parts.push(format!("{}h", h));
+    }
+    if m > 0 {
+        parts.push(format!("{}m", m));
+    }
+    if s > 0 || parts.is_empty() {
+        parts.push(format!("{}s", s));
+    }
     parts.join(" ")
 }
 
@@ -121,7 +146,9 @@ fn format_ring_time(unix_secs: u64) -> String {
 
 pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
     let input = input.trim();
-    if input.is_empty() { return None; }
+    if input.is_empty() {
+        return None;
+    }
 
     let bytes = input.as_bytes();
     let mut i = 0usize;
@@ -129,13 +156,21 @@ pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
     let mut parsed = false;
 
     loop {
-        while i < bytes.len() && bytes[i] == b' ' { i += 1; }
+        while i < bytes.len() && bytes[i] == b' ' {
+            i += 1;
+        }
         let num_start = i;
-        while i < bytes.len() && bytes[i].is_ascii_digit() { i += 1; }
-        if i == num_start { break; }
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+        if i == num_start {
+            break;
+        }
 
         let n: u64 = input[num_start..i].parse().ok()?;
-        while i < bytes.len() && bytes[i] == b' ' { i += 1; }
+        while i < bytes.len() && bytes[i] == b' ' {
+            i += 1;
+        }
 
         if i >= bytes.len() {
             total += n * 60;
@@ -144,9 +179,24 @@ pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
         }
 
         match bytes[i].to_ascii_lowercase() {
-            b'h' => { total += n * 3600; while i < bytes.len() && bytes[i].is_ascii_alphabetic() { i += 1; } }
-            b'm' => { total += n * 60;   while i < bytes.len() && bytes[i].is_ascii_alphabetic() { i += 1; } }
-            b's' => { total += n;        while i < bytes.len() && bytes[i].is_ascii_alphabetic() { i += 1; } }
+            b'h' => {
+                total += n * 3600;
+                while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                    i += 1;
+                }
+            }
+            b'm' => {
+                total += n * 60;
+                while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                    i += 1;
+                }
+            }
+            b's' => {
+                total += n;
+                while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                    i += 1;
+                }
+            }
             _ => {
                 total += n * 60;
                 parsed = true;
@@ -156,7 +206,9 @@ pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
         parsed = true;
     }
 
-    if !parsed || total == 0 { return None; }
+    if !parsed || total == 0 {
+        return None;
+    }
     let label = input[i..].trim().to_string();
     Some((total, label))
 }
@@ -164,7 +216,9 @@ pub fn parse_timer_query(input: &str) -> Option<(u64, String)> {
 pub struct TimerSearcher;
 
 impl SearchProvider for TimerSearcher {
-    fn name(&self) -> String { "timer".to_string() }
+    fn name(&self) -> String {
+        "timer".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let mut results: Vec<ResultItem> = vec![];
 
@@ -176,18 +230,27 @@ impl SearchProvider for TimerSearcher {
             };
 
             let mut params = vec![secs.to_string()];
-            if !label.is_empty() { params.push(label.clone()); }
+            if !label.is_empty() {
+                params.push(label.clone());
+            }
 
             let ring_at = format_ring_time(now_secs() + secs);
             results.push(
                 ResultItem::new(
                     format!("Start Timer: {}", display),
-                    vec![Action::new("Start Timer", ActionData::RunFunction {
-                        function_name: "start_timer".into(),
-                        params,
-                    })],
+                    vec![Action::new(
+                        "Start Timer",
+                        ActionData::RunFunction {
+                            function_name: "start_timer".into(),
+                            params,
+                        },
+                    )],
                 )
-                .description(format!("Alert after {} · rings at {}", format_duration(secs), ring_at)),
+                .description(format!(
+                    "Alert after {} · rings at {}",
+                    format_duration(secs),
+                    ring_at
+                )),
             );
         }
 
@@ -196,31 +259,38 @@ impl SearchProvider for TimerSearcher {
                 let now = now_secs();
                 let rem = t.expires_at.saturating_sub(now);
                 let ring_at = format_ring_time(t.expires_at);
-                let label = if t.label.is_empty() { "Timer".to_string() } else { t.label.clone() };
+                let label = if t.label.is_empty() {
+                    "Timer".to_string()
+                } else {
+                    t.label.clone()
+                };
                 results.push(
                     ResultItem::new(
                         format!("{}, {} left", label, format_duration(rem)),
-                        vec![Action::new("Cancel", ActionData::RunFunction {
-                            function_name: "show_modal".into(),
-                            params: vec![
-                                format!("Cancel {}?", label),
-                                format!("Yes|danger|fn:cancel_timer:{}", t.id),
-                                "No|default|".into(),
-                            ],
-                        })],
+                        vec![Action::new(
+                            "Cancel",
+                            ActionData::RunFunction {
+                                function_name: "show_modal".into(),
+                                params: vec![
+                                    format!("Cancel {}?", label),
+                                    format!("Yes|danger|fn:cancel_timer:{}", t.id),
+                                    "No|default|".into(),
+                                ],
+                            },
+                        )],
                     )
-                    .description(format!("Rings at {} - {} remaining", ring_at, format_duration(rem))),
+                    .description(format!(
+                        "Rings at {} - {} remaining",
+                        ring_at,
+                        format_duration(rem)
+                    )),
                 );
             }
         }
 
         if results.is_empty() {
             results.push(
-                ResultItem::new(
-                    "Start a timer",
-                    vec![],
-                )
-                .description("timer 5 min, or similar"),
+                ResultItem::new("Start a timer", vec![]).description("timer 5 min, or similar"),
             );
         }
 

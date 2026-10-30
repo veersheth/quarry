@@ -174,7 +174,10 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
     }
 
     ACTION_REGISTRY.clear();
-    let cache_parent_items = !matches!(search_result.result_type, crate::types::ResultType::Clipboard);
+    let cache_parent_items = !matches!(
+        search_result.result_type,
+        crate::types::ResultType::Clipboard
+    );
     for (i, item) in search_result.results.iter_mut().enumerate() {
         for (j, action) in item.actions.iter_mut().enumerate() {
             action.id = format!("action_{}_{}_{}", my_seq, i, j);

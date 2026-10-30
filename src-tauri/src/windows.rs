@@ -67,38 +67,33 @@ pub fn inject_gtk_theme() {
 pub fn inject_gtk_theme() {}
 
 pub fn setup_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let (w, h) = crate::CONFIG.read()
+    let (w, h) = crate::CONFIG
+        .read()
         .map(|c| (c.window.width as f64, c.window.height as f64))
         .unwrap_or((780.0, 520.0));
 
-    let webview = tauri::WebviewWindowBuilder::new(
-        app,
-        "main",
-        tauri::WebviewUrl::App("".into()),
-    )
-    .title("quarry")
-    .inner_size(w, h)
-    .decorations(false)
-    .transparent(false)
-    .resizable(false)
-    .always_on_top(true)
-    .visible(false)
-    .focused(false)
-    .skip_taskbar(true)
-    .build()?;
+    let webview = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("".into()))
+        .title("quarry")
+        .inner_size(w, h)
+        .decorations(false)
+        .transparent(false)
+        .resizable(false)
+        .always_on_top(true)
+        .visible(false)
+        .focused(false)
+        .skip_taskbar(true)
+        .build()?;
 
     let window = webview.as_ref().window().clone();
-    webview.on_window_event(move |event| {
-        match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                api.prevent_close();
-                let _ = window.hide();
-            }
-            tauri::WindowEvent::Focused(true) => {
-                let _ = window.emit("window-focused", ());
-            }
-            _ => {}
+    webview.on_window_event(move |event| match event {
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            let _ = window.hide();
         }
+        tauri::WindowEvent::Focused(true) => {
+            let _ = window.emit("window-focused", ());
+        }
+        _ => {}
     });
 
     #[cfg(target_os = "linux")]

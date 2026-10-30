@@ -29,7 +29,9 @@ pub fn execute(
 
     let confirmed = matches!(registered_action, ActionData::ConfirmedAction { .. });
     let action_data = match registered_action {
-        ActionData::ConfirmedAction { action_id: original_id } => ACTION_REGISTRY
+        ActionData::ConfirmedAction {
+            action_id: original_id,
+        } => ACTION_REGISTRY
             .get_action(&original_id)
             .ok_or_else(|| "The action to confirm is no longer available".to_string())?,
         action => action,
@@ -60,6 +62,7 @@ pub fn execute(
             if function_name == "open_setup_wizard"
                 || function_name == "open_reset_confirmation"
                 || function_name == "open_bookmark_creator"
+                || function_name == "edit_bookmark"
                 || function_name == "edit_searcher_trigger" =>
         {
             "stay"
@@ -188,8 +191,7 @@ pub fn exec_func(name: String, params: Vec<String>, app: tauri::AppHandle) -> Re
         function_name: name,
         params,
     };
-    static EXEC_FUNC_SEQ: std::sync::atomic::AtomicU64 =
-        std::sync::atomic::AtomicU64::new(0);
+    static EXEC_FUNC_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let action_id = format!(
         "exec_func_{}",
         EXEC_FUNC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
@@ -302,8 +304,7 @@ pub fn save_searcher_trigger(
         }
         _ => return Err("Unknown trigger editor mode".into()),
     };
-    regex::Regex::new(&trigger_regex)
-        .map_err(|error| format!("Invalid trigger regex: {error}"))?;
+    regex::Regex::new(&trigger_regex).map_err(|error| format!("Invalid trigger regex: {error}"))?;
 
     let mut current = CONFIG.write().map_err(|error| error.to_string())?;
     let mut config = current.clone();
@@ -412,12 +413,9 @@ pub fn get_clipboard_file_metadata(path: String) -> Option<ClipboardFileMetadata
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_secs());
     let folder_child_count = if is_directory {
-        std::fs::read_dir(file_path).ok().map(|children| {
-            children
-                .take(101)
-                .filter(|entry| entry.is_ok())
-                .count()
-        })
+        std::fs::read_dir(file_path)
+            .ok()
+            .map(|children| children.take(101).filter(|entry| entry.is_ok()).count())
     } else {
         None
     };
@@ -455,6 +453,11 @@ pub fn clear_clipboard_history(app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn create_bookmark(name: String, url: String) -> Result<(), String> {
     crate::searchers::bookmarks::BookmarksSearcher::add_bookmark(name, url).map(|_| ())
+}
+
+#[tauri::command]
+pub fn update_bookmark(old_name: String, name: String, url: String) -> Result<(), String> {
+    crate::searchers::bookmarks::BookmarksSearcher::update_bookmark(&old_name, name, url)
 }
 
 // ---------------------------------------------------------

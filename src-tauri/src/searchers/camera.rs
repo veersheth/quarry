@@ -4,7 +4,9 @@ use crate::types::{Action, ActionData, ResultItem, ResultType, SearchResult};
 pub struct CameraSearcher;
 
 impl SearchProvider for CameraSearcher {
-    fn name(&self) -> String { "camera".to_string() }
+    fn name(&self) -> String {
+        "camera".to_string()
+    }
     fn search(&self, _query: &str, _app: &tauri::AppHandle) -> SearchResult {
         SearchResult {
             results: vec![
@@ -12,7 +14,7 @@ impl SearchProvider for CameraSearcher {
                     .description("Live camera preview"),
             ],
             result_type: ResultType::Camera,
-                    ..Default::default()
-}
+            ..Default::default()
+        }
     }
 }

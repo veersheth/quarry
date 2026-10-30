@@ -123,33 +123,73 @@ pub struct SearchResult {
 
 impl Default for SearchResult {
     fn default() -> Self {
-        Self { results: vec![], result_type: ResultType::List, searcher: String::new(), seq: 0 }
+        Self {
+            results: vec![],
+            result_type: ResultType::List,
+            searcher: String::new(),
+            seq: 0,
+        }
     }
 }
 
 impl SearchResult {
     pub fn list(results: Vec<ResultItem>) -> Self {
-        Self { results, result_type: ResultType::List, ..Default::default() }
+        Self {
+            results,
+            result_type: ResultType::List,
+            ..Default::default()
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum ActionData {
     None,
-    LaunchApp { executable: String, args: Vec<String> },
-    OpenUrl { url: String },
-    CopyToClipboard { text: String },
-    PasteToApp { text: String },
-    CopyImageToClipboard { base64_png: String, width: u32, height: u32 },
-    CopyImageFile { path: String },
-    RunFunction { function_name: String, params: Vec<String> },
-    ShellCommand { command: String },
-    RunScript { path: String },
-    OpenInTerminal { path: String },
-    RofiSelect { name: String, response_socket: String },
-    SetQuery { query: String },
+    LaunchApp {
+        executable: String,
+        args: Vec<String>,
+    },
+    OpenUrl {
+        url: String,
+    },
+    CopyToClipboard {
+        text: String,
+    },
+    PasteToApp {
+        text: String,
+    },
+    CopyImageToClipboard {
+        base64_png: String,
+        width: u32,
+        height: u32,
+    },
+    CopyImageFile {
+        path: String,
+    },
+    RunFunction {
+        function_name: String,
+        params: Vec<String>,
+    },
+    ShellCommand {
+        command: String,
+    },
+    RunScript {
+        path: String,
+    },
+    OpenInTerminal {
+        path: String,
+    },
+    RofiSelect {
+        name: String,
+        response_socket: String,
+    },
+    SetQuery {
+        query: String,
+    },
     /// One-shot confirmation button that reruns an existing registered action.
-    ConfirmedAction { action_id: String },
+    ConfirmedAction {
+        action_id: String,
+    },
 }
 
 impl ActionData {
@@ -158,7 +198,10 @@ impl ActionData {
     pub fn modal(title: impl Into<String>, buttons: &[(&str, &str, &str)]) -> Self {
         let mut params = vec![title.into()];
         params.extend(buttons.iter().map(|(l, k, c)| format!("{}|{}|{}", l, k, c)));
-        ActionData::RunFunction { function_name: "show_modal".into(), params }
+        ActionData::RunFunction {
+            function_name: "show_modal".into(),
+            params,
+        }
     }
 
     pub fn stable_id(&self) -> String {
@@ -171,7 +214,10 @@ impl ActionData {
                 format!("copy-img:{}x{}", width, height)
             }
             ActionData::CopyImageFile { path } => format!("copy-file:{}", path),
-            ActionData::RunFunction { function_name, params } => {
+            ActionData::RunFunction {
+                function_name,
+                params,
+            } => {
                 format!("fn:{}:{}", function_name, params.join(","))
             }
             ActionData::ShellCommand { command } => format!("shell:{}", command),

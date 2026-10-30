@@ -7,19 +7,19 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub triggers:      TriggerConfig,
-    pub theme:         ThemeConfig,
-    pub window:        WindowConfig,
+    pub triggers: TriggerConfig,
+    pub theme: ThemeConfig,
+    pub window: WindowConfig,
     /// Per-searcher list-panel widths for sidebar renderers.
     #[serde(default)]
     pub sidebar_widths: HashMap<String, u32>,
-    pub web_searches:  Vec<WebSearchConfig>,
+    pub web_searches: Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
-    pub screenshots:   ScreenshotsConfig,
-    pub scripts:       ScriptsConfig,
+    pub screenshots: ScreenshotsConfig,
+    pub scripts: ScriptsConfig,
     /// Timer alert sound. Options: "synth" (default), "beep"
     #[serde(default = "default_timer_sound")]
-    pub timer_sound:   String,
+    pub timer_sound: String,
     /// Whether the first-run setup wizard has been completed.
     #[serde(default = "existing_config_completed_setup")]
     pub setup_completed: bool,
@@ -31,22 +31,28 @@ pub struct Config {
     pub file_indexing_enabled: bool,
 }
 
-fn default_timer_sound() -> String { "synth".into() }
-fn existing_config_completed_setup() -> bool { true }
-fn existing_feature_enabled() -> bool { true }
+fn default_timer_sound() -> String {
+    "synth".into()
+}
+fn existing_config_completed_setup() -> bool {
+    true
+}
+fn existing_feature_enabled() -> bool {
+    true
+}
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            triggers:      TriggerConfig::default(),
-            theme:         ThemeConfig::default(),
-            window:        WindowConfig::default(),
+            triggers: TriggerConfig::default(),
+            theme: ThemeConfig::default(),
+            window: WindowConfig::default(),
             sidebar_widths: HashMap::new(),
-            web_searches:  default_web_searches(),
+            web_searches: default_web_searches(),
             default_search: DefaultSearchConfig::default(),
-            screenshots:   ScreenshotsConfig::default(),
-            scripts:       ScriptsConfig::default(),
-            timer_sound:   default_timer_sound(),
+            screenshots: ScreenshotsConfig::default(),
+            scripts: ScriptsConfig::default(),
+            timer_sound: default_timer_sound(),
             setup_completed: false,
             clipboard_tracking_enabled: false,
             file_indexing_enabled: false,
@@ -61,13 +67,16 @@ impl Default for Config {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WindowConfig {
-    pub width:  u32,
+    pub width: u32,
     pub height: u32,
 }
 
 impl Default for WindowConfig {
     fn default() -> Self {
-        Self { width: 1200, height: 700 }
+        Self {
+            width: 1200,
+            height: 700,
+        }
     }
 }
 
@@ -84,7 +93,9 @@ pub struct ScreenshotsConfig {
 
 impl Default for ScreenshotsConfig {
     fn default() -> Self {
-        Self { path: "~/Pictures/Screenshots".into() }
+        Self {
+            path: "~/Pictures/Screenshots".into(),
+        }
     }
 }
 
@@ -101,7 +112,9 @@ pub struct ScriptsConfig {
 
 impl Default for ScriptsConfig {
     fn default() -> Self {
-        Self { path: "~/.config/quarry/scripts".into() }
+        Self {
+            path: "~/.config/quarry/scripts".into(),
+        }
     }
 }
 
@@ -111,38 +124,38 @@ impl Default for ScriptsConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebSearchConfig {
-    pub name:    String,
+    pub name: String,
     pub trigger: String,
-    pub url:     String,
+    pub url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub icon:    Option<String>,
+    pub icon: Option<String>,
 }
 
 fn default_web_searches() -> Vec<WebSearchConfig> {
     vec![
         WebSearchConfig {
-            name:    "Google".into(),
+            name: "Google".into(),
             trigger: r"^g\s+(.*)$".into(),
-            url:     "https://www.google.com/search?q={}".into(),
-            icon:    None,
+            url: "https://www.google.com/search?q={}".into(),
+            icon: None,
         },
         WebSearchConfig {
-            name:    "YouTube".into(),
+            name: "YouTube".into(),
             trigger: r"^yt\s+(.*)$".into(),
-            url:     "https://www.youtube.com/results?search_query={}".into(),
-            icon:    None,
+            url: "https://www.youtube.com/results?search_query={}".into(),
+            icon: None,
         },
         WebSearchConfig {
-            name:    "GitHub".into(),
+            name: "GitHub".into(),
             trigger: r"^gh\s+(.*)$".into(),
-            url:     "https://github.com/search?q={}".into(),
-            icon:    None,
+            url: "https://github.com/search?q={}".into(),
+            icon: None,
         },
         WebSearchConfig {
-            name:    "Nix Packages".into(),
+            name: "Nix Packages".into(),
             trigger: r"^nxp\s+(.*)$".into(),
-            url:     "https://search.nixos.org/packages?query={}".into(),
-            icon:    None,
+            url: "https://search.nixos.org/packages?query={}".into(),
+            icon: None,
         },
     ]
 }
@@ -154,14 +167,14 @@ fn default_web_searches() -> Vec<WebSearchConfig> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DefaultSearchConfig {
-    pub web_searches:    Vec<String>,
+    pub web_searches: Vec<String>,
     pub max_web_results: usize,
 }
 
 impl Default for DefaultSearchConfig {
     fn default() -> Self {
         Self {
-            web_searches:    vec!["Google".into(), "YouTube".into()],
+            web_searches: vec!["Google".into(), "YouTube".into()],
             max_web_results: 1,
         }
     }
@@ -174,70 +187,73 @@ impl Default for DefaultSearchConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ThemeConfig {
-    pub background_color:      String,
-    pub background_opacity:    f32,
-    pub font_size:             u32,
-    pub font_color:            String,
-    pub font_family:           String,
+    pub background_color: String,
+    pub background_opacity: f32,
+    pub font_size: u32,
+    pub font_color: String,
+    pub font_family: String,
     pub monospace_font_family: String,
-    pub border_radius:         u32,
-    pub border_color:          String,
-    pub border_thickness:      u32,
-    pub item_border_radius:    u32,
-    pub active_bg_color:       String,
-    pub active_border_color:   String,
+    pub border_radius: u32,
+    pub border_color: String,
+    pub border_thickness: u32,
+    pub item_border_radius: u32,
+    pub active_bg_color: String,
+    pub active_border_color: String,
 
     // Surface / overlay
-    pub surface:               String,
-    pub surface_subtle:        String,
-    pub surface_hover:         String,
-    pub overlay:               String,
+    pub surface: String,
+    pub surface_subtle: String,
+    pub surface_hover: String,
+    pub overlay: String,
 
     // Borders
-    pub border_subtle:         String,
-    pub border_medium:         String,
-    pub border_strong:         String,
-    pub border_dark:           String,
+    pub border_subtle: String,
+    pub border_medium: String,
+    pub border_strong: String,
+    pub border_dark: String,
 
     // Misc
-    pub divider:               String,
-    pub divider_dark:          String,
-    pub code_bg:               String,
-    pub thumb_bg:              String,
-    pub glow:                  String,
+    pub divider: String,
+    pub divider_dark: String,
+    pub code_bg: String,
+    pub thumb_bg: String,
+    pub glow: String,
 }
 
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
-            background_color:      "rgba(10, 10, 10, 1)".into(),
-            background_opacity:    1.0,
-            font_size:             14,
-            font_color:            "rgba(255, 255, 255, 1)".into(),
-            font_family:           "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif".into(),
-            monospace_font_family: "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace".into(),
-            border_radius:         14,
-            border_color:          "rgba(255,255,255,0.35)".into(),
-            border_thickness:      1,
-            item_border_radius:    12,
-            active_bg_color:       "rgba(40, 40, 40, 1)".into(),
-            active_border_color:   "rgba(255,255,255,0.1)".into(),
+            background_color: "rgba(10, 10, 10, 1)".into(),
+            background_opacity: 1.0,
+            font_size: 14,
+            font_color: "rgba(255, 255, 255, 1)".into(),
+            font_family:
+                "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                    .into(),
+            monospace_font_family: "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace"
+                .into(),
+            border_radius: 14,
+            border_color: "rgba(255,255,255,0.35)".into(),
+            border_thickness: 1,
+            item_border_radius: 12,
+            active_bg_color: "rgba(40, 40, 40, 1)".into(),
+            active_border_color: "rgba(255,255,255,0.1)".into(),
 
-            surface:               "rgba(5, 5, 5, 0.0)".into(),
-            surface_subtle:        "rgba(255, 255, 255, 0.08)".into(),
-            surface_hover:         "rgba(255, 255, 255, 0.2)".into(),
-            overlay:               "rgba(30, 30, 30, 0.8)".into(),
+            surface: "rgba(5, 5, 5, 0.0)".into(),
+            surface_subtle: "rgba(255, 255, 255, 0.08)".into(),
+            surface_hover: "rgba(255, 255, 255, 0.2)".into(),
+            overlay: "rgba(30, 30, 30, 0.8)".into(),
 
-            border_subtle:         "rgba(60, 60, 60, 0.3)".into(),
-            border_medium:         "rgba(255, 255, 255, 0.15)".into(),
-            border_strong:         "rgba(255, 255, 255, 0.26)".into(),
-            border_dark:           "rgb(51, 51, 51)".into(),
+            border_subtle: "rgba(60, 60, 60, 0.3)".into(),
+            border_medium: "rgba(255, 255, 255, 0.15)".into(),
+            border_strong: "rgba(255, 255, 255, 0.26)".into(),
+            border_dark: "rgb(51, 51, 51)".into(),
 
-            divider:               "rgba(80, 80, 80, 0.7)".into(),
-            divider_dark:          "rgb(46, 46, 46)".into(),
-            code_bg:               "rgb(24, 24, 24)".into(),
-            thumb_bg:              "rgb(17, 17, 17)".into(),
-            glow:                  "rgba(50, 50, 50, 1)".into(),
+            divider: "rgba(80, 80, 80, 0.7)".into(),
+            divider_dark: "rgb(46, 46, 46)".into(),
+            code_bg: "rgb(24, 24, 24)".into(),
+            thumb_bg: "rgb(17, 17, 17)".into(),
+            glow: "rgba(50, 50, 50, 1)".into(),
         }
     }
 }
@@ -249,53 +265,53 @@ impl Default for ThemeConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TriggerConfig {
-    pub camera:       String,
-    pub bookmarks:    String,
-    pub files:        String,
-    pub fonts:        String,
-    pub clipboard:    String,
-    pub emojis:       String,
-    pub shell:        String,
-    pub lorem:        String,
-    pub math:         String,
-    pub dictionary:   String,
-    pub system:       String,
+    pub camera: String,
+    pub bookmarks: String,
+    pub files: String,
+    pub fonts: String,
+    pub clipboard: String,
+    pub emojis: String,
+    pub shell: String,
+    pub lorem: String,
+    pub math: String,
+    pub dictionary: String,
+    pub system: String,
     pub color_picker: String,
-    pub apps:         String,
-    pub currency:     String,
-    pub ai:           String,
-    pub time:         String,
-    pub timer:        String,
-    pub screenshots:  String,
-    pub shortcuts:    String,
-    pub scripts:      String,
-    pub qr_code:      String,
+    pub apps: String,
+    pub currency: String,
+    pub ai: String,
+    pub time: String,
+    pub timer: String,
+    pub screenshots: String,
+    pub shortcuts: String,
+    pub scripts: String,
+    pub qr_code: String,
 }
 
 impl Default for TriggerConfig {
     fn default() -> Self {
         Self {
-            camera:       r"^cam$".into(),
-            bookmarks:    r"^bk\s+(.*)$".into(),
-            files:        r"^f\s+(.*)$".into(),
-            fonts:        r"^font(?:\s+(.*))?$".into(),
-            clipboard:    r"^cp\s+(.*)$".into(),
-            emojis:       r"^em\s+(.*)$".into(),
-            shell:        r"^!\s+(.*)$".into(),
-            lorem:        r"^lorem\s+(.*)$".into(),
-            math:         r"^=\s*(.*)$".into(),
-            dictionary:   r"^def\s+(.*)$".into(),
-            system:       r"^sys\s+(.*)$".into(),
+            camera: r"^cam$".into(),
+            bookmarks: r"^bk\s+(.*)$".into(),
+            files: r"^f\s+(.*)$".into(),
+            fonts: r"^font(?:\s+(.*))?$".into(),
+            clipboard: r"^cp\s+(.*)$".into(),
+            emojis: r"^em\s+(.*)$".into(),
+            shell: r"^!\s+(.*)$".into(),
+            lorem: r"^lorem\s+(.*)$".into(),
+            math: r"^=\s*(.*)$".into(),
+            dictionary: r"^def\s+(.*)$".into(),
+            system: r"^sys\s+(.*)$".into(),
             color_picker: r"^color\s*(.*)$".into(),
-            apps:         r"^app\s+(.*)$".into(),
-            currency:     r"^fx\s+(.*)$".into(),
-            ai:           r"^ (.*)$".into(),
-            time:         r"^time\s+(.*)$".into(),
-            timer:        r"^timer\s*(.*)$".into(),
-            screenshots:  r"^ss\s*(.*)$".into(),
-            shortcuts:    r"^q\s*(.*)$".into(),
-            scripts:      r"^sc\s*(.*)$".into(),
-            qr_code:      r"^qr\s+(.*)$".into(),
+            apps: r"^app\s+(.*)$".into(),
+            currency: r"^fx\s+(.*)$".into(),
+            ai: r"^ (.*)$".into(),
+            time: r"^time\s+(.*)$".into(),
+            timer: r"^timer\s*(.*)$".into(),
+            screenshots: r"^ss\s*(.*)$".into(),
+            shortcuts: r"^q\s*(.*)$".into(),
+            scripts: r"^sc\s*(.*)$".into(),
+            qr_code: r"^qr\s+(.*)$".into(),
         }
     }
 }
@@ -384,11 +400,14 @@ impl Config {
         {
             use std::os::unix::fs::OpenOptionsExt;
             let mut f = fs::OpenOptions::new()
-                .write(true).create(true).truncate(true)
+                .write(true)
+                .create(true)
+                .truncate(true)
                 .mode(0o600)
                 .open(&path)
                 .map_err(|e| e.to_string())?;
-            f.write_all(key.trim().as_bytes()).map_err(|e| e.to_string())?;
+            f.write_all(key.trim().as_bytes())
+                .map_err(|e| e.to_string())?;
         }
         #[cfg(not(unix))]
         fs::write(&path, key.trim()).map_err(|e| e.to_string())?;

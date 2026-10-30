@@ -1,8 +1,8 @@
 use std::sync::atomic::Ordering;
 use tauri::AppHandle;
 
-use crate::types::{Action, ActionData, ResultItem};
 use crate::searchers::{time::TimeSearcher, timer, SearchProvider};
+use crate::types::{Action, ActionData, ResultItem};
 
 /// Build the home-screen widget list shown when the query is empty.
 /// Each item is tagged `group: "widget"` so the frontend can render them distinctly.
@@ -28,20 +28,27 @@ pub fn home_items(app: &AppHandle) -> Vec<ResultItem> {
                 .as_secs();
             let rem = t.expires_at.saturating_sub(now);
             let ring_at = format_ring_time(t.expires_at);
-            let label = if t.label.is_empty() { "Timer".to_string() } else { t.label.clone() };
+            let label = if t.label.is_empty() {
+                "Timer".to_string()
+            } else {
+                t.label.clone()
+            };
             let icon = timer_progress_icon(rem, t.duration_secs);
 
             items.push(
                 ResultItem::new(
                     format!("{} - {} left", label, timer::format_duration(rem)),
-                    vec![Action::new("Cancel", ActionData::RunFunction {
-                        function_name: "show_modal".into(),
-                        params: vec![
-                            format!("Cancel **{}**?", label),
-                            format!("Yes|danger|fn:cancel_timer:{}", t.id),
-                            "No|default|".into(),
-                        ],
-                    })],
+                    vec![Action::new(
+                        "Cancel",
+                        ActionData::RunFunction {
+                            function_name: "show_modal".into(),
+                            params: vec![
+                                format!("Cancel **{}**?", label),
+                                format!("Yes|danger|fn:cancel_timer:{}", t.id),
+                                "No|default|".into(),
+                            ],
+                        },
+                    )],
                 )
                 .description(format!("Rings at {}", ring_at))
                 .icon(icon)
@@ -55,10 +62,13 @@ pub fn home_items(app: &AppHandle) -> Vec<ResultItem> {
         items.push(
             ResultItem::new(
                 "Pink Noise",
-                vec![Action::new("Stop", ActionData::RunFunction {
-                    function_name: "toggle_pink_noise".into(),
-                    params: vec![],
-                })],
+                vec![Action::new(
+                    "Stop",
+                    ActionData::RunFunction {
+                        function_name: "toggle_pink_noise".into(),
+                        params: vec![],
+                    },
+                )],
             )
             .description("Playing")
             .icon("icons/pink-noise.png")
@@ -70,10 +80,13 @@ pub fn home_items(app: &AppHandle) -> Vec<ResultItem> {
         items.push(
             ResultItem::new(
                 "Rain Noise",
-                vec![Action::new("Stop", ActionData::RunFunction {
-                    function_name: "toggle_rain_noise".into(),
-                    params: vec![],
-                })],
+                vec![Action::new(
+                    "Stop",
+                    ActionData::RunFunction {
+                        function_name: "toggle_rain_noise".into(),
+                        params: vec![],
+                    },
+                )],
             )
             .description("Playing - press Enter to stop")
             .group("widget"),
@@ -104,7 +117,7 @@ fn timer_progress_icon(remaining: u64, total: u64) -> String {
     let r = 9.0f64;
     let circ = 2.0 * std::f64::consts::PI * r;
     let filled = fraction * circ;
-    let gap    = circ - filled;
+    let gap = circ - filled;
 
     let color = if fraction > 0.5 {
         "rgba(74,222,128,0.9)"
@@ -122,11 +135,12 @@ fn timer_progress_icon(remaining: u64, total: u64) -> String {
           stroke-dasharray="{filled:.2} {gap:.2}"
           transform="rotate(-90 12 12)"/>
 </svg>"#,
-        r = r, color = color, filled = filled, gap = gap,
+        r = r,
+        color = color,
+        filled = filled,
+        gap = gap,
     );
 
-    let encoded = svg
-        .replace('#', "%23")
-        .replace('"', "'");
+    let encoded = svg.replace('#', "%23").replace('"', "'");
     format!("data:image/svg+xml,{}", encoded)
 }

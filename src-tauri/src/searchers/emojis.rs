@@ -86,7 +86,9 @@ impl EmojiSearcher {
                     ),
                     Action::new(
                         "Copy Symbol",
-                        ActionData::CopyToClipboard { text: c.to_string() },
+                        ActionData::CopyToClipboard {
+                            text: c.to_string(),
+                        },
                     ),
                     Action::new(
                         "Copy Name",

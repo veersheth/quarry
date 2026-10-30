@@ -1,11 +1,13 @@
-use tauri::AppHandle;
 use super::SearchProvider;
 use crate::types::{ResultItem, ResultType, SearchResult};
+use tauri::AppHandle;
 
 pub struct ColorPicker;
 
 impl SearchProvider for ColorPicker {
-    fn name(&self) -> String { "color".to_string() }
+    fn name(&self) -> String {
+        "color".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let q = query.trim();
         // Pass the raw color string as the first result's name so the
@@ -15,6 +17,10 @@ impl SearchProvider for ColorPicker {
         } else {
             vec![ResultItem::new(q, vec![])]
         };
-        SearchResult { results, result_type: ResultType::ColorPicker, ..Default::default() }
+        SearchResult {
+            results,
+            result_type: ResultType::ColorPicker,
+            ..Default::default()
+        }
     }
 }

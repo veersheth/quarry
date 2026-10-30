@@ -69,7 +69,9 @@ pub fn push_to_history(expr: &str, result: &str, raw: &str) {
 }
 
 pub fn clear_history() {
-    let mut history = CALC_HISTORY.lock().unwrap_or_else(|error| error.into_inner());
+    let mut history = CALC_HISTORY
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     history.clear();
     save_history_to_disk(&history);
 }

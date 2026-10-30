@@ -30,12 +30,19 @@ impl PinStore {
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
-        Self { data: RwLock::new(data) }
+        Self {
+            data: RwLock::new(data),
+        }
     }
 
     pub fn get(&self, searcher: &str) -> Vec<PinEntry> {
-        self.data.read().unwrap_or_else(|e| e.into_inner())
-            .pins.get(searcher).cloned().unwrap_or_default()
+        self.data
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .pins
+            .get(searcher)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn add(&self, searcher: &str, entry: PinEntry) {
@@ -60,8 +67,11 @@ impl PinStore {
     }
 
     pub fn contains(&self, searcher: &str, name: &str) -> bool {
-        self.data.read().unwrap_or_else(|e| e.into_inner())
-            .pins.get(searcher)
+        self.data
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .pins
+            .get(searcher)
             .map(|v| v.iter().any(|e| e.name == name))
             .unwrap_or(false)
     }

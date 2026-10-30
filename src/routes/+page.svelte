@@ -24,6 +24,7 @@
     openModal,
     closeModal,
     bookmarkCreatorOpen,
+    bookmarkBeingEdited,
   } from "../stores/search";
   import { search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
@@ -253,8 +254,16 @@
         },
       );
       const unlistenCreateBookmark = await listen("quarry-create-bookmark", () => {
+        bookmarkBeingEdited.set(null);
         bookmarkCreatorOpen.set(true);
       });
+      const unlistenEditBookmark = await listen<{ name: string; url: string }>(
+        "quarry-edit-bookmark",
+        ({ payload }) => {
+          bookmarkBeingEdited.set(payload);
+          bookmarkCreatorOpen.set(true);
+        },
+      );
 
       const unlistenRofiSocket = await listen<string>(
         "quarry-rofi-socket",
@@ -371,6 +380,7 @@
         unlisten();
         unlistenModal();
         unlistenCreateBookmark();
+        unlistenEditBookmark();
         unlistenRofiSocket();
         unlistenRofi();
         unlistenClipboardMore();

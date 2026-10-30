@@ -2,19 +2,21 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { get } from "svelte/store";
-  import { bookmarkCreatorOpen, query } from "../stores/search";
+  import { bookmarkBeingEdited, bookmarkCreatorOpen, query } from "../stores/search";
   import { refreshSearchInPlace } from "./searcher";
   import { addToast } from "../stores/toasts";
 
   let nameInput: HTMLInputElement;
-  let name = "";
-  let url = "";
+  const bookmark = get(bookmarkBeingEdited);
+  let name = bookmark?.name ?? "";
+  let url = bookmark?.url ?? "";
   let busy = false;
 
   onMount(() => nameInput?.focus());
 
   function close() {
     bookmarkCreatorOpen.set(false);
+    bookmarkBeingEdited.set(null);
   }
 
   async function submit() {
@@ -24,12 +26,20 @@
 
     busy = true;
     try {
-      await invoke("create_bookmark", { name: cleanName, url: cleanUrl });
+      if (bookmark) {
+        await invoke("update_bookmark", {
+          oldName: bookmark.name,
+          name: cleanName,
+          url: cleanUrl,
+        });
+      } else {
+        await invoke("create_bookmark", { name: cleanName, url: cleanUrl });
+      }
       close();
       await refreshSearchInPlace(get(query));
-      addToast("Bookmark created");
+      addToast(bookmark ? "Bookmark updated" : "Bookmark created");
     } catch (error: any) {
-      addToast(error?.message ?? "Could not create bookmark", "error");
+      addToast(error?.message ?? `Could not ${bookmark ? "update" : "create"} bookmark`, "error");
     } finally {
       busy = false;
     }
@@ -48,7 +58,7 @@
 <div class="overlay" role="dialog" aria-modal="true" aria-labelledby="bookmark-title" on:click={close} on:keydown={handleKeydown}>
   <section class="card" on:click|stopPropagation>
     <header>
-      <h2 id="bookmark-title">Create new bookmark</h2>
+      <h2 id="bookmark-title">{bookmark ? "Edit bookmark" : "Create new bookmark"}</h2>
       <p>Save a website so you can find it from Quarry.</p>
     </header>
 
@@ -64,7 +74,7 @@
       <div class="buttons">
         <button type="button" class="cancel" on:click={close}>Cancel</button>
         <button type="submit" class="save" disabled={!name.trim() || !url.trim() || busy}>
-          {busy ? "Saving…" : "Save bookmark"}
+          {busy ? "Saving…" : bookmark ? "Save changes" : "Save bookmark"}
         </button>
       </div>
     </form>

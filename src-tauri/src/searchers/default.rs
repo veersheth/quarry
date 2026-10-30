@@ -103,7 +103,9 @@ fn browser_url_for_query(query: &str) -> Option<String> {
         return Some(query.to_string());
     }
 
-    let authority = query.split(|character| matches!(character, '/' | '?' | '#')).next()?;
+    let authority = query
+        .split(|character| matches!(character, '/' | '?' | '#'))
+        .next()?;
     let host = authority.split(':').next().unwrap_or(authority);
     let is_local = host == "localhost" || host == "127.0.0.1" || host == "::1";
     if !is_local && !host.contains('.') {
@@ -361,12 +363,9 @@ fn unified_recent(
     let file_by_usage: std::collections::HashMap<(String, String), &ResultItem> = all_files
         .iter()
         .flat_map(|item| {
-            item.actions.iter().map(move |action| {
-                (
-                    (item.name.to_lowercase(), action.data.stable_id()),
-                    item,
-                )
-            })
+            item.actions
+                .iter()
+                .map(move |action| ((item.name.to_lowercase(), action.data.stable_id()), item))
         })
         .collect();
 

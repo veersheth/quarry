@@ -1,9 +1,9 @@
 use super::{SearchProvider, ICON_BOOKMARK};
-use tauri::AppHandle;
 use crate::types::{Action, ActionData, ResultItem, SearchResult};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use tauri::AppHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Bookmark {
@@ -39,8 +39,8 @@ impl BookmarksSearcher {
             return Ok(vec![]);
         }
 
-        let contents = fs::read_to_string(&path)
-            .map_err(|e| format!("failed to read bookmarks: {}", e))?;
+        let contents =
+            fs::read_to_string(&path).map_err(|e| format!("failed to read bookmarks: {}", e))?;
         let data: BookmarksData = serde_json::from_str(&contents)
             .map_err(|e| format!("failed to parse bookmarks: {}", e))?;
         Ok(data.bookmarks)
@@ -51,26 +51,57 @@ impl BookmarksSearcher {
             .ok_or_else(|| "could not determine bookmarks path".to_string())?;
         let json = serde_json::to_string_pretty(&BookmarksData { bookmarks })
             .map_err(|e| format!("failed to serialize: {}", e))?;
-        fs::write(&path, json)
-            .map_err(|e| format!("failed to write bookmarks: {}", e))?;
+        fs::write(&path, json).map_err(|e| format!("failed to write bookmarks: {}", e))?;
         Ok(())
     }
 
     pub fn add_bookmark(name: String, url: String) -> Result<String, String> {
         let mut bookmarks = Self::load_bookmarks()?;
-        if bookmarks.iter().any(|b| b.name.to_lowercase() == name.to_lowercase()) {
+        if bookmarks
+            .iter()
+            .any(|b| b.name.to_lowercase() == name.to_lowercase())
+        {
             return Err(format!("bookmark '{}' already exists", name));
         }
-        let url = if url.starts_with("http://") || url.starts_with("https://") {
-            url
-        } else if Self::is_localhost(&url) {
-            format!("http://{}", url)
-        } else {
-            format!("https://{}", url)
-        };
-        bookmarks.push(Bookmark { name: name.clone(), url });
+        let url = Self::normalize_url(url);
+        bookmarks.push(Bookmark {
+            name: name.clone(),
+            url,
+        });
         Self::save_bookmarks(bookmarks)?;
         Ok(format!("added bookmark: {}", name))
+    }
+
+    pub fn update_bookmark(old_name: &str, name: String, url: String) -> Result<(), String> {
+        let mut bookmarks = Self::load_bookmarks()?;
+        let Some(bookmark_index) = bookmarks
+            .iter()
+            .position(|bookmark| bookmark.name.eq_ignore_ascii_case(old_name))
+        else {
+            return Err(format!("bookmark '{}' not found", old_name));
+        };
+
+        if bookmarks.iter().enumerate().any(|(index, bookmark)| {
+            index != bookmark_index && bookmark.name.eq_ignore_ascii_case(&name)
+        }) {
+            return Err(format!("bookmark '{}' already exists", name));
+        }
+
+        bookmarks[bookmark_index] = Bookmark {
+            name,
+            url: Self::normalize_url(url),
+        };
+        Self::save_bookmarks(bookmarks)
+    }
+
+    fn normalize_url(url: String) -> String {
+        if url.starts_with("http://") || url.starts_with("https://") {
+            url
+        } else if Self::is_localhost(&url) {
+            format!("http://{url}")
+        } else {
+            format!("https://{url}")
+        }
     }
 
     pub fn remove_bookmark(name: &str) -> Result<String, String> {
@@ -93,7 +124,9 @@ impl BookmarksSearcher {
 }
 
 impl SearchProvider for BookmarksSearcher {
-    fn name(&self) -> String { "bookmarks".to_string() }
+    fn name(&self) -> String {
+        "bookmarks".to_string()
+    }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
         let query = query.trim();
 
@@ -112,10 +145,7 @@ impl SearchProvider for BookmarksSearcher {
         };
 
         let mut results = vec![create_bookmark_item()];
-        results.extend(self.fuzzy_filter(
-            bookmarks.iter().map(bookmark_to_item).collect(),
-            query,
-        ));
+        results.extend(self.fuzzy_filter(bookmarks.iter().map(bookmark_to_item).collect(), query));
         SearchResult::list(results)
     }
 }
@@ -139,11 +169,26 @@ fn bookmark_to_item(bookmark: &Bookmark) -> ResultItem {
     ResultItem::new(
         bookmark.name.clone(),
         vec![
-            Action::new("Open", ActionData::OpenUrl { url: bookmark.url.clone() }),
-            Action::new("Delete", ActionData::RunFunction {
-                function_name: "remove_bookmark".to_string(),
-                params: vec![bookmark.name.clone()],
-            }),
+            Action::new(
+                "Open",
+                ActionData::OpenUrl {
+                    url: bookmark.url.clone(),
+                },
+            ),
+            Action::new(
+                "Edit",
+                ActionData::RunFunction {
+                    function_name: "edit_bookmark".to_string(),
+                    params: vec![bookmark.name.clone(), bookmark.url.clone()],
+                },
+            ),
+            Action::new(
+                "Delete",
+                ActionData::RunFunction {
+                    function_name: "remove_bookmark".to_string(),
+                    params: vec![bookmark.name.clone()],
+                },
+            ),
         ],
     )
     .description(format!("Bookmark ({})", bookmark.url))
