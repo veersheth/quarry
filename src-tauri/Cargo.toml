@@ -59,6 +59,8 @@ rodio = { version = "0.19", default-features = false, features = ["symphonia-mp3
 webkit2gtk = { version = "2.0", features = ["v2_40"] }
 gtk = "0.18"
 gdk = "0.18"
+# Tauri's default AppIndicator backend does not emit tray click events.
+tray-icon = { version = "0.25", default-features = false, features = ["ksni"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-cli = "2"

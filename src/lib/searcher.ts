@@ -34,16 +34,22 @@ export async function execute(action_id: string, name: string, currentQuery: str
       addToast("Copied to clipboard");
     } else if (result === "paste") {
       const window = getCurrentWindow();
-      await window.hide();
-      // Let the previously focused application receive focus before typing Ctrl+V.
-      await new Promise((resolve) => setTimeout(resolve, 140));
       try {
+        await window.hide();
+        // Let the previously focused application receive focus before typing Ctrl+V.
+        await new Promise((resolve) => setTimeout(resolve, 140));
         await invoke("paste_to_focused_app");
-      } catch (error: any) {
-        await window.show();
-        await window.setFocus();
-        console.error("Paste shortcut failed; clipboard content is available:", error);
-        addToast("Paste failed. Content copied to clipboard.", "error");
+      } catch (error) {
+        // The execute command has already copied the content. If focus or
+        // shortcut injection fails, leave it ready for a manual paste.
+        console.warn("Automatic paste unavailable; content copied to clipboard:", error);
+        try {
+          await window.show();
+          await window.setFocus();
+        } catch (windowError) {
+          console.warn("Could not restore Quarry after paste fallback:", windowError);
+        }
+        addToast("Copied to clipboard");
       }
     } else if (result === "stay") {
       // action manages its own UI (e.g. show_modal) - keep window visible

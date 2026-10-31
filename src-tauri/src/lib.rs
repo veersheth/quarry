@@ -28,7 +28,6 @@ use std::sync::{atomic::AtomicU64, Mutex, RwLock};
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    Manager,
 };
 
 // ---------------------------------------------------------
@@ -144,7 +143,9 @@ pub fn run() {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&toggle, &sep, &quit])?;
 
-            TrayIconBuilder::new()
+            // Some window manager sessions have no StatusNotifierWatcher. The
+            // tray is optional; the launcher remains accessible over IPC.
+            if let Err(error) = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -163,7 +164,10 @@ pub fn run() {
                     "quit" => app.exit(0),
                     _ => {}
                 })
-                .build(app)?;
+                .build(app)
+            {
+                eprintln!("Tray unavailable ({error}); use quarry-toggle to open Quarry");
+            }
 
             windows::inject_gtk_theme();
             windows::setup_main_window(app)?;

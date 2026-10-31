@@ -21,10 +21,10 @@ $ pnpm install
 $ pnpm run tauri dev
 ```
 
-- This should start a process and put an icon in your system tray
+- This starts Quarry in the background. A tray icon appears when your desktop session provides a StatusNotifierWatcher; Quarry still runs without one.
 - To toggle visibility
     - Either use the tray icon menu
-    - Or run the `quarry-toggle` binary in `src-tauri/target/debug/quarry-toggle`, I have this mapped to `Alt-Space`
+    - Or run the `quarry-toggle` binary in `src-tauri/target/debug/quarry-toggle`; bind it to a key in your window manager (for example, `Alt-Space`).
 
 # Capabilities
 - Search apps, emojis, files 
