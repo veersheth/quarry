@@ -517,11 +517,12 @@
             ]} />
           </PreviewCard>
         {:else if contentType === "url"}
-          {@const parsed = parseURL(activeItem.name)}
+          {@const fullUrl = previewText ?? activeItem.name}
+          {@const parsed = parseURL(fullUrl)}
           {@const meta = getUrlMeta(activeItem.name)}
-          {@const ytId = youtubeVideoId(activeItem.name)}
+          {@const ytId = youtubeVideoId(fullUrl)}
           {#if parsed}
-            <PreviewCard icon={meta?.favicon} title={parsed.display} subtitle="Web address">
+            <PreviewCard icon={meta?.favicon} title={fullUrl} subtitle="Web address" wrapTitle>
               {#if meta?.thumbnail}
                 <div class="url-thumb-wrap">
                   <img
@@ -543,12 +544,12 @@
                 ...(ytId ? [{ label: "Platform", value: "YouTube" }] : []),
                 ...(parsed.query ? [{ label: "Query", value: parsed.query, mono: true }] : []),
                 ...(parsed.fragment ? [{ label: "Fragment", value: parsed.fragment, mono: true }] : []),
-                { label: "URL", value: previewText ?? activeItem.name, mono: true },
+                { label: "URL", value: fullUrl, mono: true },
               ]} />
               <!-- svelte-ignore a11y_invalid_attribute -->
               <a
                 class="url-open"
-                href={activeItem.name}
+                href={fullUrl}
                 target="_blank"
                 rel="noopener"
               >
@@ -854,7 +855,7 @@
     text-decoration: none;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
     transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
-    margin: 0;
+    margin-top: 12px;
     width: auto;
   }
   .url-open:hover {

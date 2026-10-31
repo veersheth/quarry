@@ -117,11 +117,11 @@
     border: 1px solid var(--q-divider-dark, #2e2e2e);
     border-radius: 14px;
     background: var(--q-surface-background, #242424);
-    scrollbar-width: none; 
-    <!-- scrollbar: none; -->
-    <!-- scrollbar-gutter: stable; -->
-    <!-- scrollbar-width: thin; -->
-    <!-- scrollbar-color: rgba(255, 255, 255, 0.12) transparent; -->
+    scrollbar-width: none;
+    /* scrollbar: none; */
+    /* scrollbar-gutter: stable; */
+    /* scrollbar-width: thin; */
+    /* scrollbar-color: rgba(255, 255, 255, 0.12) transparent; */
   }
 
   .sidebar-list::-webkit-scrollbar {
