@@ -100,34 +100,39 @@ fn build_results(query: &str) -> SearchResult {
     // Prepend pinned entries on empty query (survive history eviction)
     if query.is_empty() {
         for pin in &text_pins {
-            results.push(
-                ResultItem::new(
-                    pin.payload.clone(),
-                    vec![
-                        Action::new(
-                            "Paste",
-                            ActionData::PasteToApp {
-                                text: pin.payload.clone(),
-                            },
-                        ),
-                        Action::new(
-                            "Copy",
-                            ActionData::CopyToClipboard {
-                                text: pin.payload.clone(),
-                            },
-                        ),
-                        Action::new(
-                            "Unpin",
-                            ActionData::RunFunction {
-                                function_name: "unpin".into(),
-                                params: vec!["clipboard".into(), pin.name.clone()],
-                            },
-                        ),
-                    ],
-                )
+            let (icon, path_actions) = detect_path(&pin.payload);
+            let mut actions = vec![
+                Action::new(
+                    "Paste",
+                    ActionData::PasteToApp {
+                        text: pin.payload.clone(),
+                    },
+                ),
+                Action::new(
+                    "Copy",
+                    ActionData::CopyToClipboard {
+                        text: pin.payload.clone(),
+                    },
+                ),
+            ];
+            actions.extend(path_actions);
+            actions.extend(path_copy_actions(&pin.payload, icon));
+            actions.extend(smart_actions(&pin.payload));
+            actions.extend(transform_actions(&pin.payload));
+            actions.push(Action::new(
+                "Unpin",
+                ActionData::RunFunction {
+                    function_name: "unpin".into(),
+                    params: vec!["clipboard".into(), pin.name.clone()],
+                },
+            ));
+            let mut item = ResultItem::new(pin.payload.clone(), actions)
                 .description("pinned".to_string())
-                .pinned(),
-            );
+                .pinned();
+            if let Some(icon) = icon {
+                item = item.icon(icon);
+            }
+            results.push(item);
         }
 
         for pin in &image_pins {
@@ -265,6 +270,8 @@ fn build_results(query: &str) -> SearchResult {
                         ),
                     ];
                     actions.extend(path_actions);
+                    actions.extend(path_copy_actions(value, icon));
+                    actions.extend(smart_actions(value));
                     actions.extend(transform_actions(value));
                     actions.extend([
                         pin_action,
@@ -480,6 +487,182 @@ fn detect_path(value: &str) -> (Option<&'static str>, Vec<Action>) {
     (icon, actions)
 }
 
+fn path_copy_actions(value: &str, icon: Option<&str>) -> Vec<Action> {
+    if icon.is_none() {
+        return vec![];
+    }
+    let Some(path) = resolve_path(value) else {
+        return vec![];
+    };
+    let mut actions = Vec::new();
+    if let Some(name) = path.file_name() {
+        actions.push(Action::new(
+            "Copy name",
+            ActionData::CopyToClipboard {
+                text: name.to_string_lossy().into_owned(),
+            },
+        ));
+    }
+    if let Some(parent) = path.parent() {
+        actions.push(Action::new(
+            "Copy parent path",
+            ActionData::CopyToClipboard {
+                text: parent.to_string_lossy().into_owned(),
+            },
+        ));
+    }
+    actions
+}
+
+fn git_remote_https(value: &str) -> Option<String> {
+    let (host, path) = value.strip_prefix("git@")?.split_once(':')?;
+    if !host.contains('.')
+        || !host
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || c == b'.' || c == b'-')
+        || path.is_empty()
+        || !path
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"._-/".contains(&c))
+    {
+        return None;
+    }
+    let repo = path.strip_suffix(".git").unwrap_or(path);
+    if repo.is_empty() {
+        return None;
+    }
+    Some(format!("https://{host}/{repo}"))
+}
+
+fn hex_color(value: &str) -> Option<(u8, u8, u8)> {
+    let digits = value.strip_prefix('#')?;
+    match digits.len() {
+        3 if digits.bytes().all(|c| c.is_ascii_hexdigit()) => {
+            let r = u8::from_str_radix(&digits[0..1], 16).ok()? * 17;
+            let g = u8::from_str_radix(&digits[1..2], 16).ok()? * 17;
+            let b = u8::from_str_radix(&digits[2..3], 16).ok()? * 17;
+            Some((r, g, b))
+        }
+        6 if digits.bytes().all(|c| c.is_ascii_hexdigit()) => Some((
+            u8::from_str_radix(&digits[0..2], 16).ok()?,
+            u8::from_str_radix(&digits[2..4], 16).ok()?,
+            u8::from_str_radix(&digits[4..6], 16).ok()?,
+        )),
+        _ => None,
+    }
+}
+
+fn smart_actions(value: &str) -> Vec<Action> {
+    static EMAIL: Lazy<regex::Regex> = Lazy::new(|| {
+        regex::Regex::new(r"(?i)^[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$").unwrap()
+    });
+    static RGB: Lazy<regex::Regex> = Lazy::new(|| {
+        regex::Regex::new(r"(?i)^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$").unwrap()
+    });
+
+    let value = value.trim();
+    let mut actions = Vec::new();
+
+    if let Ok(mut url) = reqwest::Url::parse(value) {
+        if matches!(url.scheme(), "http" | "https") {
+            actions.push(Action::new(
+                "Open in browser",
+                ActionData::OpenUrl { url: value.into() },
+            ));
+            if let Some(host) = url.host_str() {
+                actions.push(Action::new(
+                    "Copy domain",
+                    ActionData::CopyToClipboard { text: host.into() },
+                ));
+            }
+            if url.query().is_some() || url.fragment().is_some() {
+                url.set_query(None);
+                url.set_fragment(None);
+                actions.push(Action::new(
+                    "Copy URL without query or fragment",
+                    ActionData::CopyToClipboard { text: url.into() },
+                ));
+            }
+        }
+    } else if let Some(https) = git_remote_https(value) {
+        actions.push(Action::new(
+            "Open repository",
+            ActionData::OpenUrl { url: https.clone() },
+        ));
+        actions.push(Action::new(
+            "Copy HTTPS URL",
+            ActionData::CopyToClipboard { text: https },
+        ));
+    } else if EMAIL.is_match(value) {
+        actions.push(Action::new(
+            "Compose email",
+            ActionData::OpenUrl {
+                url: format!("mailto:{value}"),
+            },
+        ));
+        if let Some((_, domain)) = value.rsplit_once('@') {
+            actions.push(Action::new(
+                "Copy domain",
+                ActionData::CopyToClipboard {
+                    text: domain.into(),
+                },
+            ));
+        }
+    }
+
+    if matches!(value.as_bytes().first(), Some(b'{' | b'[')) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(value) {
+            if let Ok(pretty) = serde_json::to_string_pretty(&json) {
+                if pretty != value {
+                    actions.push(Action::new(
+                        "Copy formatted JSON",
+                        ActionData::CopyToClipboard { text: pretty },
+                    ));
+                }
+            }
+            if let Ok(compact) = serde_json::to_string(&json) {
+                if compact != value {
+                    actions.push(Action::new(
+                        "Copy compact JSON",
+                        ActionData::CopyToClipboard { text: compact },
+                    ));
+                }
+            }
+        }
+    }
+
+    if let Some((r, g, b)) = hex_color(value) {
+        actions.push(Action::new(
+            "Copy RGB",
+            ActionData::CopyToClipboard {
+                text: format!("rgb({r}, {g}, {b})"),
+            },
+        ));
+        if value.len() == 4 {
+            actions.push(Action::new(
+                "Copy full HEX",
+                ActionData::CopyToClipboard {
+                    text: format!("#{r:02X}{g:02X}{b:02X}"),
+                },
+            ));
+        }
+    } else if let Some(caps) = RGB.captures(value) {
+        let channels = (1..=3)
+            .map(|i| caps[i].parse::<u8>())
+            .collect::<Result<Vec<_>, _>>();
+        if let Ok(channels) = channels {
+            actions.push(Action::new(
+                "Copy HEX",
+                ActionData::CopyToClipboard {
+                    text: format!("#{:02X}{:02X}{:02X}", channels[0], channels[1], channels[2]),
+                },
+            ));
+        }
+    }
+
+    actions
+}
+
 fn title_case(s: &str) -> String {
     s.split_whitespace()
         .map(|word| {
@@ -580,5 +763,47 @@ fn format_timestamp(ts: u64) -> String {
         format!("{} hr ago", age / 3600)
     } else {
         format!("{} days ago", age / 86400)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn smart_actions_match_clipboard_content() {
+        let git = smart_actions("git@github.com:veersheth/quarry.git");
+        assert_eq!(
+            git.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(),
+            ["Open repository", "Copy HTTPS URL"]
+        );
+        assert!(
+            matches!(&git[0].data, ActionData::OpenUrl { url } if url == "https://github.com/veersheth/quarry")
+        );
+
+        let email = smart_actions("person@example.com");
+        assert_eq!(
+            email.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(),
+            ["Compose email", "Copy domain"]
+        );
+        assert!(
+            matches!(&email[0].data, ActionData::OpenUrl { url } if url == "mailto:person@example.com")
+        );
+
+        let url = smart_actions("https://example.com/page?utm_source=feed#section");
+        assert!(
+            matches!(&url[2].data, ActionData::CopyToClipboard { text } if text == "https://example.com/page")
+        );
+
+        let json = smart_actions("{\"a\":1}");
+        assert!(json.iter().any(|a| a.name == "Copy formatted JSON"));
+
+        let color = smart_actions("#abc");
+        assert!(
+            matches!(&color[0].data, ActionData::CopyToClipboard { text } if text == "rgb(170, 187, 204)")
+        );
+        assert!(
+            matches!(&color[1].data, ActionData::CopyToClipboard { text } if text == "#AABBCC")
+        );
     }
 }

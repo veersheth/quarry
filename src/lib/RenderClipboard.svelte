@@ -271,7 +271,7 @@
     if (isFileItem(item)) return "file";
     const v = item.name?.trim() ?? "";
     if (getValidColor(v)) return "color";
-    if (isURL(v)) return "url";
+    if (isURL(v) || gitRemoteHttps(v)) return "url";
     if (isEmail(v)) return "email";
     if (isJSON(v)) return "json";
     if (v.includes("\n")) return "multiline";
@@ -298,7 +298,14 @@
   }
 
   function isEmail(v: string): boolean {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+    return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(v);
+  }
+
+  function gitRemoteHttps(value: string): string | null {
+    const match = /^git@([A-Za-z0-9.-]+\.[A-Za-z]{2,}):([A-Za-z0-9._/-]+)$/.exec(value.trim());
+    if (!match) return null;
+    const path = match[2].replace(/\.git$/, "");
+    return path ? `https://${match[1]}/${path}` : null;
   }
 
   function isJSON(v: string): boolean {
@@ -312,6 +319,17 @@
   }
 
   function parseURL(v: string) {
+    const gitUrl = gitRemoteHttps(v);
+    if (gitUrl) {
+      const u = new URL(gitUrl);
+      return {
+        protocol: "SSH",
+        hostname: u.hostname,
+        path: u.pathname,
+        query: "",
+        fragment: "",
+      };
+    }
     try {
       const u = new URL(v);
       return {
@@ -320,7 +338,6 @@
         path: u.pathname || "/",
         query: u.search.slice(1),
         fragment: u.hash.slice(1),
-        display: u.hostname.replace(/^www\./, ""),
       };
     } catch {
       return null;
@@ -474,7 +491,7 @@
       <div
         class="preview-area"
         class:image-fullsize={contentType === "image"}
-        class:card-content={contentType === "file" || contentType === "url"}
+        class:card-content={contentType === "file" || contentType === "url" || contentType === "email"}
         class:text-content={contentType === "text" || contentType === "multiline"}
       >
         {#if contentType === "image"}
@@ -519,10 +536,11 @@
         {:else if contentType === "url"}
           {@const fullUrl = previewText ?? activeItem.name}
           {@const parsed = parseURL(fullUrl)}
+          {@const browserUrl = gitRemoteHttps(fullUrl) ?? fullUrl}
           {@const meta = getUrlMeta(activeItem.name)}
           {@const ytId = youtubeVideoId(fullUrl)}
           {#if parsed}
-            <PreviewCard icon={meta?.favicon} title={fullUrl} subtitle="Web address" wrapTitle>
+            <PreviewCard icon={meta?.favicon} title={fullUrl} subtitle={browserUrl === fullUrl ? "Web address" : "Git repository"} wrapTitle>
               {#if meta?.thumbnail}
                 <div class="url-thumb-wrap">
                   <img
@@ -549,22 +567,27 @@
               <!-- svelte-ignore a11y_invalid_attribute -->
               <a
                 class="url-open"
-                href={fullUrl}
+                href={browserUrl}
                 target="_blank"
                 rel="noopener"
               >
-                Open in browser
+                {browserUrl === fullUrl ? "Open in browser" : "Open repository"}
               </a>
             </PreviewCard>
           {/if}
         {:else if contentType === "email"}
-          <div class="email-card">
-            <div class="email-icon">✉</div>
-            <div class="email-address">{activeItem.name}</div>
-            <a class="url-open" href="mailto:{activeItem.name}"
-              >compose email ↗</a
-            >
-          </div>
+          {@const address = previewText ?? activeItem.name}
+          {@const email = parseEmail(address)}
+          <PreviewCard title={address} subtitle="Email address" wrapTitle>
+            <MetadataTable rows={[
+              { label: "Local part", value: email.local },
+              { label: "Domain", value: email.domain },
+              { label: "Address", value: address, mono: true },
+            ]} />
+            <a class="url-open" href={`mailto:${address}`}>
+              Compose email
+            </a>
+          </PreviewCard>
         {:else if contentType === "json"}
           <div class="json-container">
             <pre class="json-preview">{prettyJSON(previewText ?? activeItem.name)}</pre>
@@ -868,28 +891,6 @@
     outline-offset: 2px;
   }
 
-  .email-card {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    background: var(--q-code-bg);
-    border: 1px solid var(--q-divider-dark);
-    border-radius: 14px;
-    padding: 28px 20px;
-  }
-
-  .email-icon { font-size: 2.2em; opacity: 0.3; }
-
-  .email-address {
-    font-size: 1em;
-    font-family: var(--q-mono);
-    color: #c084fc;
-    word-break: break-all;
-    text-align: center;
-  }
-
   .json-container {
     width: 100%;
     height: 100%;
@@ -901,7 +902,7 @@
   .json-preview {
     flex: 1;
     font-family: var(--q-mono);
-    font-size: 0.78em;
+    font-size: 0.95em;
     color: #fb923c;
     user-select: text !important;
     -webkit-user-select: text !important;
