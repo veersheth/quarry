@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -10,9 +9,6 @@ pub struct Config {
     pub triggers: TriggerConfig,
     pub theme: ThemeConfig,
     pub window: WindowConfig,
-    /// Per-searcher list-panel widths for sidebar renderers.
-    #[serde(default)]
-    pub sidebar_widths: HashMap<String, u32>,
     pub web_searches: Vec<WebSearchConfig>,
     pub default_search: DefaultSearchConfig,
     pub screenshots: ScreenshotsConfig,
@@ -21,24 +17,12 @@ pub struct Config {
     #[serde(default = "default_timer_sound")]
     pub timer_sound: String,
     /// Whether the first-run setup wizard has been completed.
-    #[serde(default = "existing_config_completed_setup")]
+    #[serde(default)]
     pub setup_completed: bool,
-    /// Whether new clipboard contents are recorded in local history.
-    #[serde(default = "existing_feature_enabled")]
-    pub clipboard_tracking_enabled: bool,
-    /// Whether Quarry maintains its local file search index.
-    #[serde(default = "existing_feature_enabled")]
-    pub file_indexing_enabled: bool,
 }
 
 fn default_timer_sound() -> String {
     "synth".into()
-}
-fn existing_config_completed_setup() -> bool {
-    true
-}
-fn existing_feature_enabled() -> bool {
-    true
 }
 
 impl Default for Config {
@@ -47,15 +31,12 @@ impl Default for Config {
             triggers: TriggerConfig::default(),
             theme: ThemeConfig::default(),
             window: WindowConfig::default(),
-            sidebar_widths: HashMap::new(),
             web_searches: default_web_searches(),
             default_search: DefaultSearchConfig::default(),
             screenshots: ScreenshotsConfig::default(),
             scripts: ScriptsConfig::default(),
             timer_sound: default_timer_sound(),
             setup_completed: false,
-            clipboard_tracking_enabled: false,
-            file_indexing_enabled: false,
         }
     }
 }
@@ -340,16 +321,7 @@ impl Config {
             }
         };
         match toml::from_str::<Config>(&contents) {
-            Ok(mut cfg) => {
-                // Migrate the shipped AI default while preserving user-defined patterns.
-                if cfg.triggers.ai == r"^ai\s+(.*)$" {
-                    cfg.triggers.ai = r"^ (.*)$".into();
-                    if let Err(error) = Self::save(&cfg) {
-                        eprintln!("quarry: could not migrate the AI trigger: {error}");
-                    }
-                }
-                cfg
-            }
+            Ok(cfg) => cfg,
             Err(e) => {
                 eprintln!("quarry: config parse error - {} - using defaults", e);
                 Self::default()
@@ -370,11 +342,36 @@ impl Config {
 
     pub fn save(config: &Config) -> Result<(), String> {
         let path = Self::config_path();
+        // A malformed hand-edited file must never be replaced by an in-app save.
+        if path.exists() {
+            let contents = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            toml::from_str::<Config>(&contents)
+                .map_err(|e| format!("Fix {} before saving: {e}", path.display()))?;
+        }
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        let toml = toml::to_string_pretty(config).map_err(|e| e.to_string())?;
-        fs::write(&path, toml).map_err(|e| e.to_string())
+        let contents = config.to_minimal_toml()?;
+        let temporary = path.with_extension(format!("toml.{}.tmp", std::process::id()));
+        fs::write(&temporary, contents).map_err(|e| e.to_string())?;
+        if let Err(error) = fs::rename(&temporary, &path) {
+            let _ = fs::remove_file(&temporary);
+            return Err(error.to_string());
+        }
+        Ok(())
+    }
+
+    fn to_minimal_toml(&self) -> Result<String, String> {
+        let mut current = toml::Value::try_from(self).map_err(|e| e.to_string())?;
+        let defaults = toml::Value::try_from(Self::default()).map_err(|e| e.to_string())?;
+        remove_defaults(&mut current, &defaults);
+        // Keep wizard completion explicit in the generated file.
+        let table = current.as_table_mut().ok_or("Invalid config structure")?;
+        table.insert(
+            "setup_completed".into(),
+            toml::Value::Boolean(self.setup_completed),
+        );
+        toml::to_string_pretty(&current).map_err(|e| e.to_string())
     }
 
     fn key_file_path() -> PathBuf {
@@ -416,99 +413,65 @@ impl Config {
     }
 }
 
-const DEFAULT_CONFIG_TOML: &str = r#"# Quarry configuration - ~/.config/quarry/config.toml
-# Every key is optional. Remove or comment out any line to keep the default.
+fn remove_defaults(current: &mut toml::Value, defaults: &toml::Value) {
+    if let (Some(current), Some(defaults)) = (current.as_table_mut(), defaults.as_table()) {
+        current.retain(|key, value| {
+            if let Some(default) = defaults.get(key) {
+                remove_defaults(value, default);
+                value != default && value.as_table().is_none_or(|table| !table.is_empty())
+            } else {
+                true
+            }
+        });
+    }
+}
 
-# Groq API key is stored separately in ~/.local/share/quarry/.groq_key
-# Write your key to that file to enable AI chat.
+const DEFAULT_CONFIG_TOML: &str =
+    "# Quarry settings. Add only the values you want to change.\nsetup_completed = false\n";
 
-setup_completed = false
-clipboard_tracking_enabled = false
-file_indexing_enabled = false
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-# [window]
-# width  = 780   # launcher window width in pixels
-# height = 520   # launcher window height in pixels
+    #[test]
+    fn first_run_config_matches_defaults() {
+        let loaded: Config = toml::from_str(DEFAULT_CONFIG_TOML).unwrap();
+        let defaults = Config::default();
+        assert_eq!(loaded.setup_completed, defaults.setup_completed);
+        assert_eq!(loaded.triggers.time, defaults.triggers.time);
+        assert_eq!(loaded.web_searches.len(), defaults.web_searches.len());
+    }
 
-[theme]
-background_color      = "rgba(10, 10, 10, 1)"
-background_opacity    = 1.0
-font_size             = 14
-font_color            = "rgba(255, 255, 255, 1)"
-font_family           = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-monospace_font_family = "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace"
-border_radius         = 14
-border_color          = "rgba(255,255,255,0.35)"
-border_thickness      = 1
-item_border_radius    = 12
-active_bg_color       = "rgba(40, 40, 40, 1)"
-active_border_color   = "rgba(255,255,255,0.1)"
+    #[test]
+    fn minimal_config_round_trips_custom_settings() {
+        let mut original = Config::default();
+        original.setup_completed = true;
+        original.theme.font_size = 18;
+        original.triggers.files = r"^find\s+(.*)$".into();
+        original.web_searches.push(WebSearchConfig {
+            name: "Custom".into(),
+            trigger: r"^custom\s+(.*)$".into(),
+            url: "https://example.com/search?q={}".into(),
+            icon: None,
+        });
 
-surface               = "rgba(5, 5, 5, 0.0)"
-surface_subtle        = "rgba(255, 255, 255, 0.08)"
-surface_hover         = "rgba(255, 255, 255, 0.2)"
-overlay               = "rgba(30, 30, 30, 0.8)"
+        let serialized = original.to_minimal_toml().unwrap();
+        assert!(!serialized.contains("background_color"));
+        assert!(!serialized.contains("[window]"));
+        let loaded: Config = toml::from_str(&serialized).unwrap();
+        assert!(loaded.setup_completed);
+        assert_eq!(loaded.theme.font_size, 18);
+        assert_eq!(loaded.triggers.files, original.triggers.files);
+        assert_eq!(loaded.web_searches.len(), original.web_searches.len());
+    }
 
-border_subtle         = "rgba(60, 60, 60, 0.3)"
-border_medium         = "rgba(255, 255, 255, 0.15)"
-border_strong         = "rgba(255, 255, 255, 0.26)"
-border_dark           = "rgb(51, 51, 51)"
-
-divider               = "rgba(80, 80, 80, 0.7)"
-divider_dark          = "rgb(46, 46, 46)"
-code_bg               = "rgb(24, 24, 24)"
-thumb_bg              = "rgb(17, 17, 17)"
-glow                  = "rgba(50, 50, 50, 1)"
-
-[triggers]
-camera       = '^cam$'
-bookmarks    = '^bk\s+(.*)$'
-files        = '^f\s+(.*)$'
-fonts        = '^font(?:\s+(.*))?$'
-clipboard    = '^cp\s+(.*)$'
-emojis       = '^em\s+(.*)$'
-shell        = '^!\s+(.*)$'
-lorem        = '^lorem\s+(.*)$'
-math         = '^=\s*(.*)$'
-dictionary   = '^def\s+(.*)$'
-system       = '^sys\s+(.*)$'
-color_picker = '^color$'
-apps         = '^app\s+(.*)$'
-ai           = '^ (.*)$'
-time         = '^time in\s(.*)$'
-shortcuts    = '^q\s*(.*)$'
-scripts      = '^sc\s*(.*)$'
-
-# Timer alert sound. Options: "synth" (slow harmonic build-up) or "beep" (short repeated beeps)
-# timer_sound = "synth"
-
-[screenshots]
-# path = "~/Pictures/Screenshots"   # uncomment to override the default
-
-[scripts]
-# path = "~/.config/quarry/scripts"   # uncomment to override the default scripts folder
-
-[default_search]
-web_searches    = ["Google", "YouTube", "Nix Packages", "GitHub"]
-max_web_results = 1
-
-[[web_searches]]
-name    = "Google"
-trigger = '^g\s+(.*)$'
-url     = "https://www.google.com/search?q={}"
-
-[[web_searches]]
-name    = "YouTube"
-trigger = '^yt\s+(.*)$'
-url     = "https://www.youtube.com/results?search_query={}"
-
-[[web_searches]]
-name    = "GitHub"
-trigger = '^gh\s+(.*)$'
-url     = "https://github.com/search?q={}"
-
-[[web_searches]]
-name    = "Nix Packages"
-trigger = '^nxp\s+(.*)$'
-url     = "https://search.nixos.org/packages?query={}"
-"#;
+    #[test]
+    fn tracking_cannot_be_enabled_from_toml() {
+        let config: Config =
+            toml::from_str("clipboard_tracking_enabled = true\nfile_indexing_enabled = true")
+                .unwrap();
+        let saved = config.to_minimal_toml().unwrap();
+        assert!(!saved.contains("clipboard_tracking_enabled"));
+        assert!(!saved.contains("file_indexing_enabled"));
+    }
+}

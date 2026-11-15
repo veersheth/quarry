@@ -8,6 +8,8 @@ mod pins;
 mod reset;
 mod search_utils;
 mod searchers;
+mod sidebar_widths;
+mod tracking;
 mod types;
 mod usage_tracker;
 mod windows;
@@ -17,11 +19,11 @@ use clipboard_manager::ClipboardManager;
 use usage_tracker::UsageHistory;
 
 use commands::{
-    cancel_rofi, clear_clipboard_history, create_bookmark, exec_func, execute, get_action_text,
-    get_ai_prefix, get_clipboard_file_metadata, get_clipboard_image, get_clipboard_thumbnail,
-    get_config, get_groq_api_key, get_sidebar_width, get_theme, paste_to_focused_app, save_capture,
-    save_config, save_groq_api_key, save_searcher_trigger, save_sidebar_width, search, start_drag,
-    take_pending_query, update_bookmark,
+    cancel_rofi, clear_clipboard_history, complete_setup, create_bookmark, exec_func, execute,
+    get_action_text, get_ai_prefix, get_clipboard_file_metadata, get_clipboard_image,
+    get_clipboard_thumbnail, get_clipboard_tracking_enabled, get_config, get_file_indexing_enabled,
+    get_groq_api_key, get_sidebar_width, get_theme, paste_to_focused_app, save_capture,
+    save_groq_api_key, save_sidebar_width, search, start_drag, take_pending_query, update_bookmark,
 };
 use lazy_static::lazy_static;
 use std::sync::{atomic::AtomicU64, Mutex, RwLock};
@@ -44,6 +46,8 @@ lazy_static! {
         config::Config::write_default_if_missing();
         RwLock::new(config::Config::load())
     };
+    pub static ref SIDEBAR_WIDTHS: RwLock<std::collections::HashMap<String, u32>> =
+        RwLock::new(sidebar_widths::load());
     pub static ref USAGE_HISTORY: RwLock<UsageHistory> = RwLock::new(UsageHistory::load());
     pub(crate) static ref PINS: pins::PinStore = pins::PinStore::load();
     pub(crate) static ref ACTION_REGISTRY: ActionRegistry = ActionRegistry::new();
@@ -64,11 +68,7 @@ lazy_static! {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     drop(CONFIG.read());
-    if CONFIG
-        .read()
-        .map(|config| config.clipboard_tracking_enabled)
-        .unwrap_or(false)
-    {
+    if tracking::clipboard_enabled() {
         CLIPBOARD_MANAGER.start_monitoring();
     }
 
@@ -77,11 +77,7 @@ pub fn run() {
     std::thread::spawn(crate::searchers::emojis::warm);
     std::thread::spawn(crate::searchers::clipboard::warm);
     std::thread::spawn(crate::commands::warm_triggers);
-    if CONFIG
-        .read()
-        .map(|config| config.file_indexing_enabled)
-        .unwrap_or(false)
-    {
+    if tracking::file_indexing_enabled() {
         crate::searchers::files::start_file_index();
     }
 
@@ -201,9 +197,10 @@ pub fn run() {
             get_config,
             get_sidebar_width,
             get_ai_prefix,
-            save_config,
+            complete_setup,
+            get_clipboard_tracking_enabled,
+            get_file_indexing_enabled,
             save_sidebar_width,
-            save_searcher_trigger,
             save_capture,
             get_groq_api_key,
             save_groq_api_key,

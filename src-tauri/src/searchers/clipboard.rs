@@ -40,6 +40,19 @@ impl SearchProvider for ClipboardSearcher {
         "clipboard".to_string()
     }
     fn search(&self, query: &str, _app: &AppHandle) -> SearchResult {
+        if !CLIPBOARD_MANAGER.is_monitoring() {
+            return SearchResult::list(vec![ResultItem::new(
+                "Start clipboard tracking",
+                vec![Action::new(
+                    "Start tracking",
+                    ActionData::RunFunction {
+                        function_name: "enable_clipboard_tracking".into(),
+                        params: vec![],
+                    },
+                )],
+            )
+            .description("Save future clipboard items in local history")]);
+        }
         let query = query.trim().to_lowercase();
 
         if query == "clear" {
@@ -96,6 +109,22 @@ fn build_results(query: &str) -> SearchResult {
         .collect();
 
     let mut results: Vec<ResultItem> = Vec::new();
+
+    if query.is_empty() {
+        results.push(
+            ResultItem::new(
+                "Stop clipboard tracking",
+                vec![Action::new(
+                    "Stop tracking",
+                    ActionData::RunFunction {
+                        function_name: "disable_clipboard_tracking".into(),
+                        params: vec![],
+                    },
+                )],
+            )
+            .description("Stop recording new clipboard items"),
+        );
+    }
 
     // Prepend pinned entries on empty query (survive history eviction)
     if query.is_empty() {

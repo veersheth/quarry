@@ -38,6 +38,22 @@ fn all_shortcuts() -> Vec<ResultItem> {
         ICON_TRANSPARENT,
         func("reload_quarry", vec![]),
     ));
+    if crate::CLIPBOARD_MANAGER.is_monitoring() {
+        items.push(item(
+            "Stop Clipboard Tracking",
+            "Stop recording clipboard items and keep tracking off",
+            ICON_SETTINGS,
+            func("disable_clipboard_tracking", vec![]),
+        ));
+    }
+    if super::files::file_index_enabled() {
+        items.push(item(
+            "Stop File Indexing",
+            "Stop the file watcher and keep indexing off until re-enabled",
+            ICON_SETTINGS,
+            func("stop_file_index", vec![]),
+        ));
+    }
     items.push(item(
         "Run Quarry Setup",
         "Open the setup wizard again",

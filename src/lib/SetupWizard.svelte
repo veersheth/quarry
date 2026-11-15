@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from "svelte";
   import { fly } from "svelte/transition";
-  import { addToast } from "../stores/toasts";
 
   export let clipboardEnabled = false;
   export let fileIndexingEnabled = false;
@@ -29,15 +28,11 @@
     const enabled = value.trim().toLowerCase() === "enable";
     if (enabled === clipboardEnabled) return;
     clipboardEnabled = enabled;
-    addToast(`Clipboard tracking ${enabled ? "enabled" : "disabled"}`);
   }
 
   function updateFileIndexing(event: Event) {
     const value = (event.currentTarget as HTMLInputElement).value;
-    const enabled = value.trim().toLowerCase() === "enable";
-    if (enabled === fileIndexingEnabled) return;
-    fileIndexingEnabled = enabled;
-    addToast(`File indexing ${enabled ? "enabled" : "disabled"}`);
+    fileIndexingEnabled = value.trim().toLowerCase() === "enable";
   }
 
   function finish() {

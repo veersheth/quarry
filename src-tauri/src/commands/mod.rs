@@ -62,13 +62,18 @@ pub fn execute(
             if function_name == "open_setup_wizard"
                 || function_name == "open_reset_confirmation"
                 || function_name == "open_bookmark_creator"
-                || function_name == "edit_bookmark"
-                || function_name == "edit_searcher_trigger" =>
+                || function_name == "edit_bookmark" =>
         {
             "stay"
         }
         ActionData::RunFunction { function_name, .. } if function_name == "show_qr_clipboard" => {
             "stay"
+        }
+        ActionData::RunFunction { function_name, .. }
+            if function_name == "disable_clipboard_tracking"
+                || function_name == "stop_file_index" =>
+        {
+            "refresh"
         }
         ActionData::RunFunction { function_name, .. }
             if function_name == "copy_clipboard_image" =>
@@ -96,7 +101,19 @@ pub fn execute(
         }
         _ => "launched",
     };
-    let tag = if confirmed { "refresh" } else { tag };
+    let tag = if confirmed {
+        match &action_data {
+            ActionData::RunFunction { function_name, .. } => match function_name.as_str() {
+                "enable_clipboard_tracking" => "refresh-toast:Clipboard tracking started",
+                "disable_clipboard_tracking" => "refresh-toast:Clipboard tracking stopped",
+                "stop_file_index" => "refresh-toast:File indexing stopped",
+                _ => "refresh",
+            },
+            _ => "refresh",
+        }
+    } else {
+        tag
+    };
 
     let stable_id = action_data.stable_id();
     let result = executor::execute_action(action_data, &app);
@@ -235,10 +252,10 @@ pub fn get_config() -> config::Config {
 
 #[tauri::command]
 pub fn get_sidebar_width(searcher: String) -> u32 {
-    CONFIG
+    crate::SIDEBAR_WIDTHS
         .read()
         .ok()
-        .and_then(|config| config.sidebar_widths.get(&searcher).copied())
+        .and_then(|widths| widths.get(&searcher).copied())
         .unwrap_or(match searcher.as_str() {
             "files" => 280,
             _ => 224,
@@ -252,100 +269,36 @@ pub fn save_sidebar_width(searcher: String, width: u32) -> Result<(), String> {
     }
 
     let width = width.clamp(160, 640);
-    let mut current = CONFIG.write().map_err(|error| error.to_string())?;
+    let mut current = crate::SIDEBAR_WIDTHS
+        .write()
+        .map_err(|error| error.to_string())?;
     let mut updated = current.clone();
-    updated.sidebar_widths.insert(searcher, width);
-    config::Config::save(&updated)?;
+    updated.insert(searcher, width);
+    crate::sidebar_widths::save(&updated)?;
     *current = updated;
     Ok(())
 }
 
 #[tauri::command]
-pub fn save_config(config: config::Config) -> Result<(), String> {
-    let clipboard_tracking_enabled = config.clipboard_tracking_enabled;
-    let file_indexing_enabled = config.file_indexing_enabled;
-    config::Config::save(&config)?;
-    if let Ok(mut c) = CONFIG.write() {
-        *c = config;
-    }
-    reload_triggers();
-    if clipboard_tracking_enabled {
-        CLIPBOARD_MANAGER.start_monitoring();
-    } else {
-        CLIPBOARD_MANAGER.stop_monitoring();
-    }
-    if file_indexing_enabled {
-        crate::searchers::files::start_file_index();
-    } else {
-        crate::searchers::files::stop_file_index();
-    }
-    Ok(())
+pub fn get_clipboard_tracking_enabled() -> bool {
+    crate::tracking::clipboard_enabled()
 }
 
 #[tauri::command]
-pub fn save_searcher_trigger(
-    config_key: String,
-    mode: String,
-    value: String,
-) -> Result<(), String> {
-    let value = value.trim().to_string();
-    let trigger_regex = match mode.as_str() {
-        "prefix" => {
-            if value.is_empty() || value.chars().any(char::is_whitespace) {
-                return Err("Prefix must be a single, non-empty token".into());
-            }
-            format!(r"^{}\s+(.*)$", regex::escape(&value))
-        }
-        "regex" => {
-            if value.is_empty() {
-                return Err("Trigger regex cannot be empty".into());
-            }
-            value
-        }
-        _ => return Err("Unknown trigger editor mode".into()),
-    };
-    regex::Regex::new(&trigger_regex).map_err(|error| format!("Invalid trigger regex: {error}"))?;
+pub fn get_file_indexing_enabled() -> bool {
+    crate::tracking::file_indexing_enabled()
+}
 
+#[tauri::command]
+pub fn complete_setup(clipboard_enabled: bool, file_indexing_enabled: bool) -> Result<(), String> {
     let mut current = CONFIG.write().map_err(|error| error.to_string())?;
     let mut config = current.clone();
-    match config_key.as_str() {
-        "apps" => config.triggers.apps = trigger_regex,
-        "files" => config.triggers.files = trigger_regex,
-        "clipboard" => config.triggers.clipboard = trigger_regex,
-        "emojis" => config.triggers.emojis = trigger_regex,
-        "fonts" => config.triggers.fonts = trigger_regex,
-        "bookmarks" => config.triggers.bookmarks = trigger_regex,
-        "system" => config.triggers.system = trigger_regex,
-        "shortcuts" => config.triggers.shortcuts = trigger_regex,
-        "scripts" => config.triggers.scripts = trigger_regex,
-        "screenshots" => config.triggers.screenshots = trigger_regex,
-        "math" => config.triggers.math = trigger_regex,
-        "dictionary" => config.triggers.dictionary = trigger_regex,
-        "time" => config.triggers.time = trigger_regex,
-        "timer" => config.triggers.timer = trigger_regex,
-        "ai" => config.triggers.ai = trigger_regex,
-        "camera" => config.triggers.camera = trigger_regex,
-        "color_picker" => config.triggers.color_picker = trigger_regex,
-        "currency" => config.triggers.currency = trigger_regex,
-        "qr_code" => config.triggers.qr_code = trigger_regex,
-        "shell" => config.triggers.shell = trigger_regex,
-        "lorem" => config.triggers.lorem = trigger_regex,
-        key if key.starts_with("web:") => {
-            let name = &key[4..];
-            let web_search = config
-                .web_searches
-                .iter_mut()
-                .find(|search| search.name == name)
-                .ok_or_else(|| format!("Web searcher not found: {name}"))?;
-            web_search.trigger = trigger_regex;
-        }
-        _ => return Err("Unknown searcher".into()),
-    }
-
+    config.setup_completed = true;
     config::Config::save(&config)?;
     *current = config;
     drop(current);
-    reload_triggers();
+    crate::tracking::set_clipboard_enabled(clipboard_enabled)?;
+    crate::tracking::set_file_indexing_enabled(file_indexing_enabled)?;
     Ok(())
 }
 

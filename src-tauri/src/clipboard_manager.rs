@@ -477,6 +477,10 @@ impl ClipboardManager {
         });
     }
 
+    pub fn is_monitoring(&self) -> bool {
+        self.monitoring.load(Ordering::Acquire)
+    }
+
     pub fn stop_monitoring(&self) {
         self.monitoring.store(false, Ordering::Release);
         self.monitor_epoch.fetch_add(1, Ordering::AcqRel);

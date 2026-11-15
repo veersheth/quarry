@@ -9,22 +9,13 @@
 - Lots of inspiration taken from [Raycast](https://www.raycast.com/) 
 - This is my first big project, so development might be slow. If you're smart I'd appreciate any feedback 😁
 
-> Rust/Svelte
-
 ## Setup
 
-Clone the repo and `cd` to it
-
 ```
-$ nix-shell 
-$ pnpm install
-$ pnpm run tauri dev
+nix-shell
+pnpm install
+pnpm run tauri dev
 ```
-
-- This starts Quarry in the background. A tray icon appears when your desktop session provides a StatusNotifierWatcher; Quarry still runs without one.
-- To toggle visibility
-    - Either use the tray icon menu
-    - Or run the `quarry-toggle` binary in `src-tauri/target/debug/quarry-toggle`; bind it to a key in your window manager (for example, `Alt-Space`).
 
 # Capabilities
 - Search apps, emojis, files 
@@ -38,61 +29,15 @@ $ pnpm run tauri dev
 
 # Configuration
 
-- Edit the `.config/quarry/config.toml` file 
+Edit `~/.config/quarry/config.toml`. Quarry creates a short file on first run. Add only the settings you want to change, then use **Reload Quarry**. See the [complete configuration reference](CONFIGURATION.md) for every supported key and default.
 
 ```toml
 [theme]
-background_color    = "rgba(10, 10, 10, 1)"
-background_opacity  = 1.0
-font_size           = 14
-font_color          = "rgba(255, 255, 255, 1)"
-border_radius       = 14
-border_color        = "rgba(255,255,255,0.35)"
-border_thickness    = 1
-item_border_radius  = 12
-active_bg_color     = "rgba(40, 40, 40, 1)"
-active_border_color = "rgba(255,255,255,0.1)"
+font_size = 16
 
 [triggers]
-camera       = '^cam$'
-bookmarks    = '^bk\s+(.*)$'
-files        = '^f\s+(.*)$'
-clipboard    = '^cp\s+(.*)$'
-emojis       = '^em\s+(.*)$'
-shell        = '^!\s+(.*)$'
-lorem        = '^lorem\s+(.*)$'
-math         = '^=\s*(.*)$'
-dictionary   = '^def\s+(.*)$'
-system       = '^sys\s+(.*)$'
-color_picker = '^color$'
-apps         = '^app\s+(.*)$'
-url          = '^(https?://\S+|(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[:/]\S*)?)$'
-
-[default_search]
-web_searches    = ["Google", "YouTube"]
-max_web_results = 1
-
-[[web_searches]]
-name    = "Google"
-trigger = '^g\s+(.*)$'
-url     = "https://www.google.com/search?q={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
-
-[[web_searches]]
-name    = "YouTube"
-trigger = '^yt\s+(.*)$'
-url     = "https://www.youtube.com/results?search_query={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1920px-YouTube_full-color_icon_%282024%29.svg.png"
-
-[[web_searches]]
-name    = "GitHub"
-trigger = '^gh\s+(.*)$'
-url     = "https://github.com/search?q={}"
-icon    = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Github-desktop-logo-symbol.svg/2048px-Github-desktop-logo-symbol.svg.png"
-
-[[web_searches]]
-name    = "Nix Packages"
-trigger = '^nxp\s+(.*)$'
-url     = "https://search.nixos.org/packages?query={}"
+files = '^find\s+(.*)$'
 ```
+
+Clipboard tracking, file indexing, and sidebar widths are stored separately in local app data; none is controlled by TOML. The Groq API key is stored separately at `~/.local/share/quarry/.groq_key`.
 

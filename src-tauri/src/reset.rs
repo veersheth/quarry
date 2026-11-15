@@ -100,6 +100,9 @@ fn reset_owned_data(app: AppHandle) -> Result<(), String> {
         data_dir.join("usage.json"),
         data_dir.join("timers.json"),
         data_dir.join("calc_history.json"),
+        data_dir.join("sidebar_widths.json"),
+        data_dir.join("clipboard_tracking_consent"),
+        data_dir.join("file_indexing_enabled"),
     ];
     // Config::save writes fresh defaults after the existing file is removed.
     files_to_remove.push(crate::config::Config::config_path());
@@ -108,6 +111,7 @@ fn reset_owned_data(app: AppHandle) -> Result<(), String> {
     }
     crate::CLIPBOARD_MANAGER.validate_reset_storage()?;
     crate::CLIPBOARD_MANAGER.stop_monitoring();
+    crate::tracking::clear_for_reset();
     crate::searchers::files::stop_file_index();
     for file in &files_to_remove {
         remove_owned_file(file)?;
@@ -119,6 +123,9 @@ fn reset_owned_data(app: AppHandle) -> Result<(), String> {
     crate::PINS.clear();
     if let Ok(mut usage) = crate::USAGE_HISTORY.write() {
         usage.clear();
+    }
+    if let Ok(mut widths) = crate::SIDEBAR_WIDTHS.write() {
+        widths.clear();
     }
 
     let mut defaults = crate::config::Config::default();

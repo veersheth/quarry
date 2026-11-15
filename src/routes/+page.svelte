@@ -42,7 +42,6 @@
   import SetupWizard from "$lib/SetupWizard.svelte";
   import Modal from "$lib/Modal.svelte";
   import CreateBookmarkModal from "$lib/CreateBookmarkModal.svelte";
-  import SearcherRegexEditor from "$lib/SearcherRegexEditor.svelte";
   import { strHue } from "$lib/utils";
 
   let searchInput: HTMLInputElement;
@@ -208,11 +207,9 @@
       try {
         const config = await invoke<{
           setup_completed: boolean;
-          clipboard_tracking_enabled: boolean;
-          file_indexing_enabled: boolean;
         }>("get_config");
-        setupClipboardEnabled = config.clipboard_tracking_enabled;
-        setupFileIndexingEnabled = config.file_indexing_enabled;
+        setupClipboardEnabled = await invoke<boolean>("get_clipboard_tracking_enabled");
+        setupFileIndexingEnabled = await invoke<boolean>("get_file_indexing_enabled");
         setupWizard = !config.setup_completed;
         setupResolved = true;
         if (setupWizard) {
@@ -323,12 +320,8 @@
 
       const unlistenSetupWizard = await listen("quarry-open-setup-wizard", async () => {
         try {
-          const config = await invoke<{
-            clipboard_tracking_enabled: boolean;
-            file_indexing_enabled: boolean;
-          }>("get_config");
-          setupClipboardEnabled = config.clipboard_tracking_enabled;
-          setupFileIndexingEnabled = config.file_indexing_enabled;
+          setupClipboardEnabled = await invoke<boolean>("get_clipboard_tracking_enabled");
+          setupFileIndexingEnabled = await invoke<boolean>("get_file_indexing_enabled");
         } catch (_) {}
         resetMode = false;
         resetPhrase = "";
@@ -456,11 +449,16 @@
 
   async function completeSetup(event: CustomEvent<{ clipboardEnabled: boolean; fileIndexingEnabled: boolean }>) {
     try {
-      const config = await invoke<Record<string, any>>("get_config");
-      config.setup_completed = true;
-      config.clipboard_tracking_enabled = event.detail.clipboardEnabled;
-      config.file_indexing_enabled = event.detail.fileIndexingEnabled;
-      await invoke("save_config", { config });
+      await invoke("complete_setup", {
+        clipboardEnabled: event.detail.clipboardEnabled,
+        fileIndexingEnabled: event.detail.fileIndexingEnabled,
+      });
+      if (event.detail.clipboardEnabled !== setupClipboardEnabled) {
+        addToast(`Clipboard tracking ${event.detail.clipboardEnabled ? "started" : "stopped"}`);
+      }
+      if (event.detail.fileIndexingEnabled !== setupFileIndexingEnabled) {
+        addToast(`File indexing ${event.detail.fileIndexingEnabled ? "started" : "stopped"}`);
+      }
       setupClipboardEnabled = event.detail.clipboardEnabled;
       setupFileIndexingEnabled = event.detail.fileIndexingEnabled;
       setupWizard = false;
@@ -688,7 +686,6 @@
   {#if !setupWizard && !resetMode && $bookmarkCreatorOpen}
     <CreateBookmarkModal />
   {/if}
-<SearcherRegexEditor />
 
   <!-- Toasts -->
   <div class="toast-container">

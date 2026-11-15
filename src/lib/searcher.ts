@@ -53,6 +53,11 @@ export async function execute(action_id: string, name: string, currentQuery: str
       }
     } else if (result === "stay") {
       // action manages its own UI (e.g. show_modal) - keep window visible
+    } else if (result === "refresh") {
+      await refreshSearchInPlace(currentQuery);
+    } else if (result.startsWith("refresh-toast:")) {
+      await refreshSearchInPlace(currentQuery);
+      addToast(result.slice("refresh-toast:".length));
     } else if (result === "error") {
       addToast("Something went wrong", "error");
     } else if (result.startsWith("toasted:")) {

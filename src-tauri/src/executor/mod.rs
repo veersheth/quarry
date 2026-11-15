@@ -66,20 +66,37 @@ pub(crate) fn request_confirmation(
 ) -> Result<bool, String> {
     use tauri::Emitter;
 
-    let (body, label) = match action {
+    let (body, label, kind) = match action {
         ActionData::RunFunction { function_name, .. } => match function_name.as_str() {
-            "delete_clipboard_entry" => ("Delete this clipboard item?", "Delete"),
-            "clear_clipboard" => ("Clear all clipboard history?", "Clear clipboard"),
-            "unpin" => ("Remove this item from pins?", "Unpin"),
-            "remove_bookmark" => ("Delete this bookmark?", "Delete bookmark"),
+            "enable_clipboard_tracking" => (
+                "Start recording future clipboard contents in local history?",
+                "Yes, start tracking",
+                "primary",
+            ),
+            "disable_clipboard_tracking" => (
+                "Stop recording clipboard contents? Tracking will stay off until you turn it on again.",
+                "Yes, stop clipboard tracking",
+                "primary",
+            ),
+            "stop_file_index" => (
+                "Stop the file watcher and clear its index? File search can still scan on demand. Indexing will stay off until you turn it on again in setup.",
+                "Yes, stop file indexing",
+                "primary",
+            ),
+            "delete_clipboard_entry" => ("Delete this clipboard item?", "Delete", "danger"),
+            "clear_clipboard" => ("Clear all clipboard history?", "Clear clipboard", "danger"),
+            "unpin" => ("Remove this item from pins?", "Unpin", "danger"),
+            "remove_bookmark" => ("Delete this bookmark?", "Delete bookmark", "danger"),
             "delete_file" => (
                 "Permanently delete this file? This cannot be undone.",
                 "Delete permanently",
+                "danger",
             ),
-            "trash_file" => ("Move this file to Trash?", "Move to Trash"),
+            "trash_file" => ("Move this file to Trash?", "Move to Trash", "danger"),
             "empty_trash" => (
                 "Permanently delete everything in Trash? This cannot be undone.",
                 "Empty Trash",
+                "danger",
             ),
             _ => return Ok(false),
         },
@@ -99,13 +116,13 @@ pub(crate) fn request_confirmation(
         body: body.to_string(),
         buttons: vec![
             ModalButton {
-                label: "Cancel".into(),
+                label: if kind == "primary" { "No" } else { "Cancel" }.into(),
                 kind: Some("default".into()),
                 action_id: None,
             },
             ModalButton {
                 label: label.into(),
-                kind: Some("danger".into()),
+                kind: Some(kind.into()),
                 action_id: Some(confirm_id),
             },
         ],

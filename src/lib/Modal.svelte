@@ -37,10 +37,12 @@
                   query: $query,
                   name: btn.label,
                 });
-                if (result === "refresh") {
+                if (result === "refresh" || result.startsWith("refresh-toast:")) {
                   closeModal();
                   await refreshSearchInPlace($query);
-                  addToast(`${btn.label} complete`);
+                  addToast(result.startsWith("refresh-toast:")
+                    ? result.slice("refresh-toast:".length)
+                    : `${btn.label} complete`);
                   return;
                 }
               }

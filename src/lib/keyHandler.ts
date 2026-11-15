@@ -1,9 +1,10 @@
 import type { Writable } from "svelte/store";
 import type { ResultItem } from "../stores/search";
-import { execute } from "./searcher";
+import { execute, refreshSearchInPlace } from "./searcher";
 import { get } from "svelte/store";
 import { tick } from "svelte";
 import { invoke } from "@tauri-apps/api/core";
+import { addToast } from "../stores/toasts";
 import { query, resultType, aiSubmitQuery, aiContextMenuOpener, contextMenu, openContextMenu, closeContextMenu, modalStore, closeModal } from "../stores/search";
 
 function deleteWordFromEnd(str: string): string {
@@ -49,7 +50,17 @@ export function handleKeydown(
     }
     if (event.key === "Enter") {
       const btn = modal.buttons[modal.activeIndex];
-      if (btn?.action_id) invoke("execute", { actionId: btn.action_id, query: "", name: btn.label }).then(() => closeModal());
+      if (btn?.action_id) {
+        invoke<string>("execute", { actionId: btn.action_id, query: get(query), name: btn.label })
+          .then(async (result) => {
+            closeModal();
+            if (result === "refresh" || result.startsWith("refresh-toast:")) {
+              await refreshSearchInPlace(get(query));
+              if (result.startsWith("refresh-toast:")) addToast(result.slice("refresh-toast:".length));
+            }
+          })
+          .catch(console.error);
+      }
       else closeModal();
       return;
     }

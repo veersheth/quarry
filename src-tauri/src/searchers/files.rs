@@ -155,6 +155,10 @@ pub fn stop_file_index() {
     replace_index(Vec::new());
 }
 
+pub fn file_index_enabled() -> bool {
+    FILE_INDEX_ENABLED.load(Ordering::Acquire)
+}
+
 fn watch_directories(
     watcher: &mut RecommendedWatcher,
     directories: impl IntoIterator<Item = PathBuf>,

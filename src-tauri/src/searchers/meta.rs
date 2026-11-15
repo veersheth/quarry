@@ -11,9 +11,7 @@ struct SearchTarget {
     command: String,
     description: String,
     search_terms: Vec<String>,
-    config_key: String,
     trigger: String,
-    regex: String,
     pattern: regex::Regex,
 }
 
@@ -210,9 +208,7 @@ impl MetaSearcher {
                     command: command.to_string(),
                     description: description.to_string(),
                     search_terms: terms.iter().map(|term| (*term).to_string()).collect(),
-                    config_key: config_key.to_string(),
                     trigger,
-                    regex: pattern.as_str().to_string(),
                     pattern,
                 })
             })
@@ -226,9 +222,7 @@ impl MetaSearcher {
                 command: format!("Search {}", web_search.name),
                 description: format!("Search the web with {}", web_search.name),
                 search_terms: vec!["web".into(), "internet".into()],
-                config_key: format!("web:{}", web_search.name),
                 trigger,
-                regex: web_search.trigger.clone(),
                 pattern,
             })
         }));
@@ -322,40 +316,12 @@ impl MetaSearcher {
     }
 
     fn target_to_result(target: SearchTarget) -> ResultItem {
-        let mut actions = vec![Action::new(
+        let actions = vec![Action::new(
             "Switch to searcher",
             ActionData::SetQuery {
                 query: target.trigger.clone(),
             },
         )];
-
-        if !target.trigger.trim().is_empty() {
-            actions.push(Action::new(
-                "Set prefix",
-                ActionData::RunFunction {
-                    function_name: "edit_searcher_trigger".into(),
-                    params: vec![
-                        target.config_key.clone(),
-                        target.command.clone(),
-                        "prefix".into(),
-                        target.trigger.trim().to_string(),
-                    ],
-                },
-            ));
-        }
-
-        actions.push(Action::new(
-            "Set trigger regex pattern",
-            ActionData::RunFunction {
-                function_name: "edit_searcher_trigger".into(),
-                params: vec![
-                    target.config_key,
-                    target.command.clone(),
-                    "regex".into(),
-                    target.regex,
-                ],
-            },
-        ));
 
         ResultItem::new(target.command, actions).description(target.description)
     }
