@@ -190,8 +190,12 @@ fn apply_event(
     mut watcher: Option<&mut RecommendedWatcher>,
     watched: &mut std::collections::HashSet<PathBuf>,
 ) {
+    let ignored = ignored_paths();
     for path in event.paths {
-        if !is_within_roots(&path, roots) || !should_refresh_for_path(&path) {
+        if !is_within_roots(&path, roots)
+            || is_ignored_path(&path, &ignored)
+            || !should_refresh_for_path(&path)
+        {
             continue;
         }
         if path.exists() {
@@ -202,7 +206,7 @@ fn apply_event(
                 let Some(max_depth) = remaining_depth(&path, roots) else {
                     continue;
                 };
-                let (entries, directories) = scan_subtree(&path, max_depth);
+                let (entries, directories) = scan_subtree(&path, max_depth, &ignored);
                 if let Ok(mut index) = FILE_INDEX.write() {
                     let index = Arc::make_mut(&mut index);
                     index.retain(|(existing, _)| !existing.starts_with(&path));
@@ -242,9 +246,10 @@ fn build_index_snapshot(roots: &[PathBuf]) -> (Vec<IndexedFile>, Vec<PathBuf>) {
     let mut directories = Vec::new();
     let mut seen_files = std::collections::HashSet::new();
     let mut seen_directories = std::collections::HashSet::new();
+    let ignored = ignored_paths();
 
     for root in roots {
-        let (root_files, root_directories) = scan_subtree(root, MAX_DEPTH);
+        let (root_files, root_directories) = scan_subtree(root, MAX_DEPTH, &ignored);
         for (path, modified) in root_files {
             if seen_files.insert(path.clone()) {
                 files.push((path, modified));
@@ -259,7 +264,11 @@ fn build_index_snapshot(roots: &[PathBuf]) -> (Vec<IndexedFile>, Vec<PathBuf>) {
     (files, directories)
 }
 
-fn scan_subtree(root: &Path, max_depth: usize) -> (Vec<IndexedFile>, Vec<PathBuf>) {
+fn scan_subtree(
+    root: &Path,
+    max_depth: usize,
+    ignored: &[PathBuf],
+) -> (Vec<IndexedFile>, Vec<PathBuf>) {
     let mut files = Vec::new();
     let mut directories = Vec::new();
     for entry in WalkDir::new(root)
@@ -268,7 +277,8 @@ fn scan_subtree(root: &Path, max_depth: usize) -> (Vec<IndexedFile>, Vec<PathBuf
         .into_iter()
         .filter_entry(|entry| {
             let name = entry.file_name().to_str().unwrap_or("");
-            entry.depth() == 0 || (!name.starts_with('.') && !SKIP_DIRS.contains(&name))
+            !is_ignored_path(entry.path(), ignored)
+                && (entry.depth() == 0 || (!name.starts_with('.') && !SKIP_DIRS.contains(&name)))
         })
         .filter_map(Result::ok)
     {
@@ -334,6 +344,9 @@ fn should_refresh_for_event(event: &notify::Event) -> bool {
 }
 
 fn should_refresh_for_path(path: &Path) -> bool {
+    if is_ignored_path(path, &ignored_paths()) {
+        return false;
+    }
     let is_user_scripts_path = USER_SCRIPTS_DIR
         .as_ref()
         .is_some_and(|scripts_dir| path.starts_with(scripts_dir));
@@ -343,6 +356,24 @@ fn should_refresh_for_path(path: &Path) -> bool {
         };
         (is_user_scripts_path || !name.starts_with('.')) && !SKIP_DIRS.contains(&name)
     })
+}
+
+fn ignored_paths() -> Vec<PathBuf> {
+    crate::CONFIG
+        .read()
+        .ok()
+        .map(|config| config.files.ignore_paths.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|path| crate::search_utils::expand_tilde(&path))
+        .filter(|path| path.is_absolute())
+        .collect()
+}
+
+fn is_ignored_path(path: &Path, ignored: &[PathBuf]) -> bool {
+    ignored
+        .iter()
+        .any(|ignored_path| path.starts_with(ignored_path))
 }
 
 /// Trigger an immediate index rebuild outside the normal refresh cycle.
@@ -361,6 +392,7 @@ pub fn rebuild_index_now() {
 fn build_index_entries() -> Vec<(PathBuf, u64)> {
     let mut entries = Vec::new();
     let mut seen = std::collections::HashSet::new();
+    let ignored = ignored_paths();
 
     for base in FileSearcher::search_paths() {
         for entry in WalkDir::new(&base)
@@ -369,7 +401,9 @@ fn build_index_entries() -> Vec<(PathBuf, u64)> {
             .into_iter()
             .filter_entry(|e| {
                 let name = e.file_name().to_str().unwrap_or("");
-                !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                !is_ignored_path(e.path(), &ignored)
+                    && !name.starts_with('.')
+                    && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
             })
             .filter_map(|e| e.ok())
         {
@@ -446,10 +480,12 @@ impl FileSearcher {
 
         recent.sort_by_key(|(visited, _)| std::cmp::Reverse(*visited));
         let mut seen = std::collections::HashSet::new();
+        let ignored = ignored_paths();
         recent
             .into_iter()
             .filter_map(|(_, path)| {
-                if !path.exists() || !seen.insert(path.clone()) {
+                if is_ignored_path(&path, &ignored) || !path.exists() || !seen.insert(path.clone())
+                {
                     return None;
                 }
                 Some(Self::path_to_result(path))
@@ -574,6 +610,7 @@ impl FileSearcher {
         // Fallback: walk the filesystem directly (index not ready yet)
         let mut hits: Vec<(PathBuf, i64)> = Vec::new();
         let mut seen = std::collections::HashSet::new();
+        let ignored = ignored_paths();
 
         for base in Self::search_paths() {
             for entry in WalkDir::new(&base)
@@ -582,7 +619,9 @@ impl FileSearcher {
                 .into_iter()
                 .filter_entry(|e| {
                     let name = e.file_name().to_str().unwrap_or("");
-                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                    !is_ignored_path(e.path(), &ignored)
+                        && !name.starts_with('.')
+                        && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
@@ -822,13 +861,16 @@ impl SearchProvider for FileSearcher {
         let candidates = if let Some(base) = search_base_hint {
             let mut hits: Vec<(PathBuf, i64)> = Vec::new();
             let mut seen = std::collections::HashSet::new();
+            let ignored = ignored_paths();
             for entry in WalkDir::new(&base)
                 .max_depth(MAX_DEPTH)
                 .follow_links(false)
                 .into_iter()
                 .filter_entry(|e| {
                     let name = e.file_name().to_str().unwrap_or("");
-                    !name.starts_with('.') && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
+                    !is_ignored_path(e.path(), &ignored)
+                        && !name.starts_with('.')
+                        && !(e.path().is_dir() && SKIP_DIRS.contains(&name))
                 })
                 .filter_map(|e| e.ok())
             {
@@ -878,4 +920,33 @@ fn sort_hits_by_score_and_mtime(hits: Vec<(PathBuf, i64)>) -> Vec<(PathBuf, i64)
     hits.into_iter()
         .map(|(path, score, _)| (path, score))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ignored_directory_is_not_walked() {
+        let root = std::env::temp_dir().join(format!(
+            "quarry-file-ignore-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let ignored = root.join("OneDrive");
+        std::fs::create_dir_all(&ignored).unwrap();
+        std::fs::write(root.join("local.txt"), "local").unwrap();
+        std::fs::write(ignored.join("remote.txt"), "remote").unwrap();
+
+        let (entries, watched) = scan_subtree(&root, MAX_DEPTH, &[ignored.clone()]);
+        let paths: Vec<_> = entries.into_iter().map(|(path, _)| path).collect();
+        assert!(paths.contains(&root.join("local.txt")));
+        assert!(!paths.iter().any(|path| path.starts_with(&ignored)));
+        assert!(!watched.iter().any(|path| path.starts_with(&ignored)));
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

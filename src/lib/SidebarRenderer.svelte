@@ -169,6 +169,8 @@
     min-width: 0;
     min-height: 0;
     flex-direction: column;
+    border-radius: 14px;
+    background: rgba(36, 36, 36, 0.92);
   }
 
   .sidebar-detail :global(.bar) {

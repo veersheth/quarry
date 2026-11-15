@@ -23,6 +23,13 @@
 # Folder containing user scripts; use an absolute path or ~.
 # path = "~/.config/quarry/scripts"
 
+[files]
+# Skip these paths and their contents during automatic indexing and file search.
+# OneDrive is skipped by default. Override the whole list to change it.
+# Use absolute paths or ~/ paths; explicit path lookup still works.
+# ignore_paths = ["~/OneDrive"]
+# Set [] to search OneDrive too.
+
 [default_search]
 # Web engines offered when no local result matches.
 # web_searches = ["Google", "YouTube"]

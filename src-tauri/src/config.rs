@@ -13,6 +13,7 @@ pub struct Config {
     pub default_search: DefaultSearchConfig,
     pub screenshots: ScreenshotsConfig,
     pub scripts: ScriptsConfig,
+    pub files: FilesConfig,
     /// Timer alert sound. Options: "synth" (default), "beep"
     #[serde(default = "default_timer_sound")]
     pub timer_sound: String,
@@ -35,6 +36,7 @@ impl Default for Config {
             default_search: DefaultSearchConfig::default(),
             screenshots: ScreenshotsConfig::default(),
             scripts: ScriptsConfig::default(),
+            files: FilesConfig::default(),
             timer_sound: default_timer_sound(),
             setup_completed: false,
         }
@@ -95,6 +97,21 @@ impl Default for ScriptsConfig {
     fn default() -> Self {
         Self {
             path: "~/.config/quarry/scripts".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FilesConfig {
+    /// Paths excluded from automatic indexing and file search walks.
+    pub ignore_paths: Vec<String>,
+}
+
+impl Default for FilesConfig {
+    fn default() -> Self {
+        Self {
+            ignore_paths: vec!["~/OneDrive".into()],
         }
     }
 }
@@ -440,6 +457,7 @@ mod tests {
         assert_eq!(loaded.setup_completed, defaults.setup_completed);
         assert_eq!(loaded.triggers.time, defaults.triggers.time);
         assert_eq!(loaded.web_searches.len(), defaults.web_searches.len());
+        assert_eq!(loaded.files.ignore_paths, vec!["~/OneDrive"]);
     }
 
     #[test]
@@ -448,6 +466,7 @@ mod tests {
         original.setup_completed = true;
         original.theme.font_size = 18;
         original.triggers.files = r"^find\s+(.*)$".into();
+        original.files.ignore_paths = vec!["~/Remote".into()];
         original.web_searches.push(WebSearchConfig {
             name: "Custom".into(),
             trigger: r"^custom\s+(.*)$".into(),
@@ -462,6 +481,7 @@ mod tests {
         assert!(loaded.setup_completed);
         assert_eq!(loaded.theme.font_size, 18);
         assert_eq!(loaded.triggers.files, original.triggers.files);
+        assert_eq!(loaded.files.ignore_paths, original.files.ignore_paths);
         assert_eq!(loaded.web_searches.len(), original.web_searches.len());
     }
 
