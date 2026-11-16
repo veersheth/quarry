@@ -116,7 +116,7 @@
     box-sizing: border-box;
     border: 1px solid var(--q-divider-dark, #2e2e2e);
     border-radius: 14px;
-    background: var(--q-surface-background, #242424);
+    background: #232323;
     scrollbar-width: none;
     /* scrollbar: none; */
     /* scrollbar-gutter: stable; */
@@ -169,8 +169,6 @@
     min-width: 0;
     min-height: 0;
     flex-direction: column;
-    border-radius: 14px;
-    background: rgba(36, 36, 36, 0.92);
   }
 
   .sidebar-detail :global(.bar) {
