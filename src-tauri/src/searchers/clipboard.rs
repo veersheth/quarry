@@ -110,22 +110,6 @@ fn build_results(query: &str) -> SearchResult {
 
     let mut results: Vec<ResultItem> = Vec::new();
 
-    if query.is_empty() {
-        results.push(
-            ResultItem::new(
-                "Stop clipboard tracking",
-                vec![Action::new(
-                    "Stop tracking",
-                    ActionData::RunFunction {
-                        function_name: "disable_clipboard_tracking".into(),
-                        params: vec![],
-                    },
-                )],
-            )
-            .description("Stop recording new clipboard items"),
-        );
-    }
-
     // Prepend pinned entries on empty query (survive history eviction)
     if query.is_empty() {
         for pin in &text_pins {

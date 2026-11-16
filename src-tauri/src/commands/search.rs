@@ -169,36 +169,26 @@ pub async fn search(query: String, app: tauri::AppHandle) -> Option<SearchResult
         }
     }
 
+    // The creation action is a fallback after saved bookmarks, even when its
+    // usage score is high enough to move it ahead of search matches.
+    if let Some(position) = search_result.results.iter().position(|item| {
+        item.actions
+            .first()
+            .is_some_and(|action| action.data.stable_id() == "fn:open_bookmark_creator:")
+    }) {
+        let create = search_result.results.remove(position);
+        search_result.results.push(create);
+    }
+
     if SEARCH_SEQ.load(Ordering::SeqCst) != my_seq {
         return None;
     }
 
     ACTION_REGISTRY.clear();
-    let cache_parent_items = !matches!(
-        search_result.result_type,
-        crate::types::ResultType::Clipboard
-    );
     for (i, item) in search_result.results.iter_mut().enumerate() {
         for (j, action) in item.actions.iter_mut().enumerate() {
             action.id = format!("action_{}_{}_{}", my_seq, i, j);
-        }
-        if cache_parent_items {
-            let mut cache_item = item.clone();
-            cache_item.thumbnail = None;
-            cache_item.thumbnail_key = None;
-            cache_item.ocr_text = None;
-            let item = Arc::new(cache_item);
-            for action in &item.actions {
-                ACTION_REGISTRY.register_item_action(
-                    action.id.clone(),
-                    action.data.clone(),
-                    Arc::clone(&item),
-                );
-            }
-        } else {
-            for action in &item.actions {
-                ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
-            }
+            ACTION_REGISTRY.register(action.id.clone(), action.data.clone());
         }
     }
 

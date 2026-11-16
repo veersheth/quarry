@@ -28,6 +28,7 @@ pub fn spawn_timer_thread(
             return;
         }
         crate::searchers::timer::remove_timer(id);
+        let _ = app.emit("quarry-timers-changed", ());
         if let Some(win) = app.get_webview_window("main") {
             let _ = win.show();
             let _ = win.set_focus();

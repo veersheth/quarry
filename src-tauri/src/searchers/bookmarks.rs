@@ -134,18 +134,19 @@ impl SearchProvider for BookmarksSearcher {
             Ok(b) => b,
             Err(e) => {
                 return SearchResult::list(vec![
-                    create_bookmark_item(),
                     ResultItem::new(
                         format!("error loading bookmarks: {}", e),
                         vec![Action::new("", ActionData::None)],
                     )
                     .icon(ICON_BOOKMARK),
+                    create_bookmark_item(),
                 ])
             }
         };
 
-        let mut results = vec![create_bookmark_item()];
-        results.extend(self.fuzzy_filter(bookmarks.iter().map(bookmark_to_item).collect(), query));
+        let mut results =
+            self.fuzzy_filter(bookmarks.iter().map(bookmark_to_item).collect(), query);
+        results.push(create_bookmark_item());
         SearchResult::list(results)
     }
 }

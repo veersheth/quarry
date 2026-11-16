@@ -209,6 +209,18 @@ pub fn personalize_default_results(
         .map(|action| action.data.stable_id())
         .collect();
     let boosts = history.get_boost_scores(query, &action_ids);
+    let exact_query = query.trim();
+    let mut exact_usage: HashMap<&str, (u32, u64)> = HashMap::new();
+    for entry in &history.entries {
+        if !entry.query.trim().eq_ignore_ascii_case(exact_query)
+            || !action_ids.contains(&entry.action_id)
+        {
+            continue;
+        }
+        let usage = exact_usage.entry(&entry.action_id).or_default();
+        usage.0 = usage.0.saturating_add(entry.count);
+        usage.1 = usage.1.max(entry.last_used);
+    }
     let mut ranked: Vec<_> = results
         .into_iter()
         .enumerate()
@@ -222,15 +234,26 @@ pub fn personalize_default_results(
             // Treat the usage score as a small number of positions, not as a
             // replacement for the default searcher's relevance score.
             let adjusted_position = position as f32 - usage_boost * 3.0;
-            (result, adjusted_position, position)
+            let exact = result
+                .actions
+                .first()
+                .and_then(|action| exact_usage.get(action.data.stable_id().as_str()))
+                .copied()
+                .unwrap_or_default();
+            (result, exact, adjusted_position, position)
         })
         .collect();
-    ranked.sort_by(|left, right| {
-        left.1
-            .total_cmp(&right.1)
-            .then_with(|| left.2.cmp(&right.2))
-    });
-    ranked.into_iter().map(|(result, _, _)| result).collect()
+    ranked.sort_by(
+        |(_, (left_count, left_used), left_position, left_index),
+         (_, (right_count, right_used), right_position, right_index)| {
+            right_used
+                .cmp(left_used)
+                .then_with(|| right_count.cmp(left_count))
+                .then_with(|| left_position.total_cmp(right_position))
+                .then_with(|| left_index.cmp(right_index))
+        },
+    );
+    ranked.into_iter().map(|(result, _, _, _)| result).collect()
 }
 
 fn fuzzy_match_lowercase(entry_query: &str, user_query: &str) -> bool {
@@ -252,5 +275,49 @@ pub fn get_recent_entries(query: &str, limit: usize) -> Vec<UsageEntry> {
         history.get_recent_for_query(query, limit)
     } else {
         vec![]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{Action, ActionData, ResultItem};
+
+    #[test]
+    fn latest_choice_for_same_query_moves_ahead_of_lexical_match() {
+        let history = UsageHistory {
+            entries: vec![UsageEntry {
+                query: "OBS".into(),
+                action_id: "app:obs-studio".into(),
+                name: "OBS Studio".into(),
+                last_used: u64::MAX - 1,
+                count: 1,
+            }],
+        };
+        let results = vec![
+            ResultItem::new(
+                "Obsidian",
+                vec![Action::new(
+                    "Launch",
+                    ActionData::LaunchApp {
+                        executable: "obsidian".into(),
+                        args: vec![],
+                    },
+                )],
+            ),
+            ResultItem::new(
+                "OBS Studio",
+                vec![Action::new(
+                    "Launch",
+                    ActionData::LaunchApp {
+                        executable: "obs-studio".into(),
+                        args: vec![],
+                    },
+                )],
+            ),
+        ];
+
+        let ranked = personalize_default_results(results, "obs", &history);
+        assert_eq!(ranked[0].name, "OBS Studio");
     }
 }

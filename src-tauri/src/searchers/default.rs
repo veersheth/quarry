@@ -221,8 +221,8 @@ fn make_header(label: &str) -> ResultItem {
 }
 
 /// Build a ResultItem for a usage entry, inferring the action and icon from the
-/// stable action_id prefix. Returns None for entries that shouldn't appear on the
-/// home screen (clipboard copies, rofi, internal functions).
+/// stable action_id prefix. Returns None for entries that no longer correspond
+/// to a live app, file, bookmark, or shortcut.
 fn item_from_usage(
     entry: &crate::usage_tracker::UsageEntry,
     app_by_name: &std::collections::HashMap<String, &ResultItem>,
@@ -247,10 +247,6 @@ fn item_from_usage(
         return None;
     }
 
-    if let Some(item) = crate::ACTION_REGISTRY.get_cached_result_item(&entry.name, id) {
-        return Some(item);
-    }
-
     // Reuse the canonical file result so recents get the same context actions
     // as the file searcher (open in folder, trash, copy path, and so on).
     let file_key = (entry.name.to_lowercase(), id.to_string());
@@ -260,25 +256,14 @@ fn item_from_usage(
 
     if id.starts_with("app:") {
         let key = entry.name.to_lowercase();
-        if let Some(&app) = app_by_name.get(&key) {
-            return Some(app.clone());
-        }
-        // App was removed — show ghost entry with just the name
-        let exec = id.trim_start_matches("app:");
-        return Some(ResultItem::new(
-            entry.name.clone(),
-            vec![Action::new(
-                "Launch",
-                ActionData::LaunchApp {
-                    executable: exec.to_string(),
-                    args: vec![],
-                },
-            )],
-        ));
+        return app_by_name.get(&key).map(|&app| app.clone());
     }
 
     if id.starts_with("script:") {
         let path = id.trim_start_matches("script:").to_string();
+        if !std::path::Path::new(&path).is_file() {
+            return None;
+        }
         return Some(
             ResultItem::new(
                 entry.name.clone(),
@@ -298,23 +283,7 @@ fn item_from_usage(
     }
 
     if id.starts_with("url:") {
-        // Prefer the live shortcut/bookmark item to preserve its icon and full action list
-        if let Some(&live) = shortcut_by_id.get(id) {
-            return Some(live.clone());
-        }
-        let url = id.trim_start_matches("url:").to_string();
-        let icon = if url.starts_with("file://") {
-            super::ICON_FILE
-        } else {
-            super::ICON_BOOKMARK
-        };
-        return Some(
-            ResultItem::new(
-                entry.name.clone(),
-                vec![Action::new("Open", ActionData::OpenUrl { url })],
-            )
-            .icon(icon),
-        );
+        return shortcut_by_id.get(id).map(|&live| live.clone());
     }
 
     // For fn: and shell: entries, only show items that match a live shortcut.
@@ -551,5 +520,31 @@ impl SearchProvider for DefaultSearcher {
         }
 
         SearchResult::list(combined)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expired_timer_actions_do_not_reappear_in_home_recents() {
+        let apps = std::collections::HashMap::new();
+        let shortcuts = std::collections::HashMap::new();
+        let files = std::collections::HashMap::new();
+        for id in [
+            "fn:start_timer:5",
+            "fn:show_modal:Cancel Timer?,Yes|danger|fn:cancel_timer:123",
+            "fn:cancel_timer:123",
+        ] {
+            let entry = crate::usage_tracker::UsageEntry {
+                query: "timer 5s".into(),
+                action_id: id.into(),
+                name: "Timer".into(),
+                last_used: 0,
+                count: 1,
+            };
+            assert!(item_from_usage(&entry, &apps, &shortcuts, &files).is_none());
+        }
     }
 }

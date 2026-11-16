@@ -26,7 +26,7 @@
     bookmarkCreatorOpen,
     bookmarkBeingEdited,
   } from "../stores/search";
-  import { search } from "../lib/searcher";
+  import { refreshSearchInPlace, search } from "../lib/searcher";
   import { handleKeydown } from "../lib/keyHandler";
   import { addToast, toasts } from "../stores/toasts";
   import RenderClipboard from "$lib/RenderClipboard.svelte";
@@ -234,8 +234,17 @@
         if (focused) {
           mouseHasMoved.set(false);
           refresh();
+          if (!rofiMode && ($query === "" || $searcherName === "Timer")) {
+            void refreshSearchInPlace($query);
+          }
         } else if (rofiMode) {
           cancelRofi();
+        }
+      });
+
+      const unlistenTimers = await listen("quarry-timers-changed", () => {
+        if (!rofiMode && ($query === "" || $searcherName === "Timer")) {
+          void refreshSearchInPlace($query);
         }
       });
 
@@ -371,6 +380,7 @@
 
       cleanup = () => {
         unlisten();
+        unlistenTimers();
         unlistenModal();
         unlistenCreateBookmark();
         unlistenEditBookmark();

@@ -87,7 +87,7 @@ export async function search(query: string): Promise<SearchResult | null> {
 export async function refreshSearchInPlace(query: string) {
   const selectedIndex = get(activeIndex);
   const result = await search(query);
-  if (!result) return;
+  if (!result || get(searchQuery) !== query) return;
   resultItems.set(result.results);
   resultType.set(result.result_type);
   searcherName.set(result.searcher ?? "");

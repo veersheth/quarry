@@ -45,15 +45,6 @@ pub fn execute(
         return Ok(format!("set-query:{}", query));
     }
 
-    let parent_item = ACTION_REGISTRY.get_parent_item(&action_id);
-    let cache_parent = !matches!(
-        &action_data,
-        ActionData::CopyToClipboard { .. }
-            | ActionData::PasteToApp { .. }
-            | ActionData::CopyImageToClipboard { .. }
-            | ActionData::CopyImageFile { .. }
-    );
-
     let tag = match &action_data {
         ActionData::PasteToApp { .. } => "paste",
         ActionData::CopyToClipboard { .. } | ActionData::CopyImageToClipboard { .. } => "copied",
@@ -71,7 +62,8 @@ pub fn execute(
         }
         ActionData::RunFunction { function_name, .. }
             if function_name == "disable_clipboard_tracking"
-                || function_name == "stop_file_index" =>
+                || function_name == "stop_file_index"
+                || function_name == "cancel_timer" =>
         {
             "refresh"
         }
@@ -122,11 +114,6 @@ pub fn execute(
         if let Ok(mut history) = USAGE_HISTORY.write() {
             let display_name = name.as_deref().unwrap_or(&action_id);
             history.record_usage(&query, &stable_id, display_name);
-        }
-        if cache_parent {
-            if let Some(item) = parent_item {
-                ACTION_REGISTRY.cache_result_item(&item);
-            }
         }
     }
 
